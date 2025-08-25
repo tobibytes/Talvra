@@ -389,7 +389,7 @@
             "title": "feat(ingestion): T043 pluggable storage (LocalFs + Azure Blob/Azurite)",
             "body": "What: storage abstraction and Azure adapter. How: env selects provider. Tests: Azurite run and fetch URLs."
           },
-          "completed": false
+          "completed": true
         }
       ]
     },
