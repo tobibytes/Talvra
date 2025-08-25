@@ -91,6 +91,23 @@ services:
     ports:
       - "5173:5173"
 
+  ingestion-service:
+    build:
+      context: ..
+      dockerfile: services/ingestion-service/Dockerfile
+    container_name: talvra_ingestion_service
+    environment:
+      INGESTION_SERVICE_HOST: 0.0.0.0
+      INGESTION_SERVICE_PORT: 4010
+      REDIS_URL: redis://redis:6379
+      INGEST_STREAM: ingest.request
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    ports:
+      - "4010:4010"
+
   canvas-service:
     build:
       context: ..
