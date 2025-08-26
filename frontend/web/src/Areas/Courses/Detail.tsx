@@ -22,6 +22,13 @@ async function postJSON<T>(url: string, body?: any): Promise<T> {
   return (await res.json()) as T;
 }
 
+// Kickoff helper: POST with no JSON body or content-type header
+async function postKickoff<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include', method: 'POST' });
+  if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
+  return (await res.json()) as T;
+}
+
 interface DocRow {
   doc_id: string;
   title: string | null;
@@ -48,8 +55,20 @@ export default function CourseDetailArea() {
   const [assignments, setAssignments] = useState<AssignmentRow[] | null>(null);
   const [errorDocs, setErrorDocs] = useState<string | null>(null);
   const [errorAssign, setErrorAssign] = useState<string | null>(null);
-  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false); // busy only for kickoff
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  // Async job state
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [job, setJob] = useState<null | {
+    status: 'pending' | 'running' | 'completed' | 'failed' | string;
+    processed: number;
+    skipped: number;
+    errors: number;
+    created_at?: string | null;
+    started_at?: string | null;
+    finished_at?: string | null;
+    error_message?: string | null;
+  }>(null);
 
   async function loadDocs(cancelledFlag?: { v: boolean }) {
     setErrorDocs(null);
@@ -75,45 +94,104 @@ export default function CourseDetailArea() {
     }
   }
 
-  async function syncNow() {
-    setSyncBusy(true);
-    setSyncMsg(null);
-    try {
-      const res = await postJSON<{ ok: true; result: { course_id: string; processed: number; skipped: number } }>(
-        `${API_BASE}/api/canvas/sync/course/${encodeURIComponent(courseId || '')}`,
-        {}
-      );
-      setSyncMsg(`Sync done: processed ${res.result.processed}, skipped ${res.result.skipped} for course ${res.result.course_id}.`);
-      await Promise.all([loadDocs(), loadAssignments()]);
-    } catch (e: any) {
-      setSyncMsg(`Sync failed: ${String(e?.message || e)}`);
-    } finally {
-      setSyncBusy(false);
-    }
+async function syncNow() {
+  if (!courseId) return;
+  setSyncBusy(true);
+  setSyncMsg(null);
+  try {
+    // Kick off async job and return immediately
+    const res = await postKickoff<{ ok: true; job_id: string; existing?: boolean }>(
+      `${API_BASE}/api/canvas/sync/course/${encodeURIComponent(courseId)}/start`
+    );
+    const jid = res.job_id;
+    setJobId(jid);
+    // Persist in localStorage so we can restore after navigation
+    try { localStorage.setItem(`canvasSyncJob:${courseId}`, JSON.stringify({ job_id: jid, ts: Date.now() })); } catch {}
+    setSyncMsg(res.existing ? 'Sync already running…' : 'Sync started…');
+  } catch (e: any) {
+    setSyncMsg(`Sync kickoff failed: ${String(e?.message || e)}`);
+  } finally {
+    setSyncBusy(false);
   }
+}
 
-  useEffect(() => {
-    let cancelled = { v: false };
-    if (courseId) {
-      void loadDocs(cancelled);
-      void loadAssignments(cancelled);
+useEffect(() => {
+  let cancelled = { v: false };
+  if (courseId) {
+    void loadDocs(cancelled);
+    void loadAssignments(cancelled);
+    // Restore active job if present
+    try {
+      const raw = localStorage.getItem(`canvasSyncJob:${courseId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { job_id: string };
+        if (parsed?.job_id) setJobId(parsed.job_id);
+      }
+    } catch {}
+  }
+  return () => { cancelled.v = true };
+}, [courseId]);
+
+// Poll job status when jobId is set
+useEffect(() => {
+  if (!jobId || !courseId) return;
+  let stopped = false;
+  const interval = setInterval(async () => {
+    try {
+      const s = await fetchJSON<{ ok: true; job: any }>(`${API_BASE}/api/canvas/sync/status/${encodeURIComponent(jobId)}`);
+      if (stopped) return;
+      const j = s.job || {};
+      setJob({
+        status: j.status,
+        processed: Number(j.processed || 0),
+        skipped: Number(j.skipped || 0),
+        errors: Number(j.errors || 0),
+        created_at: j.created_at ?? null,
+        started_at: j.started_at ?? null,
+        finished_at: j.finished_at ?? null,
+        error_message: j.error_message ?? null,
+      });
+      if (j.status === 'completed' || j.status === 'failed') {
+        clearInterval(interval);
+        try { localStorage.removeItem(`canvasSyncJob:${courseId}`); } catch {}
+        // Refresh data on completion
+        await Promise.all([loadDocs(), loadAssignments()]);
+      }
+    } catch (e) {
+      // If status not found, stop polling (job expired)
+      clearInterval(interval);
+      try { localStorage.removeItem(`canvasSyncJob:${courseId}`); } catch {}
     }
-    return () => { cancelled.v = true };
-  }, [courseId]);
+  }, 1500);
+  return () => { stopped = true; clearInterval(interval); };
+}, [jobId, courseId]);
 
   return (
     <TalvraSurface>
       <TalvraStack>
         <TalvraText as="h1">Course {courseId}</TalvraText>
 
-        <TalvraStack>
+<TalvraStack>
           <TalvraText as="h2">Documents</TalvraText>
           <TalvraStack>
-            <TalvraButton disabled={syncBusy} onClick={syncNow}>
-              {syncBusy ? 'Syncing…' : 'Sync now'}
+            <TalvraButton disabled={syncBusy || (job && (job.status === 'pending' || job.status === 'running'))} onClick={syncNow}>
+              {syncBusy ? 'Starting…' : (job && (job.status === 'pending' || job.status === 'running')) ? 'Sync in progress…' : 'Sync now'}
             </TalvraButton>
             {syncMsg && <TalvraText>{syncMsg}</TalvraText>}
           </TalvraStack>
+          {job && (
+            <TalvraCard>
+              <TalvraStack>
+                <TalvraText>
+                  Sync status: {job.status}
+                  {job.status === 'failed' && job.error_message ? ` — ${job.error_message}` : ''}
+                </TalvraText>
+                <TalvraText style={{ color: '#64748b' }}>
+                  processed {job.processed} • skipped {job.skipped} • errors {job.errors}
+                </TalvraText>
+              </TalvraStack>
+            </TalvraCard>
+          )}
           {errorDocs && <TalvraText>Error loading documents: {errorDocs}</TalvraText>}
           <TalvraCard>
             <TalvraStack>
