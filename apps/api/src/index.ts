@@ -11,8 +11,10 @@ import {
   RetryableIngestError,
   stuckDocuments,
 } from "./ingest/process.js";
+import { emailSender } from "./lib/email.js";
 import { extractorFor } from "./lib/extractor.js";
 import { publishAidToHub, publishDocumentToHub } from "./realtime/hub.js";
+import { planNotifications, sendPending } from "./reminders/engine.js";
 import { searchDepsFor } from "./routes/search.js";
 import { launchWorkflow } from "./routes/sync.js";
 import { indexDocument } from "./search/engine.js";
@@ -62,6 +64,20 @@ function ingestDeps(env: Bindings): IngestDeps {
   };
 }
 
+/** Cron: plan due reminders and digests, then send what's due. */
+async function runReminders(env: Bindings) {
+  if (!env.HYPERDRIVE) return;
+  const db = createDb(env.HYPERDRIVE.connectionString);
+  const planned = await planNotifications(db);
+  const sent = await sendPending({
+    db,
+    send: emailSender(env),
+    appUrl: env.APP_URL,
+    secret: env.BETTER_AUTH_SECRET,
+  });
+  if (planned || sent) console.log(JSON.stringify({ msg: "reminders tick", planned, sent }));
+}
+
 /** Cron: re-enqueue documents stuck for 30+ minutes (lost message, crashed consumer). */
 async function sweepStuckDocuments(env: Bindings) {
   if (!env.HYPERDRIVE || !env.INGEST_QUEUE) return;
@@ -73,9 +89,13 @@ async function sweepStuckDocuments(env: Bindings) {
 
 export default {
   fetch: app.fetch,
-  scheduled(_controller, env, ctx) {
-    ctx.waitUntil(scheduledSync(env));
-    ctx.waitUntil(sweepStuckDocuments(env));
+  scheduled(controller, env, ctx) {
+    // Every 15 minutes: reminders (time-sensitive). Every 30: sync + sweeps.
+    ctx.waitUntil(runReminders(env));
+    if (new Date(controller.scheduledTime).getUTCMinutes() % 30 === 0) {
+      ctx.waitUntil(scheduledSync(env));
+      ctx.waitUntil(sweepStuckDocuments(env));
+    }
   },
   /** Two queues: ingest (download → extract) and ai (study aids with Claude). */
   async queue(batch, env) {

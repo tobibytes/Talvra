@@ -57,6 +57,13 @@
       "when": 1792787163902,
       "tag": "0007_homework",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792787941248,
+      "tag": "0008_reminders",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,13 @@
 import type { Bindings } from "../env.js";
 
-export type Email = { to: string; subject: string; text: string; html: string };
+export type Email = {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  /** Extra headers, e.g. List-Unsubscribe. */
+  headers?: Record<string, string>;
+};
 export type SendEmail = (email: Email) => Promise<void>;
 
 /**

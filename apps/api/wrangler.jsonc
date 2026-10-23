@@ -79,8 +79,8 @@
       "instance_type": "standard-1"
     }
   ],
-  // Every 30 minutes: incremental sync for users whose data is older than 6 hours.
-  "triggers": { "crons": ["*/30 * * * *"] },
+  // Every 15 minutes: reminders; every 30 (in code): incremental sync + stuck-document sweep.
+  "triggers": { "crons": ["*/15 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
   //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY,
   //   ANTHROPIC_API_KEY
@@ -142,7 +142,7 @@
           "instance_type": "standard-1"
         }
       ],
-      "triggers": { "crons": ["*/30 * * * *"] }
+      "triggers": { "crons": ["*/15 * * * *"] }
     }
   }
 }

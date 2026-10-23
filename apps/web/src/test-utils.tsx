@@ -6,6 +6,7 @@ import type {
   HomeworkItem,
   Me,
   PlanStep,
+  ReminderPrefs,
   StudyAid,
   SyncRun,
 } from "@talvra/contracts";
@@ -226,6 +227,7 @@ export function makeHomework(overrides: Partial<HomeworkItem> = {}): HomeworkIte
 export function fakeApi(state: {
   me: Me | null;
   homework?: HomeworkItem[];
+  reminderPrefs?: ReminderPrefs;
   plan?: PlanStep[];
   runs?: SyncRun[];
   courses?: Course[];
@@ -498,6 +500,36 @@ export function fakeApi(state: {
       const source = url.searchParams.get("source");
       return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
     }
+    if (p === "/api/v1/reminders" || p === "/api/v1/reminders/prefs") {
+      state.reminderPrefs ??= {
+        emailEnabled: true,
+        offsets: [1440, 180],
+        digestEnabled: true,
+        digestHour: 7,
+        timezone: "America/New_York",
+        quietStart: 22,
+        quietEnd: 7,
+      };
+      const prefs = state.reminderPrefs;
+      if (method === "PUT") Object.assign(prefs, body);
+      return json({
+        prefs,
+        upcoming: prefs.emailEnabled
+          ? [
+              {
+                assignmentId: ASSIGNMENT_ID,
+                assignmentName: "Lab 2: reverse an array",
+                courseName: "COSC 220",
+                dueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+                remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+                offsetMinutes: 1440,
+              },
+            ]
+          : [],
+        history: [],
+      });
+    }
+    if (p === "/api/v1/reminders/test") return json({ sentTo: state.me?.user.email ?? "" });
     if (p === "/api/v1/homework") return json({ items: state.homework ?? [] });
     if (p === "/api/v1/today") {
       const items = state.homework ?? [];
