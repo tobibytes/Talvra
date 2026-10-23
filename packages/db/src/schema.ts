@@ -243,6 +243,11 @@ export const assignments = pgTable(
     submissionTypes: text("submission_types").array().notNull().default(sql`'{}'::text[]`),
     published: boolean("published").notNull().default(true),
     htmlUrl: text("html_url"),
+    /** The student's submission, from Canvas: unsubmitted | submitted | graded | pending_review. */
+    submissionState: text("submission_state"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    missing: boolean("missing").notNull().default(false),
+    late: boolean("late").notNull().default(false),
     /** Canvas `updated_at`; unchanged means the incremental sync skips the row. */
     canvasUpdatedAt: timestamp("canvas_updated_at", { withTimezone: true }),
     createdAt: createdAt(),
@@ -533,4 +538,53 @@ export const usageEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("usage_events_user_kind_time_idx").on(t.userId, t.kind, t.createdAt)],
+);
+
+export const briefStatus = pgEnum("brief_status", ["generating", "ready", "failed"]);
+
+/**
+ * Claude's reading of an assignment: what's asked, deliverables, constraints,
+ * rubric points, questions to ask the instructor. Never the answer.
+ */
+export const assignmentBriefs = pgTable(
+  "assignment_briefs",
+  {
+    id: id(),
+    userId: owner(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    status: briefStatus("status").notNull().default("generating"),
+    content: jsonb("content"),
+    error: text("error"),
+    model: text("model"),
+    /** sha256 of the assignment text + prompt version: unchanged means reuse. */
+    inputSha256: text("input_sha256"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("assignment_briefs_assignment_idx").on(t.userId, t.assignmentId)],
+);
+
+/** The student's own plan for an assignment: ordered, checkable steps. */
+export const planSteps = pgTable(
+  "plan_steps",
+  {
+    id: id(),
+    userId: owner(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail"),
+    estimateMinutes: integer("estimate_minutes"),
+    /** Day the student means to do it (local date, no time). */
+    plannedFor: text("planned_for"),
+    done: boolean("done").notNull().default(false),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("plan_steps_assignment_idx").on(t.userId, t.assignmentId, t.position)],
 );

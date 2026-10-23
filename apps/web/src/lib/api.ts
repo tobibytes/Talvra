@@ -3,7 +3,9 @@ import {
   type AskEvent,
   AskEvent as AskEventSchema,
   type AskInput,
+  AssignmentDetail,
   AssignmentList,
+  BriefResponse,
   CanvasCourseList,
   type ConnectCanvas,
   ConnectCanvasResult,
@@ -18,15 +20,20 @@ import {
   DocumentList,
   FlashcardList,
   Health,
+  HomeworkList,
   Me,
+  Plan,
+  PlanSuggestion,
   PublicConfig,
   ReviewResult,
+  type SavePlan,
   SearchResult,
   StudyAid,
   type StudyAidKind,
   StudySummary,
   SyncRun,
   SyncRunList,
+  Today,
   type UpdateMe,
 } from "@talvra/contracts";
 import { z } from "zod";
@@ -153,6 +160,25 @@ export const api = {
     if (params.limit) q.set("limit", String(params.limit));
     return request(`/v1/search?${q}`, SearchResult);
   },
+  homework: (params: { courseId?: string; scope?: "open" | "all" } = {}) => {
+    const q = new URLSearchParams();
+    if (params.courseId) q.set("courseId", params.courseId);
+    if (params.scope) q.set("scope", params.scope);
+    return request(`/v1/homework?${q}`, HomeworkList);
+  },
+  assignment: (id: string) => request(`/v1/homework/${id}`, AssignmentDetail),
+  brief: (id: string) => request(`/v1/homework/${id}/brief`, BriefResponse),
+  makeBrief: (id: string, regenerate = false) =>
+    request(`/v1/homework/${id}/brief`, BriefResponse, { method: "POST", json: { regenerate } }),
+  resources: (id: string) => request(`/v1/homework/${id}/resources`, SearchResult),
+  plan: (id: string) => request(`/v1/homework/${id}/plan`, Plan),
+  savePlan: (id: string, body: SavePlan) =>
+    request(`/v1/homework/${id}/plan`, Plan, { method: "PUT", json: body }),
+  toggleStep: (id: string, stepId: string, done: boolean) =>
+    request(`/v1/homework/${id}/plan/${stepId}`, Plan, { method: "PATCH", json: { done } }),
+  suggestPlan: (id: string) =>
+    request(`/v1/homework/${id}/plan/suggest`, PlanSuggestion, { method: "POST" }),
+  today: (date: string) => request(`/v1/today?date=${date}`, Today),
   /** Streams an answer; calls `onEvent` for each server-sent event. */
   ask: async (input: AskInput, onEvent: (e: AskEvent) => void, signal?: AbortSignal) => {
     const res = await fetch(`${API_BASE}/v1/ask`, {

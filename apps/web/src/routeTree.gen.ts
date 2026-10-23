@@ -14,7 +14,6 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppGalleryRouteImport } from './routes/_app/gallery'
-import { Route as AppHomeworkRouteImport } from './routes/_app/homework'
 import { Route as AppRemindersRouteImport } from './routes/_app/reminders'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
@@ -27,6 +26,8 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppCoursesIndexRouteImport } from './routes/_app/courses/index'
 import { Route as AppCoursesCourseIdRouteImport } from './routes/_app/courses/$courseId'
 import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app/documents/$documentId'
+import { Route as AppHomeworkIndexRouteImport } from './routes/_app/homework.index'
+import { Route as AppHomeworkAssignmentIdRouteImport } from './routes/_app/homework.$assignmentId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -49,11 +50,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppGalleryRoute = AppGalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeworkRoute = AppHomeworkRouteImport.update({
-  id: '/homework',
-  path: '/homework',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRemindersRoute = AppRemindersRouteImport.update({
@@ -116,12 +112,21 @@ const AppDocumentsDocumentIdRoute = AppDocumentsDocumentIdRouteImport.update({
   path: '/documents/$documentId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHomeworkIndexRoute = AppHomeworkIndexRouteImport.update({
+  id: '/homework/',
+  path: '/homework/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeworkAssignmentIdRoute = AppHomeworkAssignmentIdRouteImport.update({
+  id: '/homework/$assignmentId',
+  path: '/homework/$assignmentId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/onboarding': typeof OnboardingRoute
   '/gallery': typeof AppGalleryRoute
-  '/homework': typeof AppHomeworkRoute
   '/reminders': typeof AppRemindersRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -133,13 +138,14 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/homework/$assignmentId': typeof AppHomeworkAssignmentIdRoute
   '/courses/': typeof AppCoursesIndexRoute
+  '/homework/': typeof AppHomeworkIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/onboarding': typeof OnboardingRoute
   '/gallery': typeof AppGalleryRoute
-  '/homework': typeof AppHomeworkRoute
   '/reminders': typeof AppRemindersRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -151,7 +157,9 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/homework/$assignmentId': typeof AppHomeworkAssignmentIdRoute
   '/courses': typeof AppCoursesIndexRoute
+  '/homework': typeof AppHomeworkIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -159,7 +167,6 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/_app/gallery': typeof AppGalleryRoute
-  '/_app/homework': typeof AppHomeworkRoute
   '/_app/reminders': typeof AppRemindersRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/search': typeof AppSearchRoute
@@ -172,7 +179,9 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/_app/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/_app/homework/$assignmentId': typeof AppHomeworkAssignmentIdRoute
   '/_app/courses/': typeof AppCoursesIndexRoute
+  '/_app/homework/': typeof AppHomeworkIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,7 +189,6 @@ export interface FileRouteTypes {
     | '/'
     | '/onboarding'
     | '/gallery'
-    | '/homework'
     | '/reminders'
     | '/review'
     | '/search'
@@ -192,13 +200,14 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/courses/$courseId'
     | '/documents/$documentId'
+    | '/homework/$assignmentId'
     | '/courses/'
+    | '/homework/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/onboarding'
     | '/gallery'
-    | '/homework'
     | '/reminders'
     | '/review'
     | '/search'
@@ -210,14 +219,15 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/courses/$courseId'
     | '/documents/$documentId'
+    | '/homework/$assignmentId'
     | '/courses'
+    | '/homework'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
     | '/onboarding'
     | '/_app/gallery'
-    | '/_app/homework'
     | '/_app/reminders'
     | '/_app/review'
     | '/_app/search'
@@ -230,7 +240,9 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/courses/$courseId'
     | '/_app/documents/$documentId'
+    | '/_app/homework/$assignmentId'
     | '/_app/courses/'
+    | '/_app/homework/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -274,13 +286,6 @@ declare module '@tanstack/react-router' {
       path: '/gallery'
       fullPath: '/gallery'
       preLoaderRoute: typeof AppGalleryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/homework': {
-      id: '/_app/homework'
-      path: '/homework'
-      fullPath: '/homework'
-      preLoaderRoute: typeof AppHomeworkRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reminders': {
@@ -367,12 +372,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDocumentsDocumentIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/homework/': {
+      id: '/_app/homework/'
+      path: '/homework'
+      fullPath: '/homework/'
+      preLoaderRoute: typeof AppHomeworkIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/homework/$assignmentId': {
+      id: '/_app/homework/$assignmentId'
+      path: '/homework/$assignmentId'
+      fullPath: '/homework/$assignmentId'
+      preLoaderRoute: typeof AppHomeworkAssignmentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppGalleryRoute: typeof AppGalleryRoute
-  AppHomeworkRoute: typeof AppHomeworkRoute
   AppRemindersRoute: typeof AppRemindersRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSearchRoute: typeof AppSearchRoute
@@ -380,12 +398,13 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppCoursesCourseIdRoute: typeof AppCoursesCourseIdRoute
   AppDocumentsDocumentIdRoute: typeof AppDocumentsDocumentIdRoute
+  AppHomeworkAssignmentIdRoute: typeof AppHomeworkAssignmentIdRoute
   AppCoursesIndexRoute: typeof AppCoursesIndexRoute
+  AppHomeworkIndexRoute: typeof AppHomeworkIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppGalleryRoute: AppGalleryRoute,
-  AppHomeworkRoute: AppHomeworkRoute,
   AppRemindersRoute: AppRemindersRoute,
   AppReviewRoute: AppReviewRoute,
   AppSearchRoute: AppSearchRoute,
@@ -393,7 +412,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppCoursesCourseIdRoute: AppCoursesCourseIdRoute,
   AppDocumentsDocumentIdRoute: AppDocumentsDocumentIdRoute,
+  AppHomeworkAssignmentIdRoute: AppHomeworkAssignmentIdRoute,
   AppCoursesIndexRoute: AppCoursesIndexRoute,
+  AppHomeworkIndexRoute: AppHomeworkIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
