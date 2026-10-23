@@ -27,7 +27,7 @@ services/media    Python container (ffmpeg + Azure TTS)                     sess
 | `infra/compose.dev.yml` | Local Postgres 16 |
 
 Legacy v1 code (`frontend/`, `services/`, `deploy/`, `migrations/`, old docs)
-is outside the pnpm workspace and is removed in session 10.
+is outside the pnpm workspace and is removed in the final session (see ROADMAP.md).
 
 ## Rules
 
