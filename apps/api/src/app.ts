@@ -14,6 +14,7 @@ import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
 import { health } from "./routes/health.js";
 import { meRoutes } from "./routes/me.js";
+import { type LaunchSync, launchWorkflow, syncRoutes } from "./routes/sync.js";
 
 export type AppOptions = {
   /** Tests inject a database instead of using Hyperdrive. */
@@ -24,6 +25,8 @@ export type AppOptions = {
   canvasFetch?: Fetch;
   /** Test-only shortcut that skips the session lookup. */
   userId?: string;
+  /** Tests run the sync inline instead of creating a Workflow instance. */
+  launchSync?: LaunchSync;
 };
 
 /**
@@ -39,7 +42,9 @@ export function createApp(opts: AppOptions = {}) {
   }).basePath("/api");
 
   app.use("*", requestId);
-  app.use("*", secureHeaders());
+  const secure = secureHeaders();
+  // A WebSocket upgrade response can't take extra headers; skip it.
+  app.use("*", (c, next) => (c.req.path === "/api/v1/sync/live" ? next() : secure(c, next)));
   app.use("*", async (c, next) => {
     const db = opts.db ?? (c.env.HYPERDRIVE ? createDb(c.env.HYPERDRIVE.connectionString) : null);
     if (db) c.set("db", db);
@@ -88,7 +93,9 @@ export function createApp(opts: AppOptions = {}) {
 
   app.route("/", health);
   app.route("/", configRoutes);
-  app.route("/v1", meRoutes);
+  const launch = opts.launchSync ?? launchWorkflow;
+  app.route("/v1", meRoutes(launch));
+  app.route("/v1", syncRoutes(launch));
   app.route("/v1", coursesRoutes);
   app.route("/v1", canvasRoutes(opts.canvasFetch));
 

@@ -1,4 +1,6 @@
 import type { Database } from "@talvra/db";
+import type { UserHub } from "./realtime/user-hub.js";
+import type { SyncParams } from "./sync/run.js";
 
 export type Bindings = {
   APP_ENV: "development" | "preview" | "production";
@@ -9,6 +11,10 @@ export type Bindings = {
   ALLOWED_EMAIL_DOMAINS: string;
   EMAIL_FROM: string;
   HYPERDRIVE?: Hyperdrive;
+  /** Durable Canvas sync (sync/workflow.ts). */
+  SYNC_WORKFLOW?: Workflow<SyncParams>;
+  /** One Durable Object per user: live sync progress over WebSocket. */
+  USER_HUB?: DurableObjectNamespace<UserHub>;
   // Secrets (wrangler secret put / .dev.vars)
   BETTER_AUTH_SECRET: string;
   /** base64 of 32 random bytes; encrypts Canvas tokens with AES-256-GCM. */

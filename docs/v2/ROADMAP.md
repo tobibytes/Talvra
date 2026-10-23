@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 3. Whoever picks this up: read this file, then
+Last updated at the end of session 4. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -10,8 +10,8 @@ Last updated at the end of session 3. Whoever picks this up: read this file, the
 | 1 | Foundation: monorepo, CI, Postgres schema (user-scoped), migrations, contracts, Hono skeleton | ✅ Done |
 | 2 | Design system: shadcn on Base UI, tokens/themes, app shell, ⌘K palette, gallery | ✅ Done |
 | 3 | Auth and onboarding: Better Auth, @morgan.edu only, sessions, guards, onboarding, account settings, Canvas connect | ✅ Done |
-| 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ⏭ **Next up** |
-| 5 | Ingestion: Python extract container, R2, signed uploads, processing status, Courses/Course/Document pages | Planned |
+| 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
+| 5 | Ingestion: Python extract container, R2, signed uploads, processing status, Document page | ⏭ **Next up** |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes, slides with Claude; versions; citations; streaming | Planned |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | Planned |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
@@ -65,120 +65,78 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 
 ---
 
-## Next up: session 4, Canvas sync
+## Session 4 notes (Canvas sync)
 
-Goal: after onboarding, the selected courses' modules, assignments, files and pages land in
-Postgres, the user watches it happen live, and it stays fresh on a schedule. **Downloading file
-bytes and text extraction are session 5**: this session stores file *metadata* only.
+What exists now:
 
-Test against real Canvas locally with your own token (this was built in a container that
-couldn't reach `morgan.instructure.com`, so session 3's Canvas code is only tested against a fake).
-Start by connecting a real token through the onboarding flow and checking `/api/v1/canvas/courses`.
+- `apps/api/src/lib/canvas.ts`: retries (429/5xx/network/403 "Rate Limit Exceeded") with full-jitter
+  backoff, honors `Retry-After`, slows down when `X-Rate-Limit-Remaining` is low. Endpoints: modules
+  (with items), assignments, files, folders, pages (+ bodies), single file.
+- `apps/api/src/sync/sync-course.ts`: `syncCourse()` upserts modules → module_items → assignments →
+  files (metadata) → pages (HTML inline in `documents.body_html`). Incremental on Canvas
+  `updated_at`, deletes what vanished. When a course hides its Files tab (403) it falls back to the
+  files linked from modules. A changed file goes back to `status = 'pending'`.
+- `apps/api/src/sync/run.ts`: `startSync()` (one in-flight run per user via a partial unique index → 409;
+  one manual run per minute → 429; runs older than 2h in flight are expired as `stale`) and
+  `executeSync(deps, params, step)`, which holds the whole flow. `sync/workflow.ts` only maps `step`
+  onto `step.do` (5 retries, exponential). Tests pass `(name, fn) => fn()`.
+- 401 anywhere → connection `invalid`, run `failed` / `canvas_token_invalid`, never retried. A course
+  that 403s/404s is marked failed without failing the run or retrying.
+- `realtime/user-hub.ts`: per-user DO (Hibernation API), keeps the last run snapshot, broadcasts.
+  `GET /api/v1/sync/live` checks the session **and the Origin** (cross-site WebSocket hijacking),
+  then forwards to the user's hub.
+- Cron `*/30`: `dueForScheduledSync()` (active connection, onboarded, nothing in flight, last success
+  > 6h ago, oldest first, 25 per tick).
+- Web: `SyncLiveProvider`/`useLatestRun()` (WebSocket with backoff; polls every 3s while a run is
+  active and the socket is down), `SyncStatusCard` on Today and Settings, Courses list, Course page
+  (`/courses/$courseId?tab=&module=`) with Modules / Files / Assignments (Dice UI data tables, URL
+  state via nuqs) / Study placeholder, onboarding "All set" shows the first sync live.
 
-### 1. Schema (`packages/db/src/schema.ts`, then `pnpm db:generate --name sync`)
+Learned the hard way (only visible in the real Workers runtime, now covered by tests and CLAUDE.md):
 
-- `assignments`: add `canvas_updated_at`, `unlock_at`, `lock_at`, `submission_types text[]`,
-  `published boolean`.
-- `documents`: add `canvas_updated_at`, `canvas_url` (the API url, not the download url; download
-  urls are short-lived), `folder_path`. Keep `status = 'pending'` for files (session 5 picks them up).
-  Canvas pages: store the HTML body in a new `documents.body_html` column (pages are small) with
-  `source = 'canvas_page'`.
-- New `module_items` (user-scoped, composite FK to courses and FK to modules): `canvas_id`,
-  `module_id`, `position`, `title`, `kind` (`file|page|assignment|external_url|subheader|quiz|discussion`),
-  `ref_canvas_id` (content id), `html_url`, `external_url`. This drives the Modules tab.
-- `sync_runs`: add `course_id` (nullable: null = whole-account run), `progress jsonb`
-  (`{ stage, coursesDone, coursesTotal, counts: { modules, assignments, files, pages } }`),
-  `error_code`. Partial unique index so only one run per user can be `queued|running`.
-- `courses.last_synced_at` already exists; set it per course when that course finishes.
+- **Canvas rejects API calls without a `User-Agent`** (403, "not provided a valid user agent"). Workers
+  sends none. We send `CANVAS_USER_AGENT`.
+- **workerd doesn't implement `redirect: "error"`**. We use `"manual"` and reject every 3xx.
+- **Never call `fetch` as a method** (`this.fetchImpl(...)`): workerd throws "Illegal invocation".
+  Session 3's connect flow had all three bugs; they only surfaced under `wrangler dev`.
 
-### 2. Canvas client (`apps/api/src/lib/canvas.ts`)
+Verified under `wrangler dev` against the real `morgan.instructure.com`: sign-up → live socket →
+start sync → real Canvas 401 → run fails with `canvas_token_invalid` within ~2s, pushed over the
+WebSocket, connection marked invalid; second start → 409; cross-origin socket refused. UI checked in
+Chrome in both themes and at 390px.
 
-- Retries: exponential backoff with jitter on 429/5xx/network errors (max ~5 tries). Honor
-  `Retry-After`. Canvas also sends `X-Rate-Limit-Remaining`; slow down when it gets low.
-- New methods (all paginated via `list`):
-  - `modules(courseId)`: `/courses/:id/modules?include[]=items&include[]=content_details`
-  - `assignments(courseId)`: `/courses/:id/assignments?order_by=due_at`
-  - `files(courseId)`: `/courses/:id/files`, which can 401/403 when the course hides Files; treat
-    403 as "no access", not a token failure.
-  - `pages(courseId)`: `/courses/:id/pages` then `/courses/:id/pages/:url` for bodies; only
-    refetch bodies when `updated_at` changed.
-- Keep the host allowlist, `redirect: "error"`, and same-host pagination checks.
+**Owner check still open:** a full sync with a *valid* token (no token was available to the agent).
+Connect yours in onboarding and confirm your courses' modules/files/assignments appear.
 
-### 3. Sync logic as plain functions (testable without Workers)
+Dice UI: vendored under `src/components/data-table`, `src/hooks/use-data-table.ts`,
+`src/lib/data-table-*.ts` (formatted, not linted, like `components/ui`). Local edit marked `Talvra`
+in `data-table-pagination.tsx` (result count instead of "0 rows selected"). Give each table its own
+`queryKeys` so two tables on one page don't share `page`/`sort` params.
 
-`apps/api/src/sync/` with `syncCourse(db, client, { userId, courseId }, report)`, which
-upserts modules → module_items → assignments → files → pages. Use `onConflictDoUpdate` on the
-`(user_id, ..., canvas_id)` unique indexes. Skip rows whose `canvas_updated_at` is unchanged
-(incremental). Delete rows that disappeared from Canvas for that course. `report(progress)` is a
-callback the workflow wires to the Durable Object. Unit-test with `createTestDb()` and a fake
-Canvas (extend the fake in `apps/api/test/canvas.test.ts`).
+---
 
-### 4. Workflow (`apps/api/src/sync/workflow.ts`)
+## Next up: session 5, Ingestion
 
-- `export class SyncWorkflow extends WorkflowEntrypoint<Bindings, { userId; syncRunId }>`.
-- `step.do("load", ...)`: decrypt the token, list selected courses.
-- One `step.do(\`course:${id}\`, { retries: { limit: 5, delay: "10 seconds", backoff: "exponential" } }, ...)`
-  per course: calls `syncCourse`. Steps are durable, so a crash resumes at the next course.
-- If Canvas returns 401 at any point: mark the connection `invalid`, fail the run with
-  `error_code = 'canvas_token_invalid'`, and stop. Don't retry 401s.
-- Final step: set `sync_runs.status/finished_at`, notify the Durable Object.
-- `wrangler.jsonc`: `"workflows": [{ "name": "talvra-sync", "binding": "SYNC_WORKFLOW", "class_name": "SyncWorkflow" }]`.
-  `src/index.ts` must export the class.
+Goal: every `pending` document becomes clean Markdown + structure in R2, with page/slide anchors for
+citations, and the user can open a Document page to read it.
 
-### 5. Live progress: per-user Durable Object (`apps/api/src/realtime/user-hub.ts`)
-
-- `UserHub` (`idFromName(userId)`), using the **WebSocket Hibernation API**
-  (`this.ctx.acceptWebSocket`).
-- `GET /api/v1/sync/live`: the Worker authenticates the session first, then forwards the upgrade
-  to the user's DO. Never let the client pick the DO id.
-- The workflow POSTs progress to the DO (internal `fetch` on the stub); the DO stores the last
-  snapshot (so a fresh connection gets current state) and broadcasts.
-- Binding: `"durable_objects": { "bindings": [{ "name": "USER_HUB", "class_name": "UserHub" }] }`
-  plus a `migrations` entry with `new_sqlite_classes: ["UserHub"]`.
-- The DO will also host per-user rate limits in session 11.
-
-### 6. API (`apps/api/src/routes/sync.ts`, schemas in `packages/contracts/src/sync.ts`)
-
-- `POST /api/v1/sync` → starts a run (409 if one is already queued/running; at most one manual
-  run per minute). Returns the run.
-- `GET /api/v1/sync/runs?limit=` and `GET /api/v1/sync/runs/:id`.
-- `GET /api/v1/sync/live` (WebSocket, above).
-- `GET /api/v1/courses/:id` (course + counts) and `GET /api/v1/courses/:id/modules`,
-  `/assignments`, `/documents`, for the Course page tabs. All user-scoped.
-- Onboarding "finish" (`POST /me/onboarding/complete`) should start the first run.
-
-### 7. Schedule
-
-- `"triggers": { "crons": ["*/30 * * * *"] }` and a `scheduled()` handler in `src/index.ts`
-  (export `{ fetch, scheduled }`).
-- Each tick: pick up to N users with an `active` connection whose last successful run is older than
-  6 hours (oldest first) and start a `schedule` run for each. Skip users with a run in flight.
-
-### 8. Web
-
-- Onboarding: after "Pick courses", the "All set" step shows the first sync live (stages and
-  counts per course) via the WebSocket, with a "Go to Today" button that works anytime.
-- `useSyncLive()` hook: connect to `/api/v1/sync/live`, reconnect with backoff, feed TanStack Query
-  (invalidate courses/assignments when a course finishes).
-- Today: a sync status card (last synced, "Sync now", errors like "Canvas token stopped working →
-  Replace token").
-- Courses page: real list of selected courses with last-synced time.
-- Course page `/courses/$courseId`: tabs Modules / Files / Assignments (Study is a placeholder for
-  session 6), a "last synced" line, filter by module. Use `@diceui` data table for Files and
-  Assignments (`npx shadcn add @diceui/data-table`; remember the `cn` import fix).
-- Settings → Canvas: "Sync now" and the last run's result.
-
-### 9. Tests
-
-- Unit: `syncCourse` against PGlite + fake Canvas (insert, incremental skip, deletion, 403 on
-  files, 401 → invalid), backoff honoring `Retry-After`, the one-run-at-a-time rule.
-- API: start/list runs, scoping (user B can't see A's runs or course data).
-- Workflows/DO: keep them thin. Optionally `@cloudflare/vitest-pool-workers` for one DO test.
-- Web: Course page tabs, sync card states (never synced / running / failed / ok), axe on the new
-  screens (add them to `app.test.tsx`).
-
-### Definition of done
-
-`pnpm check` green; a real sync of your own Morgan courses works locally via
-`wrangler dev` (Workflows and DOs run locally in Wrangler); progress shows live in onboarding; the
-Course page shows real modules/files/assignments; this file's status table and notes updated.
+1. **R2**: bucket `talvra-files` (binding `FILES`). Keys: `u/{userId}/d/{documentId}/original`,
+   `.../content.md`, `.../structure.json`, `.../media/{n}.{ext}`. Never public; the API streams them.
+2. **Queue**: `talvra-ingest` (binding `INGEST_QUEUE`), message `{ userId, documentId }`. Producer:
+   end of each course step in the sync (enqueue that course's `pending` docs) and uploads. Consumer
+   in the same Worker (`queue()` handler), batch size ~5, DLQ `talvra-ingest-dlq`.
+3. **Consumer**: re-check ownership and status; download the file from Canvas (`/files/:id` → `url`,
+   follow the one signed redirect to `*.instructure.com` / Canvas file CDN **explicitly allowlisted**),
+   stream to R2 with a size cap (100 MB), dedupe per user on sha256, set `downloading → extracting`.
+   Pages: HTML already in `body_html`, convert in the Worker (no container).
+4. **Extract container** (`services/extract`, Python 3.13, FastAPI + PyMuPDF + python-docx +
+   python-pptx; Docling optional): `POST /extract` with the R2 object streamed in, returns
+   `{ markdown, sections: [{ heading, text, page|slide }], pageCount }`. Cloudflare Containers binding
+   (`EXTRACT`); Azure Container Apps fallback with the same image. Never fetches URLs itself.
+5. **Upload**: `POST /api/v1/documents/uploads` → presigned R2 PUT (S3 API) or direct streaming
+   upload through the Worker (simpler; ≤100 MB). Course optional.
+6. **Status**: document status changes publish to the user's hub (reuse `UserHub.publish` with a
+   `document` message type) so the Files tab updates live.
+7. **Web**: Document page `/documents/$documentId` (rendered Markdown with an outline, original
+   download, status/progress, retry on failure), Files rows link to it, upload dialog.
+8. **Tests**: consumer with a fake R2/extractor; the container with pytest on fixture PDF/DOCX/PPTX.

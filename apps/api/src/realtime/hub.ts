@@ -1,0 +1,12 @@
+import type { SyncRun } from "@talvra/contracts";
+import type { Bindings } from "../env.js";
+
+/** The user's hub. The id always comes from the authenticated user id. */
+export function hubFor(env: Bindings, userId: string) {
+  if (!env.USER_HUB) return null;
+  return env.USER_HUB.get(env.USER_HUB.idFromName(userId));
+}
+
+export async function publishToHub(env: Bindings, userId: string, run: SyncRun) {
+  await hubFor(env, userId)?.publish(run);
+}

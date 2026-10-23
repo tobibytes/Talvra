@@ -25,7 +25,7 @@ export async function harness(opts: Omit<AppOptions, "db" | "sendEmail"> & { db?
 
   async function request(path: string, init: RequestInit & { json?: unknown } = {}) {
     const headers = new Headers(init.headers);
-    headers.set("origin", APP_URL);
+    if (!headers.has("origin")) headers.set("origin", APP_URL);
     if (cookies.size) headers.set("cookie", [...cookies].map(([k, v]) => `${k}=${v}`).join("; "));
     let body = init.body;
     if (init.json !== undefined) {

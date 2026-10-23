@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { SyncLiveProvider } from "@/hooks/use-sync-live";
 import { meQuery } from "@/lib/auth";
 
 /**
@@ -15,8 +16,10 @@ export const Route = createFileRoute("/_app")({
     return { me };
   },
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <SyncLiveProvider>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </SyncLiveProvider>
   ),
 });

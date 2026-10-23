@@ -1,12 +1,18 @@
 import {
   ApiError,
+  AssignmentList,
   CanvasCourseList,
   type ConnectCanvas,
   ConnectCanvasResult,
+  CourseDetail,
+  CourseDocumentList,
   CourseList,
+  CourseModuleList,
   Health,
   Me,
   PublicConfig,
+  SyncRun,
+  SyncRunList,
   type UpdateMe,
 } from "@talvra/contracts";
 import { z } from "zod";
@@ -83,4 +89,11 @@ export const api = {
     const qs = q.toString();
     return request(`/v1/courses${qs ? `?${qs}` : ""}`, CourseList);
   },
+  course: (id: string) => request(`/v1/courses/${id}`, CourseDetail),
+  courseModules: (id: string) => request(`/v1/courses/${id}/modules`, CourseModuleList),
+  courseAssignments: (id: string) => request(`/v1/courses/${id}/assignments`, AssignmentList),
+  courseDocuments: (id: string) => request(`/v1/courses/${id}/documents`, CourseDocumentList),
+  startSync: (courseId?: string) =>
+    request("/v1/sync", SyncRun, { method: "POST", json: courseId ? { courseId } : {} }),
+  syncRuns: (limit = 10) => request(`/v1/sync/runs?limit=${limit}`, SyncRunList),
 };

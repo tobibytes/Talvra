@@ -30,6 +30,15 @@
       "localConnectionString": "postgres://talvra:talvra@localhost:5432/talvra"
     }
   ],
+  // Durable Canvas sync (src/sync/workflow.ts).
+  "workflows": [
+    { "name": "talvra-sync", "binding": "SYNC_WORKFLOW", "class_name": "SyncWorkflow" }
+  ],
+  // One Durable Object per user for live sync progress (src/realtime/user-hub.ts).
+  "durable_objects": { "bindings": [{ "name": "USER_HUB", "class_name": "UserHub" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }],
+  // Every 30 minutes: incremental sync for users whose data is older than 6 hours.
+  "triggers": { "crons": ["*/30 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
   //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY
   "env": {
@@ -41,7 +50,17 @@
         "ALLOWED_EMAIL_DOMAINS": "morgan.edu",
         "EMAIL_FROM": "Talvra <hello@talvra.app>"
       },
-      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }]
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }],
+      // Bindings aren't inherited by environments; repeat them.
+      "workflows": [
+        {
+          "name": "talvra-sync-production",
+          "binding": "SYNC_WORKFLOW",
+          "class_name": "SyncWorkflow"
+        }
+      ],
+      "durable_objects": { "bindings": [{ "name": "USER_HUB", "class_name": "UserHub" }] },
+      "triggers": { "crons": ["*/30 * * * *"] }
     }
   }
 }

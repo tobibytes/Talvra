@@ -124,8 +124,11 @@ describe("onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     await screen.findByRole("heading", { name: "You're all set" });
-    expect(screen.getByText(/keep your course in sync/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Go to Today" }));
+    // Finishing setup starts the first sync; its progress shows here live.
+    expect(await screen.findByText(/Bringing in your course from Canvas/)).toBeInTheDocument();
+    expect(screen.getByText("COSC 220 Data Structures")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Sync progress" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Go to Today" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 

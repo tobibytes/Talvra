@@ -1,4 +1,4 @@
-import type { Me } from "@talvra/contracts";
+import type { Course, Me, SyncRun } from "@talvra/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
@@ -54,7 +54,49 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
  * A fake backend for the web tests: just enough of /api and Better Auth's
  * /api/auth to drive the real UI. `state.me = null` means signed out.
  */
-export function fakeApi(state: { me: Me | null }) {
+export const COURSE_ID = "11111111-1111-4111-8111-111111111111";
+export const MODULE_ID = "22222222-2222-4222-8222-222222222222";
+
+export function makeCourse(overrides: Partial<Course> = {}): Course {
+  return {
+    id: COURSE_ID,
+    canvasId: "101",
+    name: "COSC 220 Data Structures",
+    courseCode: "COSC 220",
+    term: "Fall 2026",
+    selected: true,
+    lastSyncedAt: "2026-10-23T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+const counts = { modules: 1, moduleItems: 3, assignments: 2, files: 1, pages: 1 };
+
+export function makeRun(overrides: Partial<SyncRun> = {}): SyncRun {
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    courseId: null,
+    trigger: "manual",
+    status: "succeeded",
+    progress: {
+      stage: "done",
+      coursesDone: 1,
+      coursesTotal: 1,
+      courses: [{ courseId: COURSE_ID, name: "COSC 220 Data Structures", state: "done", counts }],
+    },
+    stats: { ...counts, failedCourses: 0 },
+    error: null,
+    errorCode: null,
+    startedAt: "2026-10-23T12:00:00.000Z",
+    finishedAt: "2026-10-23T12:01:00.000Z",
+    createdAt: "2026-10-23T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function fakeApi(state: { me: Me | null; runs?: SyncRun[]; courses?: Course[] }) {
+  state.runs ??= [];
+  state.courses ??= [];
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const apiError = (status: number, code: string, message: string, details?: unknown) =>
@@ -146,7 +188,137 @@ export function fakeApi(state: { me: Me | null }) {
     }
     if (p === "/api/v1/me/onboarding/complete") {
       state.me = { ...me, onboarded: true };
+      state.runs?.unshift(
+        makeRun({
+          trigger: "onboarding",
+          status: "running",
+          finishedAt: null,
+          progress: {
+            stage: "courses",
+            coursesDone: 0,
+            coursesTotal: 1,
+            courses: [
+              {
+                courseId: COURSE_ID,
+                name: "COSC 220 Data Structures",
+                state: "running",
+                counts: { ...counts, files: 0, pages: 0 },
+              },
+            ],
+          },
+        }),
+      );
       return json(state.me);
+    }
+    if (p === "/api/v1/sync/runs") return json({ items: state.runs?.slice(0, 1) ?? [] });
+    if (p === "/api/v1/sync" && method === "POST") {
+      if (state.runs?.some((r) => r.status === "running" || r.status === "queued")) {
+        return apiError(409, "conflict", "A sync is already running.");
+      }
+      const run = makeRun({
+        id: crypto.randomUUID(),
+        status: "queued",
+        finishedAt: null,
+        createdAt: new Date().toISOString(),
+      });
+      state.runs?.unshift(run);
+      return json(run, 202);
+    }
+    if (p === `/api/v1/courses/${COURSE_ID}`) {
+      return json({ ...makeCourse(), counts: { modules: 1, assignments: 2, files: 1, pages: 1 } });
+    }
+    if (p === `/api/v1/courses/${COURSE_ID}/modules`) {
+      return json({
+        items: [
+          {
+            id: MODULE_ID,
+            name: "Week 1: Arrays",
+            position: 1,
+            items: [
+              {
+                id: crypto.randomUUID(),
+                title: "Lecture 1 slides",
+                kind: "file",
+                indent: 0,
+                documentId: null,
+                assignmentId: null,
+                htmlUrl: "https://morgan.instructure.com/courses/101/modules/items/11",
+                externalUrl: null,
+              },
+              {
+                id: crypto.randomUUID(),
+                title: "Readings",
+                kind: "subheader",
+                indent: 0,
+                documentId: null,
+                assignmentId: null,
+                htmlUrl: null,
+                externalUrl: null,
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (p === `/api/v1/courses/${COURSE_ID}/documents`) {
+      return json({
+        items: [
+          {
+            id: crypto.randomUUID(),
+            courseId: COURSE_ID,
+            moduleId: MODULE_ID,
+            source: "canvas_file",
+            title: "Lecture 1.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 2_400_000,
+            folderPath: "course files/Lectures",
+            status: "pending",
+            updatedAt: "2026-10-20T00:00:00.000Z",
+          },
+          {
+            id: crypto.randomUUID(),
+            courseId: COURSE_ID,
+            moduleId: null,
+            source: "canvas_page",
+            title: "Welcome to COSC 220",
+            mimeType: "text/html",
+            sizeBytes: 300,
+            folderPath: null,
+            status: "pending",
+            updatedAt: "2026-10-20T00:00:00.000Z",
+          },
+        ],
+      });
+    }
+    if (p === `/api/v1/courses/${COURSE_ID}/assignments`) {
+      return json({
+        items: [
+          {
+            id: crypto.randomUUID(),
+            courseId: COURSE_ID,
+            name: "Lab 1",
+            dueAt: "2099-11-01T03:59:00.000Z",
+            unlockAt: null,
+            lockAt: null,
+            pointsPossible: 10,
+            submissionTypes: ["online_upload"],
+            htmlUrl: "https://morgan.instructure.com/courses/101/assignments/301",
+            moduleIds: [MODULE_ID],
+          },
+          {
+            id: crypto.randomUUID(),
+            courseId: COURSE_ID,
+            name: "Homework 1",
+            dueAt: null,
+            unlockAt: null,
+            lockAt: null,
+            pointsPossible: null,
+            submissionTypes: [],
+            htmlUrl: null,
+            moduleIds: [],
+          },
+        ],
+      });
     }
     if (p === "/api/v1/canvas/connection" && method === "PUT") {
       if (body?.token !== GOOD_TOKEN) {
@@ -180,7 +352,7 @@ export function fakeApi(state: { me: Me | null }) {
         nextCursor: null,
       });
     }
-    if (p === "/api/v1/courses") return json({ items: [], nextCursor: null });
+    if (p === "/api/v1/courses") return json({ items: state.courses, nextCursor: null });
     return apiError(404, "not_found", `No fake for ${method} ${p}`);
   });
   vi.spyOn(globalThis, "fetch").mockImplementation(handler);

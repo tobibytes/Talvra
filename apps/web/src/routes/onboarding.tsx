@@ -4,9 +4,11 @@ import { Check, CircleCheck, LoaderCircle, LogOut } from "lucide-react";
 import * as React from "react";
 import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
 import { CoursePicker } from "@/components/canvas/course-picker";
+import { SyncProgress } from "@/components/sync/sync-progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useSignOut } from "@/components/user-menu";
+import { isActive, latestRunQuery, SyncLiveProvider, useLatestRun } from "@/hooks/use-sync-live";
 import { api } from "@/lib/api";
 import { meQuery } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -39,53 +41,55 @@ function Onboarding() {
   }, [step]);
 
   return (
-    <main className="min-h-dvh bg-muted/40 px-4 py-10">
-      <div className="mx-auto max-w-xl space-y-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Signed in as <span className="font-medium text-foreground">{me.user.email}</span>
-          </p>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut /> Sign out
-          </Button>
+    <SyncLiveProvider>
+      <main className="min-h-dvh bg-muted/40 px-4 py-10">
+        <div className="mx-auto max-w-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Signed in as <span className="font-medium text-foreground">{me.user.email}</span>
+            </p>
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut /> Sign out
+            </Button>
+          </div>
+
+          <Stepper current={step} />
+
+          <Card className="gap-6 p-6 sm:p-8">
+            {step === 0 ? (
+              <>
+                <StepHeading ref={headingRef} title={`Welcome, ${me.user.name.split(" ")[0]}`}>
+                  Connect your Canvas account so Talvra can bring in your courses, files and due
+                  dates.
+                </StepHeading>
+                <ConnectCanvasForm
+                  onConnected={(r) => {
+                    setCanvasName(r.canvasUserName);
+                    setStep(1);
+                  }}
+                />
+              </>
+            ) : step === 1 ? (
+              <>
+                <StepHeading ref={headingRef} title="Pick your courses">
+                  {canvasName ? `Connected as ${canvasName}. ` : ""}Choose the classes you want help
+                  with this term. You can change this later in Settings.
+                </StepHeading>
+                <CoursePicker
+                  submitLabel="Continue"
+                  onSaved={(n) => {
+                    setCourseCount(n);
+                    setStep(2);
+                  }}
+                />
+              </>
+            ) : (
+              <Finish ref={headingRef} courseCount={courseCount} />
+            )}
+          </Card>
         </div>
-
-        <Stepper current={step} />
-
-        <Card className="gap-6 p-6 sm:p-8">
-          {step === 0 ? (
-            <>
-              <StepHeading ref={headingRef} title={`Welcome, ${me.user.name.split(" ")[0]}`}>
-                Connect your Canvas account so Talvra can bring in your courses, files and due
-                dates.
-              </StepHeading>
-              <ConnectCanvasForm
-                onConnected={(r) => {
-                  setCanvasName(r.canvasUserName);
-                  setStep(1);
-                }}
-              />
-            </>
-          ) : step === 1 ? (
-            <>
-              <StepHeading ref={headingRef} title="Pick your courses">
-                {canvasName ? `Connected as ${canvasName}. ` : ""}Choose the classes you want help
-                with this term. You can change this later in Settings.
-              </StepHeading>
-              <CoursePicker
-                submitLabel="Continue"
-                onSaved={(n) => {
-                  setCourseCount(n);
-                  setStep(2);
-                }}
-              />
-            </>
-          ) : (
-            <Finish ref={headingRef} courseCount={courseCount} />
-          )}
-        </Card>
-      </div>
-    </main>
+      </main>
+    </SyncLiveProvider>
   );
 }
 
@@ -141,33 +145,70 @@ const StepHeading = React.forwardRef<
   </div>
 ));
 
+/**
+ * Finishing setup starts the first sync on the server. This step finishes
+ * setup as soon as it appears and then shows that sync live. "Go to Today"
+ * works anytime; the sync keeps running in the background.
+ */
 const Finish = React.forwardRef<HTMLHeadingElement, { courseCount: number }>(
   ({ courseCount }, ref) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const run = useLatestRun();
     const finish = useMutation({
       mutationFn: api.completeOnboarding,
       onSuccess: async (me) => {
         queryClient.setQueryData(meQuery.queryKey, me);
-        await navigate({ to: "/" });
+        await queryClient.invalidateQueries({ queryKey: latestRunQuery.queryKey });
       },
     });
+    const started = React.useRef(false);
+    React.useEffect(() => {
+      if (started.current) return;
+      started.current = true;
+      finish.mutate();
+    }, [finish]);
+
+    const r = run.data;
+    const syncing = isActive(r);
     return (
-      <div className="space-y-6 text-center">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/10 text-success">
-          <CircleCheck className="size-7" aria-hidden />
-        </span>
-        <StepHeading ref={ref} title="You're all set">
-          Talvra will keep {courseCount === 1 ? "your course" : `your ${courseCount} courses`} in
-          sync with Canvas. Your due dates and material will appear on Today.
-        </StepHeading>
-        {finish.isError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {finish.error.message}
+      <div className="space-y-6">
+        <div className="space-y-6 text-center">
+          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/10 text-success">
+            <CircleCheck className="size-7" aria-hidden />
+          </span>
+          <StepHeading ref={ref} title="You're all set">
+            {syncing
+              ? `Bringing in ${courseCount === 1 ? "your course" : `your ${courseCount} courses`} from Canvas. You can leave this page; it keeps going.`
+              : r?.status === "succeeded"
+                ? "Your courses are synced. Your due dates and material are ready."
+                : `Talvra will keep ${courseCount === 1 ? "your course" : `your ${courseCount} courses`} in sync with Canvas.`}
+          </StepHeading>
+        </div>
+        {finish.isPending ? (
+          <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Finishing setup…
           </p>
         ) : null}
-        <Button className="w-full" onClick={() => finish.mutate()} disabled={finish.isPending}>
-          {finish.isPending ? <LoaderCircle className="animate-spin" /> : null}
+        {r && finish.isSuccess ? <SyncProgress run={r} /> : null}
+        {r?.status === "failed" && finish.isSuccess ? (
+          <p role="alert" className="text-sm text-destructive">
+            {r.error ?? "The first sync didn't finish."} You can sync again from Today.
+          </p>
+        ) : null}
+        {finish.isError ? (
+          <div role="alert" className="space-y-2 text-center text-sm text-destructive">
+            <p>{finish.error.message}</p>
+            <Button variant="outline" size="sm" onClick={() => finish.mutate()}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
+        <Button
+          className="w-full"
+          onClick={() => navigate({ to: "/" })}
+          disabled={!finish.isSuccess}
+        >
           Go to Today
         </Button>
       </div>

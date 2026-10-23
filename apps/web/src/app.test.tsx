@@ -2,9 +2,10 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
 import { describe, expect, it } from "vitest";
 import { allNav } from "@/lib/nav";
-import { fakeApi, makeMe, renderApp } from "./test-utils";
+import { COURSE_ID, fakeApi, makeCourse, makeMe, makeRun, renderApp } from "./test-utils";
 
 const signedIn = () => fakeApi({ me: makeMe() });
+const withData = () => fakeApi({ me: makeMe(), courses: [makeCourse()], runs: [makeRun()] });
 
 describe("app shell", () => {
   it("links every page from the sidebar and marks the current one", async () => {
@@ -60,6 +61,10 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
   const pages: [string, () => void][] = [
     ["/", signedIn],
     ["/courses", signedIn],
+    ["/courses (with data)", withData],
+    [`/courses/${COURSE_ID}`, withData],
+    [`/courses/${COURSE_ID}?tab=files`, withData],
+    [`/courses/${COURSE_ID}?tab=assignments`, withData],
     ["/homework", signedIn],
     ["/search", signedIn],
     ["/reminders", signedIn],
@@ -74,7 +79,7 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
   for (const [path, setup] of pages) {
     it(`has no violations on ${path}`, async () => {
       setup();
-      const { container } = await renderApp(path);
+      const { container } = await renderApp(path.replace(" (with data)", ""));
       await screen.findByRole("heading", { level: 1 });
       // Let queries settle so we scan the loaded state, not just skeletons.
       await new Promise((r) => setTimeout(r, 50));

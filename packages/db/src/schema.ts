@@ -180,6 +180,52 @@ export const modules = pgTable(
   ],
 );
 
+export const moduleItemKind = pgEnum("module_item_kind", [
+  "file",
+  "page",
+  "assignment",
+  "quiz",
+  "discussion",
+  "external_url",
+  "external_tool",
+  "subheader",
+]);
+
+export type ModuleItemKind = (typeof moduleItemKind.enumValues)[number];
+
+/** The ordered contents of a Canvas module; drives the Modules tab. */
+export const moduleItems = pgTable(
+  "module_items",
+  {
+    id: id(),
+    userId: owner(),
+    courseId: uuid("course_id").notNull(),
+    moduleId: uuid("module_id")
+      .notNull()
+      .references(() => modules.id, { onDelete: "cascade" }),
+    canvasId: text("canvas_id").notNull(),
+    position: integer("position").notNull().default(0),
+    indent: integer("indent").notNull().default(0),
+    title: text("title").notNull(),
+    kind: moduleItemKind("kind").notNull(),
+    /** Canvas id of the linked file/assignment/etc., or the page url slug. */
+    refCanvasId: text("ref_canvas_id"),
+    htmlUrl: text("html_url"),
+    externalUrl: text("external_url"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("module_items_user_course_canvas_idx").on(t.userId, t.courseId, t.canvasId),
+    index("module_items_module_idx").on(t.moduleId, t.position),
+    foreignKey({
+      name: "module_items_course_owner_fk",
+      columns: [t.courseId, t.userId],
+      foreignColumns: [courses.id, courses.userId],
+    }).onDelete("cascade"),
+  ],
+);
+
 export const assignments = pgTable(
   "assignments",
   {
@@ -190,8 +236,14 @@ export const assignments = pgTable(
     name: text("name").notNull(),
     descriptionHtml: text("description_html"),
     dueAt: timestamp("due_at", { withTimezone: true }),
+    unlockAt: timestamp("unlock_at", { withTimezone: true }),
+    lockAt: timestamp("lock_at", { withTimezone: true }),
     pointsPossible: integer("points_possible"),
+    submissionTypes: text("submission_types").array().notNull().default(sql`'{}'::text[]`),
+    published: boolean("published").notNull().default(true),
     htmlUrl: text("html_url"),
+    /** Canvas `updated_at`; unchanged means the incremental sync skips the row. */
+    canvasUpdatedAt: timestamp("canvas_updated_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -235,6 +287,13 @@ export const documents = pgTable(
     status: documentStatus("status").notNull().default("pending"),
     error: text("error"),
     pageCount: integer("page_count"),
+    /** Canvas API url of the file/page (stable). Download urls are short-lived, so never stored. */
+    canvasUrl: text("canvas_url"),
+    /** Canvas folder, e.g. "course files/Lectures". */
+    folderPath: text("folder_path"),
+    /** Canvas pages are small: their HTML is stored inline. */
+    bodyHtml: text("body_html"),
+    canvasUpdatedAt: timestamp("canvas_updated_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -259,19 +318,60 @@ export const syncRunStatus = pgEnum("sync_run_status", [
   "failed",
 ]);
 
+export type SyncCounts = {
+  modules: number;
+  moduleItems: number;
+  assignments: number;
+  files: number;
+  pages: number;
+};
+
+export type SyncCourseProgress = {
+  courseId: string;
+  name: string;
+  state: "waiting" | "running" | "done" | "failed";
+  counts: SyncCounts;
+  /** Set when a course fails without failing the whole run (e.g. it was removed). */
+  error?: string;
+};
+
+export type SyncProgress = {
+  stage: "queued" | "loading" | "courses" | "finishing" | "done";
+  coursesDone: number;
+  coursesTotal: number;
+  courses: SyncCourseProgress[];
+};
+
 /** A durable record of each Canvas sync so progress survives restarts. */
 export const syncRuns = pgTable(
   "sync_runs",
   {
     id: id(),
     userId: owner(),
+    /** Null for a whole-account run; set to sync just one course. */
+    courseId: uuid("course_id"),
     trigger: text("trigger", { enum: ["manual", "onboarding", "schedule"] }).notNull(),
     status: syncRunStatus("status").notNull().default("queued"),
     stats: jsonb("stats").$type<Record<string, number>>().notNull().default({}),
+    progress: jsonb("progress").$type<SyncProgress | null>(),
     error: text("error"),
+    /** Machine-readable failure, e.g. "canvas_token_invalid". */
+    errorCode: text("error_code"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("sync_runs_user_created_idx").on(t.userId, t.createdAt)],
+  (t) => [
+    index("sync_runs_user_created_idx").on(t.userId, t.createdAt),
+    // At most one run in flight per user. Starting another while one is queued
+    // or running fails on this index, which the API turns into a 409.
+    uniqueIndex("sync_runs_one_active_idx")
+      .on(t.userId)
+      .where(sql`${t.status} in ('queued', 'running')`),
+    foreignKey({
+      name: "sync_runs_course_owner_fk",
+      columns: [t.courseId, t.userId],
+      foreignColumns: [courses.id, courses.userId],
+    }).onDelete("cascade"),
+  ],
 );
