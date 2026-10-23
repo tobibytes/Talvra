@@ -39,8 +39,29 @@ and install from these registries instead of guessing props.
 
 ## Notes
 
-- `components.json` uses `"style": "base-nova"` (shadcn on Base UI). If the CLI
-  rejects it, run `npx shadcn@latest init` and pick Base UI; it rewrites the file.
-- Components written in session 1 (`button`, `card`, `badge`, `skeleton`,
-  `tooltip`) were hand-written because the registry hosts were unreachable
-  from the build container. Session 2 can replace them with `shadcn add`.
+- `components.json` uses `"style": "base-nova"`: shadcn on Base UI. Confirmed against the registry.
+- Origin UI is now **coss ui**, under the `@coss` namespace (`npx shadcn add @coss/<name>`).
+- `apps/web/src/styles/app.css` must keep `@import "shadcn/tailwind.css"`. It defines
+  the `data-open`, `data-horizontal`, `data-selected` and other variants the components use.
+  Without it, tabs lay out sideways and every command palette item looks selected.
+- **CLI quirk:** `shadcn add` (4.22.1) wrote `import { cn } from "cn"` and added a
+  `cn` dependency. After adding components, run
+  `grep -rl 'from "cn"' src | xargs sed -i 's#from "cn"#from "@/lib/utils"#'` and remove `cn`
+  from `package.json`.
+- `src/components/ui/**` is vendored: Biome formats it but doesn't lint it, so updates
+  from upstream stay clean. Accessibility is checked at runtime by the axe tests in
+  `src/app.test.tsx`.
+- Talvra additions to vendored files are marked with a `Talvra` comment (currently
+  the `success` and `warning` badge variants).
+
+## App structure (session 2)
+
+| Piece | File |
+| --- | --- |
+| Shell: sidebar (desktop, collapses to icons), 5-tab bottom bar (mobile), top bar | `src/components/app-shell.tsx` |
+| Nav config shared by sidebar, tab bar and palette | `src/lib/nav.ts` |
+| ⌘K / Ctrl+K command palette | `src/components/command-palette.tsx` |
+| Light, dark and system themes (next-themes) | `src/components/theme.tsx` |
+| Page header, empty, error (with request id) and loading states | `src/components/page.tsx` |
+| Live API status in sidebar footer | `src/components/api-status.tsx` |
+| Component gallery | `/gallery` (`src/routes/gallery.tsx`) |

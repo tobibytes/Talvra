@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* Custom variants (data-open, data-horizontal, data-selected, …) the shadcn Base UI components rely on. */
+@import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
 @custom-variant dark (&:where(.dark, .dark *));
