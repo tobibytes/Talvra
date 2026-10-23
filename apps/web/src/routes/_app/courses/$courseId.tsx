@@ -5,6 +5,7 @@ import { z } from "zod";
 import { AssignmentsTable } from "@/components/course/assignments-table";
 import { FilesTable } from "@/components/course/files-table";
 import { ModulesTab } from "@/components/course/modules-tab";
+import { UploadButton } from "@/components/document/upload-dialog";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +142,7 @@ function CoursePage() {
                   <ExternalLink /> Canvas
                 </Button>
               ) : null}
+              <UploadButton courseId={courseId} />
               <SyncNowButton courseId={courseId} label="Sync course" />
             </>
           }

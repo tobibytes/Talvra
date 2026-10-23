@@ -2,7 +2,16 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
 import { describe, expect, it } from "vitest";
 import { allNav } from "@/lib/nav";
-import { COURSE_ID, fakeApi, makeCourse, makeMe, makeRun, renderApp } from "./test-utils";
+import {
+  COURSE_ID,
+  DOC_ID,
+  fakeApi,
+  makeCourse,
+  makeDocument,
+  makeMe,
+  makeRun,
+  renderApp,
+} from "./test-utils";
 
 const signedIn = () => fakeApi({ me: makeMe() });
 const withData = () => fakeApi({ me: makeMe(), courses: [makeCourse()], runs: [makeRun()] });
@@ -65,6 +74,15 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
     [`/courses/${COURSE_ID}`, withData],
     [`/courses/${COURSE_ID}?tab=files`, withData],
     [`/courses/${COURSE_ID}?tab=assignments`, withData],
+    [`/documents/${DOC_ID}`, () => fakeApi({ me: makeMe(), documents: [makeDocument()] })],
+    [
+      `/documents/${DOC_ID} (processing)`,
+      () => fakeApi({ me: makeMe(), documents: [makeDocument({ status: "downloading" })] }),
+    ],
+    [
+      `/documents/${DOC_ID} (failed)`,
+      () => fakeApi({ me: makeMe(), documents: [makeDocument({ status: "failed", error: "x" })] }),
+    ],
     ["/homework", signedIn],
     ["/search", signedIn],
     ["/reminders", signedIn],
@@ -79,7 +97,7 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
   for (const [path, setup] of pages) {
     it(`has no violations on ${path}`, async () => {
       setup();
-      const { container } = await renderApp(path.replace(" (with data)", ""));
+      const { container } = await renderApp(path.replace(/ \(.*\)$/, ""));
       await screen.findByRole("heading", { level: 1 });
       // Let queries settle so we scan the loaded state, not just skeletons.
       await new Promise((r) => setTimeout(r, 50));

@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 4. Whoever picks this up: read this file, then
+Last updated at the end of session 5. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -11,8 +11,8 @@ Last updated at the end of session 4. Whoever picks this up: read this file, the
 | 2 | Design system: shadcn on Base UI, tokens/themes, app shell, ⌘K palette, gallery | ✅ Done |
 | 3 | Auth and onboarding: Better Auth, @morgan.edu only, sessions, guards, onboarding, account settings, Canvas connect | ✅ Done |
 | 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
-| 5 | Ingestion: Python extract container, R2, signed uploads, processing status, Document page | ⏭ **Next up** |
-| 6 | AI study aids: notes, flashcards (FSRS), quizzes, slides with Claude; versions; citations; streaming | Planned |
+| 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
+| 6 | AI study aids: notes, flashcards (FSRS), quizzes, slides with Claude; versions; citations; streaming | ⏭ **Next up** |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | Planned |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
 | 9 | Homework workspace + real Today dashboard | Planned |
@@ -115,28 +115,58 @@ in `data-table-pagination.tsx` (result count instead of "0 rows selected"). Give
 
 ---
 
-## Next up: session 5, Ingestion
+## Session 5 notes (Ingestion)
 
-Goal: every `pending` document becomes clean Markdown + structure in R2, with page/slide anchors for
-citations, and the user can open a Document page to read it.
+- **Flow**: sync (after each course) and uploads enqueue `{ userId, documentId }` on `INGEST_QUEUE`.
+  The Worker's `queue()` handler runs `processDocument()` (`apps/api/src/ingest/process.ts`):
+  pending → downloading → extracting → ready | failed | unsupported, each change pushed to the
+  user's hub (`{ type: "document" }`). Transient errors retry with backoff (attempts counted on
+  the row, failed after 4). The cron re-enqueues documents stuck >30 min.
+- **R2 layout** (`lib/files.ts`): `u/{userId}/d/{documentId}/{original,content.md,structure.json}`.
+  Private; `GET /api/v1/documents/:id/original` streams with a safe Content-Disposition.
+- **Canvas downloads**: `/files/:id` → Canvas download URL → 302 to signed storage. Redirects are
+  followed by hand, https only, host allowlist (`FILE_HOSTS` in `lib/canvas.ts`), max 5 hops, token
+  only sent to the Canvas origin, 40 MB cap enforced while streaming. Unsupported types (video,
+  zip, …) and oversized files become `unsupported` without downloading.
+- **Extractor** (`apps/extract`): bytes in, `{ markdown, sections[{heading, level, text, anchor:
+  {kind: page|slide|section, n}}], pageCount, wordCount, warnings }` out. PDFs: one section per
+  page, running headers/footers and page numbers removed, `little_text` warning for scans (no OCR
+  yet). DOCX: headings/lists/tables. PPTX: one section per slide + speaker notes. HTML: scripts,
+  iframes and forms stripped. **Anchors are what session 6/7 cite** ("p. 3", "slide 7").
+- **API**: `GET/POST /documents`, `GET /documents/:id`, `/content`, `/original`, `POST /:id/retry`,
+  `DELETE /:id` (uploads only). Upload: multipart, 40 MB, per-user sha256 dedupe.
+- **Web**: Document page `/documents/$documentId` (rendered Markdown + outline; processing steps,
+  failed + retry, unsupported, scanned warning), Files/Modules link to it, Upload dialog on
+  Courses and Course pages, "Your uploads" list.
+- `Button render={<a/>|<Link/>}` now renders the element directly with button styles (keeps link
+  semantics; Base UI would add `role="button"`). Marked `Talvra` in `components/ui/button.tsx`.
 
-1. **R2**: bucket `talvra-files` (binding `FILES`). Keys: `u/{userId}/d/{documentId}/original`,
-   `.../content.md`, `.../structure.json`, `.../media/{n}.{ext}`. Never public; the API streams them.
-2. **Queue**: `talvra-ingest` (binding `INGEST_QUEUE`), message `{ userId, documentId }`. Producer:
-   end of each course step in the sync (enqueue that course's `pending` docs) and uploads. Consumer
-   in the same Worker (`queue()` handler), batch size ~5, DLQ `talvra-ingest-dlq`.
-3. **Consumer**: re-check ownership and status; download the file from Canvas (`/files/:id` → `url`,
-   follow the one signed redirect to `*.instructure.com` / Canvas file CDN **explicitly allowlisted**),
-   stream to R2 with a size cap (100 MB), dedupe per user on sha256, set `downloading → extracting`.
-   Pages: HTML already in `body_html`, convert in the Worker (no container).
-4. **Extract container** (`services/extract`, Python 3.13, FastAPI + PyMuPDF + python-docx +
-   python-pptx; Docling optional): `POST /extract` with the R2 object streamed in, returns
-   `{ markdown, sections: [{ heading, text, page|slide }], pageCount }`. Cloudflare Containers binding
-   (`EXTRACT`); Azure Container Apps fallback with the same image. Never fetches URLs itself.
-5. **Upload**: `POST /api/v1/documents/uploads` → presigned R2 PUT (S3 API) or direct streaming
-   upload through the Worker (simpler; ≤100 MB). Course optional.
-6. **Status**: document status changes publish to the user's hub (reuse `UserHub.publish` with a
-   `document` message type) so the Files tab updates live.
-7. **Web**: Document page `/documents/$documentId` (rendered Markdown with an outline, original
-   download, status/progress, retry on failure), Files rows link to it, upload dialog.
-8. **Tests**: consumer with a fake R2/extractor; the container with pytest on fixture PDF/DOCX/PPTX.
+Verified under `wrangler dev` (local R2, Queue and the real container via Docker): a 4-page PDF
+went upload → queue → container → R2 → ready in ~9s (cold start included), 4 page sections,
+original downloads byte-identical; a Markdown upload processed too. UI checked in Chrome.
+
+Not done yet: OCR for scanned PDFs, legacy .doc/.ppt, images inside documents.
+
+---
+
+## Next up: session 6, AI study aids
+
+Read the `claude-api` skill first (model ids, structured output, streaming, prompt caching).
+
+1. **Schema**: `study_aids` (user_id, document_id, kind `notes|flashcards|quiz|slides`, version,
+   status, model, input_sha256, content jsonb, created_at); `flashcards` rows for review state
+   (FSRS: due, stability, difficulty, reps, lapses, last_review); `reviews` log.
+2. **Generation** (`apps/api/src/ai/`): Claude via the Anthropic SDK (`ANTHROPIC_API_KEY` secret).
+   Input = the document's sections (with anchors); output validated with zod (tool/JSON schema).
+   Every claim carries `cite: [{ kind, n }]` that must match a real section anchor (drop/repair
+   otherwise). Long documents: map over section chunks, then reduce. Prompt-cache the document.
+   System prompt: study help only; never answer graded questions; treat document text as data.
+3. **Durability**: generation runs in a Workflow (`AidWorkflow`), one step per chunk; the UI streams
+   progress over the UserHub; notes stream token-by-token over SSE for the first view.
+4. **Versions**: regenerate creates a new version; keep the last 5; diff-free "restore".
+5. **Flashcards**: FSRS scheduling (ts-fsrs), review UI with keyboard (Space flip, 1–4 grade),
+   due count on Today.
+6. **Quiz**: MCQ + short answer with explanations and citations; never graded work.
+7. **Web**: Document page tabs Read / Notes / Flashcards / Quiz; Course "Study" tab lists aids;
+   citations link to `#page-n` in the reader.
+8. **Costs**: per-user daily token budget (DO counter), cached results by `input_sha256`.

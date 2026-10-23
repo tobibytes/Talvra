@@ -1,6 +1,7 @@
 import type { SyncRun } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
 import { and, asc, desc, eq, gt, inArray, lt, schema, sql } from "@talvra/db";
+import { type IngestMessage, pendingDocumentIds } from "../ingest/process.js";
 import { CanvasClient, type CanvasClientOptions, CanvasError, type Fetch } from "../lib/canvas.js";
 import { decryptSecret } from "../lib/crypto.js";
 import { AppError } from "../lib/errors.js";
@@ -28,6 +29,8 @@ export type SyncDeps = {
   canvas?: CanvasClientOptions;
   /** Pushes the run's latest state to the user's live connection(s). */
   notify?: (userId: string, run: SyncRun) => Promise<void>;
+  /** Hands new/changed documents to the ingest pipeline. */
+  enqueue?: (messages: IngestMessage[]) => Promise<void>;
 };
 
 /** An error that must not be retried and ends the whole run. */
@@ -307,6 +310,14 @@ export async function executeSync(deps: SyncDeps, params: SyncParams, step: Step
             throw err;
           }
         });
+        // Start extracting this course's new/changed files while the next course syncs.
+        if (deps.enqueue) {
+          await step(`enqueue:${course.id}`, async () => {
+            const ids = await pendingDocumentIds(deps.db, userId, course.id);
+            await deps.enqueue?.(ids.map((documentId) => ({ userId, documentId })));
+            return ids.length;
+          });
+        }
       } catch (err) {
         if (FatalSyncError.decode(err)) throw err;
         // This course failed even after retries (e.g. removed from Canvas).

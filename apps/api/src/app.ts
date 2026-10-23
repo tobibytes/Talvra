@@ -12,6 +12,7 @@ import { requestId } from "./middleware/request-id.js";
 import { canvasRoutes } from "./routes/canvas.js";
 import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
+import { type DocumentsOptions, documentsRoutes } from "./routes/documents.js";
 import { health } from "./routes/health.js";
 import { meRoutes } from "./routes/me.js";
 import { type LaunchSync, launchWorkflow, syncRoutes } from "./routes/sync.js";
@@ -27,6 +28,8 @@ export type AppOptions = {
   userId?: string;
   /** Tests run the sync inline instead of creating a Workflow instance. */
   launchSync?: LaunchSync;
+  /** Tests use in-memory file storage and process documents inline. */
+  documents?: DocumentsOptions;
 };
 
 /**
@@ -96,6 +99,7 @@ export function createApp(opts: AppOptions = {}) {
   const launch = opts.launchSync ?? launchWorkflow;
   app.route("/v1", meRoutes(launch));
   app.route("/v1", syncRoutes(launch));
+  app.route("/v1", documentsRoutes(opts.documents));
   app.route("/v1", coursesRoutes);
   app.route("/v1", canvasRoutes(opts.canvasFetch));
 

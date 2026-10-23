@@ -77,6 +77,19 @@ export type CanvasPageRaw = {
 
 export type Fetch = typeof fetch;
 
+/**
+ * Canvas serves file bytes from its own host, then redirects to a signed URL on
+ * its storage hosts. These are the only hosts a download may touch.
+ */
+const FILE_HOSTS = [
+  CANVAS_HOST_PATTERN,
+  /^instructure-uploads[a-z0-9-]*\.s3[a-z0-9.-]*\.amazonaws\.com$/,
+  /^[a-z0-9-]+\.inscloudgate\.net$/,
+  /^[a-z0-9-]+(\.[a-z0-9-]+)*\.canvas-user-content\.com$/,
+];
+
+export class FileTooLargeError extends Error {}
+
 export type CanvasClientOptions = {
   /** Total attempts per request, including the first. */
   maxAttempts?: number;
@@ -289,6 +302,60 @@ export class CanvasClient {
     );
   }
 
+  /**
+   * Downloads a file's bytes. Follows Canvas's signed redirect by hand: https
+   * only, allowlisted hosts only, at most 5 hops, and the token is only sent to
+   * the Canvas host itself. Stops reading past `maxBytes`.
+   */
+  async downloadFile(
+    fileId: string,
+    maxBytes: number,
+  ): Promise<{ data: ArrayBuffer; contentType: string | null }> {
+    const meta = await this.json<{ url?: string; size?: number; "content-type"?: string }>(
+      `/files/${encodeURIComponent(fileId)}`,
+    );
+    if ((meta.size ?? 0) > maxBytes) throw new FileTooLargeError("File is too large.");
+    if (!meta.url) throw new CanvasError("forbidden", "Canvas didn't provide a download link.");
+    let url = new URL(meta.url);
+    for (let hop = 0; hop < 6; hop++) {
+      if (url.protocol !== "https:" || !FILE_HOSTS.some((re) => re.test(url.hostname))) {
+        throw new CanvasError("bad_response", `Refusing to download from ${url.hostname}.`);
+      }
+      const headers: Record<string, string> = { "User-Agent": CANVAS_USER_AGENT };
+      if (url.origin === this.origin) headers.Authorization = `Bearer ${this.token}`;
+      let res: Response;
+      try {
+        res = await this.fetchImpl(url.toString(), {
+          headers,
+          redirect: "manual",
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch (err) {
+        throw new CanvasError("unavailable", `Download failed: ${String(err)}`);
+      }
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (!location) throw new CanvasError("bad_response", "Redirect without a location.");
+        url = new URL(location, url);
+        continue;
+      }
+      if (res.status === 401 && url.origin === this.origin)
+        throw new CanvasError("unauthorized", "Canvas rejected this token.");
+      if (res.status === 403) throw new CanvasError("forbidden", "This file is locked in Canvas.");
+      if (res.status === 404) throw new CanvasError("not_found", "This file is gone from Canvas.");
+      if (!res.ok || !res.body)
+        throw new CanvasError("unavailable", `Download returned ${res.status}.`);
+      if (Number(res.headers.get("content-length") ?? 0) > maxBytes) {
+        throw new FileTooLargeError("File is too large.");
+      }
+      return {
+        data: await readCapped(res.body, maxBytes),
+        contentType: meta["content-type"] ?? res.headers.get("content-type"),
+      };
+    }
+    throw new CanvasError("bad_response", "Too many redirects.");
+  }
+
   /** Stable API url for a file (download urls are short-lived and never stored). */
   fileApiUrl(fileId: string) {
     return `${this.origin}/api/v1/files/${fileId}`;
@@ -306,4 +373,28 @@ export function parseNextLink(header: string | null): string | null {
     if (m?.[1]) return m[1];
   }
   return null;
+}
+
+/** Reads a stream fully, failing as soon as it passes `maxBytes`. */
+export async function readCapped(body: ReadableStream<Uint8Array>, maxBytes: number) {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new FileTooLargeError("File is too large.");
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out.buffer;
 }

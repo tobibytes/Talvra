@@ -35,8 +35,40 @@
     { "name": "talvra-sync", "binding": "SYNC_WORKFLOW", "class_name": "SyncWorkflow" }
   ],
   // One Durable Object per user for live sync progress (src/realtime/user-hub.ts).
-  "durable_objects": { "bindings": [{ "name": "USER_HUB", "class_name": "UserHub" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserHub"] }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "USER_HUB", "class_name": "UserHub" },
+      { "name": "EXTRACT", "class_name": "ExtractContainer" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["UserHub"] },
+    { "tag": "v2", "new_sqlite_classes": ["ExtractContainer"] }
+  ],
+  // Originals, extracted Markdown and structure. Private; the API streams them.
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files-dev" }],
+  // Ingest pipeline: sync and uploads produce, this Worker consumes.
+  "queues": {
+    "producers": [{ "binding": "INGEST_QUEUE", "queue": "talvra-ingest-dev" }],
+    "consumers": [
+      {
+        "queue": "talvra-ingest-dev",
+        "max_batch_size": 4,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "talvra-ingest-dlq-dev"
+      }
+    ]
+  },
+  // Python extract service (apps/extract). No internet access (see ExtractContainer).
+  "containers": [
+    {
+      "class_name": "ExtractContainer",
+      "image": "../extract/Dockerfile",
+      "max_instances": 3,
+      "instance_type": "standard-1"
+    }
+  ],
   // Every 30 minutes: incremental sync for users whose data is older than 6 hours.
   "triggers": { "crons": ["*/30 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
@@ -59,7 +91,33 @@
           "class_name": "SyncWorkflow"
         }
       ],
-      "durable_objects": { "bindings": [{ "name": "USER_HUB", "class_name": "UserHub" }] },
+      "durable_objects": {
+        "bindings": [
+          { "name": "USER_HUB", "class_name": "UserHub" },
+          { "name": "EXTRACT", "class_name": "ExtractContainer" }
+        ]
+      },
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
+      "queues": {
+        "producers": [{ "binding": "INGEST_QUEUE", "queue": "talvra-ingest" }],
+        "consumers": [
+          {
+            "queue": "talvra-ingest",
+            "max_batch_size": 4,
+            "max_batch_timeout": 5,
+            "max_retries": 5,
+            "dead_letter_queue": "talvra-ingest-dlq"
+          }
+        ]
+      },
+      "containers": [
+        {
+          "class_name": "ExtractContainer",
+          "image": "../extract/Dockerfile",
+          "max_instances": 5,
+          "instance_type": "standard-1"
+        }
+      ],
       "triggers": { "crons": ["*/30 * * * *"] }
     }
   }

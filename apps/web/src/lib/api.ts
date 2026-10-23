@@ -5,9 +5,13 @@ import {
   type ConnectCanvas,
   ConnectCanvasResult,
   CourseDetail,
+  CourseDocument,
   CourseDocumentList,
   CourseList,
   CourseModuleList,
+  DocumentContent,
+  DocumentDetail,
+  DocumentList,
   Health,
   Me,
   PublicConfig,
@@ -96,4 +100,30 @@ export const api = {
   startSync: (courseId?: string) =>
     request("/v1/sync", SyncRun, { method: "POST", json: courseId ? { courseId } : {} }),
   syncRuns: (limit = 10) => request(`/v1/sync/runs?limit=${limit}`, SyncRunList),
+  document: (id: string) => request(`/v1/documents/${id}`, DocumentDetail),
+  documentContent: (id: string) => request(`/v1/documents/${id}/content`, DocumentContent),
+  documents: (source?: "upload") =>
+    request(`/v1/documents${source ? `?source=${source}` : ""}`, DocumentList),
+  retryDocument: (id: string) =>
+    request(`/v1/documents/${id}/retry`, DocumentDetail, { method: "POST" }),
+  deleteDocument: (id: string) =>
+    request(`/v1/documents/${id}`, z.undefined(), { method: "DELETE" }),
+  /** Multipart upload; the browser sets the boundary. */
+  uploadDocument: async (file: File, courseId?: string) => {
+    const form = new FormData();
+    form.set("file", file);
+    if (courseId) form.set("courseId", courseId);
+    const res = await fetch(`${API_BASE}/v1/documents`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+    });
+    const body: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+      const parsed = ApiError.safeParse(body);
+      throw new ApiRequestError(res.status, parsed.success ? parsed.data : null);
+    }
+    return CourseDocument.parse(body);
+  },
+  originalUrl: (id: string) => `${API_BASE}/v1/documents/${id}/original`,
 };

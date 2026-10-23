@@ -1,4 +1,4 @@
-import type { SyncRun } from "@talvra/contracts";
+import type { DocumentEvent, SyncRun } from "@talvra/contracts";
 import type { Bindings } from "../env.js";
 
 /** The user's hub. The id always comes from the authenticated user id. */
@@ -9,4 +9,8 @@ export function hubFor(env: Bindings, userId: string) {
 
 export async function publishToHub(env: Bindings, userId: string, run: SyncRun) {
   await hubFor(env, userId)?.publish(run);
+}
+
+export async function publishDocumentToHub(env: Bindings, userId: string, doc: DocumentEvent) {
+  await hubFor(env, userId)?.publishDocument(doc);
 }

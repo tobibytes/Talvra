@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Id, Timestamp } from "./common.js";
+import { DocumentEvent } from "./documents.js";
 
 export const SyncCounts = z.object({
   modules: z.number().int(),
@@ -63,6 +64,7 @@ export const SyncRunsQuery = z.object({
 /** Messages on the /sync/live WebSocket. */
 export const SyncLiveMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("run"), run: SyncRun }),
+  z.object({ type: z.literal("document"), document: DocumentEvent }),
   z.object({ type: z.literal("ping") }),
 ]);
 export type SyncLiveMessage = z.infer<typeof SyncLiveMessage>;

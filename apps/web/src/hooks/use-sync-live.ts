@@ -1,4 +1,9 @@
-import { SyncLiveMessage, type SyncRun } from "@talvra/contracts";
+import {
+  type CourseDocumentList,
+  type DocumentEvent,
+  SyncLiveMessage,
+  type SyncRun,
+} from "@talvra/contracts";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { api } from "@/lib/api";
@@ -49,6 +54,23 @@ export function useSyncLive() {
       }
     };
 
+    // Patch the status in place (instant), then refetch the detail if it's open.
+    const onDocument = (doc: DocumentEvent) => {
+      if (doc.courseId) {
+        queryClient.setQueryData<CourseDocumentList>(
+          ["course", doc.courseId, "documents"],
+          (list) =>
+            list && {
+              items: list.items.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d)),
+            },
+        );
+      }
+      void queryClient.invalidateQueries({ queryKey: ["document", doc.id] });
+      if (doc.status === "ready" || doc.status === "failed" || doc.status === "unsupported") {
+        void queryClient.invalidateQueries({ queryKey: ["documents"] });
+      }
+    };
+
     const connect = () => {
       const url = new URL("/api/v1/sync/live", window.location.href);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -62,6 +84,7 @@ export function useSyncLive() {
         try {
           const msg = SyncLiveMessage.parse(JSON.parse(String(event.data)));
           if (msg.type === "run") onRun(msg.run);
+          if (msg.type === "document") onDocument(msg.document);
         } catch {
           // Ignore malformed messages.
         }

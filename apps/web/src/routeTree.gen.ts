@@ -25,6 +25,7 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AppCoursesIndexRouteImport } from './routes/_app/courses/index'
 import { Route as AppCoursesCourseIdRouteImport } from './routes/_app/courses/$courseId'
+import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app/documents/$documentId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -104,6 +105,11 @@ const AppCoursesCourseIdRoute = AppCoursesCourseIdRouteImport.update({
   path: '/courses/$courseId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDocumentsDocumentIdRoute = AppDocumentsDocumentIdRouteImport.update({
+  id: '/documents/$documentId',
+  path: '/documents/$documentId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
+  '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
   '/courses/': typeof AppCoursesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
+  '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
   '/courses': typeof AppCoursesIndexRoute
 }
 export interface FileRoutesById {
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/courses/$courseId': typeof AppCoursesCourseIdRoute
+  '/_app/documents/$documentId': typeof AppDocumentsDocumentIdRoute
   '/_app/courses/': typeof AppCoursesIndexRoute
 }
 export interface FileRouteTypes {
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/courses/$courseId'
+    | '/documents/$documentId'
     | '/courses/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/courses/$courseId'
+    | '/documents/$documentId'
     | '/courses'
   id:
     | '__root__'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_app/'
     | '/_app/courses/$courseId'
+    | '/_app/documents/$documentId'
     | '/_app/courses/'
   fileRoutesById: FileRoutesById
 }
@@ -329,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCoursesCourseIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/documents/$documentId': {
+      id: '/_app/documents/$documentId'
+      path: '/documents/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof AppDocumentsDocumentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -340,6 +359,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCoursesCourseIdRoute: typeof AppCoursesCourseIdRoute
+  AppDocumentsDocumentIdRoute: typeof AppDocumentsDocumentIdRoute
   AppCoursesIndexRoute: typeof AppCoursesIndexRoute
 }
 
@@ -351,6 +371,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppCoursesCourseIdRoute: AppCoursesCourseIdRoute,
+  AppDocumentsDocumentIdRoute: AppDocumentsDocumentIdRoute,
   AppCoursesIndexRoute: AppCoursesIndexRoute,
 }
 

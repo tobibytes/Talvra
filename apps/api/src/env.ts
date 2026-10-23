@@ -1,4 +1,6 @@
 import type { Database } from "@talvra/db";
+import type { ExtractContainer } from "./extract-container.js";
+import type { IngestMessage } from "./ingest/process.js";
 import type { UserHub } from "./realtime/user-hub.js";
 import type { SyncParams } from "./sync/run.js";
 
@@ -15,6 +17,15 @@ export type Bindings = {
   SYNC_WORKFLOW?: Workflow<SyncParams>;
   /** One Durable Object per user: live sync progress over WebSocket. */
   USER_HUB?: DurableObjectNamespace<UserHub>;
+  /** Originals, extracted Markdown and structure (lib/files.ts has the key layout). */
+  FILES?: R2Bucket;
+  /** Documents to download and extract. */
+  INGEST_QUEUE?: Queue<IngestMessage>;
+  /** Python extract service on Cloudflare Containers. */
+  EXTRACT?: DurableObjectNamespace<ExtractContainer>;
+  /** Fallback: the same image on Azure Container Apps. */
+  EXTRACT_URL?: string;
+  EXTRACT_SECRET?: string;
   // Secrets (wrangler secret put / .dev.vars)
   BETTER_AUTH_SECRET: string;
   /** base64 of 32 random bytes; encrypts Canvas tokens with AES-256-GCM. */

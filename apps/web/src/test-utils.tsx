@@ -1,4 +1,4 @@
-import type { Course, Me, SyncRun } from "@talvra/contracts";
+import type { Course, DocumentDetail, Me, SyncRun } from "@talvra/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
@@ -94,7 +94,39 @@ export function makeRun(overrides: Partial<SyncRun> = {}): SyncRun {
   };
 }
 
-export function fakeApi(state: { me: Me | null; runs?: SyncRun[]; courses?: Course[] }) {
+export const DOC_ID = "44444444-4444-4444-8444-444444444444";
+
+export function makeDocument(overrides: Partial<DocumentDetail> = {}): DocumentDetail {
+  return {
+    id: DOC_ID,
+    courseId: COURSE_ID,
+    moduleId: null,
+    source: "canvas_file",
+    title: "Lecture 1.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 2_400_000,
+    folderPath: "course files/Lectures",
+    status: "ready",
+    updatedAt: "2026-10-20T00:00:00.000Z",
+    courseName: "COSC 220 Data Structures",
+    pageCount: 2,
+    wordCount: 1234,
+    warnings: [],
+    error: null,
+    extractedAt: "2026-10-20T00:00:00.000Z",
+    canvasHtmlUrl: "https://morgan.instructure.com/courses/101/files/501",
+    hasOriginal: true,
+    ...overrides,
+  };
+}
+
+export function fakeApi(state: {
+  me: Me | null;
+  runs?: SyncRun[];
+  courses?: Course[];
+  documents?: DocumentDetail[];
+}) {
+  state.documents ??= [];
   state.runs ??= [];
   state.courses ??= [];
   const json = (body: unknown, status = 200) =>
@@ -353,6 +385,31 @@ export function fakeApi(state: { me: Me | null; runs?: SyncRun[]; courses?: Cour
       });
     }
     if (p === "/api/v1/courses") return json({ items: state.courses, nextCursor: null });
+    if (p === "/api/v1/documents" && method === "GET") {
+      const source = url.searchParams.get("source");
+      return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
+    }
+    const docMatch = p.match(/^\/api\/v1\/documents\/([^/]+)(\/content|\/retry)?$/);
+    if (docMatch) {
+      const doc = state.documents?.find((d) => d.id === docMatch[1]);
+      if (!doc) return apiError(404, "not_found", "Document not found.");
+      if (docMatch[2] === "/retry") {
+        Object.assign(doc, { status: "pending", error: null });
+        return json(doc, 202);
+      }
+      if (docMatch[2] === "/content") {
+        if (doc.status !== "ready") return apiError(404, "not_found", "Not ready.");
+        return json({
+          markdown:
+            "## Page 1\n\nArrays store elements **contiguously**.\n\n## Page 2\n\n| Op | Cost |\n|---|---|\n| index | O(1) |",
+          sections: [
+            { heading: "Page 1", level: 2, text: "Arrays…", anchor: { kind: "page", n: 1 } },
+            { heading: "Page 2", level: 2, text: "Table", anchor: { kind: "page", n: 2 } },
+          ],
+        });
+      }
+      return json(doc);
+    }
     return apiError(404, "not_found", `No fake for ${method} ${p}`);
   });
   vi.spyOn(globalThis, "fetch").mockImplementation(handler);
