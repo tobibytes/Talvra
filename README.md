@@ -2,7 +2,7 @@
 > start with [docs/v2/ROADMAP.md](docs/v2/ROADMAP.md) (status and what's next), then
 > [docs/v2/ARCHITECTURE.md](docs/v2/ARCHITECTURE.md), [docs/v2/UI_STACK.md](docs/v2/UI_STACK.md)
 > and [CLAUDE.md](CLAUDE.md) (conventions for AI assistants and humans alike).
-> Everything below describes the legacy v1 services, which are removed in session 10.
+> Everything below describes the legacy v1 services, which are removed in the final session (see the roadmap).
 
 # Talvra - Microservice Learning App
 
