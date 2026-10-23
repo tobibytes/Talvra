@@ -81,3 +81,8 @@ lovable-frontend/
 
 # K8s local secrets (never commit real secrets)
 deploy/secrets.local.yaml
+
+# v2
+.turbo/
+.wrangler/
+.dev.vars

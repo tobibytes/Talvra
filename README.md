@@ -1,3 +1,7 @@
+> **Talvra v2 is being rebuilt in this repo.** New code lives in `apps/` and `packages/`;
+> see [docs/v2/ARCHITECTURE.md](docs/v2/ARCHITECTURE.md) and [docs/v2/UI_STACK.md](docs/v2/UI_STACK.md).
+> Everything below describes the legacy v1 services, which are removed in session 10.
+
 # Talvra - Microservice Learning App
 
 A monorepo containing a microservice learning application that helps students process and study course content with AI-generated study aids.

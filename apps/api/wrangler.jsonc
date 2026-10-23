@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "talvra-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_ENV": "development",
+    "APP_VERSION": "2.0.0-alpha.0",
+    "WEB_ORIGIN": "http://localhost:5173"
+  },
+  // Neon through Hyperdrive. Create it with:
+  //   wrangler hyperdrive create talvra-db --connection-string="$NEON_URL"
+  // then paste the id here. Locally, wrangler dev uses localConnectionString.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgres://talvra:talvra@localhost:5432/talvra"
+    }
+  ]
+  // Added in later sessions: R2 (5), Vectorize (7), Queues/Workflows (4),
+  // Durable Objects (4), Cron Triggers (4, 9).
+}

@@ -4,36 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  v2:
+    name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: pnpm install
-
-      - name: Verify frontend workspace
-        working-directory: frontend
-        run: pnpm -r list
-
-      - name: Install root dev dependencies (for validation)
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Validate process handbook (root)
-        run: pnpm run validate:process
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm turbo run typecheck test build

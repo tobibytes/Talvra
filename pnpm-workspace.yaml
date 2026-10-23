@@ -1,6 +1,10 @@
+# v2 workspace. Legacy code (frontend/, services/) is intentionally NOT part of
+# this workspace; it stays in the repo until the session 10 cutover.
 packages:
-  - 'frontend/*'
-  - 'services/*'
-  - 'services/*'
-  - 'frontend/packages/*'
-  - 'frontend/web'
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - esbuild
+  - workerd
+  - sharp

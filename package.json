@@ -1,23 +1,28 @@
 {
   "name": "talvra",
-  "version": "1.0.0",
+  "version": "2.0.0-alpha.0",
   "private": true,
-  "description": "Microservice learning app monorepo",
+  "description": "Talvra: Canvas-connected study app for Morgan State students",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "validate:process": "tsx scripts/validate-process-json.ts",
-    "codegen": "echo 'OpenAPI codegen placeholder'",
-    "demo:e2e": "echo 'E2E demo placeholder'",
-    "dev": "echo 'Development placeholder'"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check . && turbo run typecheck test build",
+    "db:generate": "pnpm --filter @talvra/db generate",
+    "db:migrate": "pnpm --filter @talvra/db migrate",
+    "db:up": "docker compose -f infra/compose.dev.yml up -d",
+    "db:down": "docker compose -f infra/compose.dev.yml down"
   },
   "devDependencies": {
-    "tsx": "^4.20.4",
-    "zod": "^4.1.0"
-  },
-  "dependencies": {
-    "fastify": "4.9.0"
-  },
-  "engines": {
-    "node": ">=18",
-    "pnpm": ">=8"
+    "@biomejs/biome": "2.6.2",
+    "turbo": "2.11.10",
+    "typescript": "5.9.3"
   }
 }
