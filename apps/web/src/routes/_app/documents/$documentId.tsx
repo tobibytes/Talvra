@@ -24,6 +24,7 @@ import { AidPanel } from "@/components/study/aid-panel";
 import { DeckView } from "@/components/study/deck-view";
 import { NotesView } from "@/components/study/notes-view";
 import { QuizRunner } from "@/components/study/quiz-runner";
+import { VideoPanel } from "@/components/study/video-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb,
@@ -50,7 +51,7 @@ import { ApiRequestError, api } from "@/lib/api";
 import { fileSize, plural, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-const tabs = ["read", "notes", "flashcards", "quiz"] as const;
+const tabs = ["read", "notes", "flashcards", "quiz", "video"] as const;
 type Tab = (typeof tabs)[number];
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
@@ -193,9 +194,13 @@ function Study({
         <TabsTrigger value="notes">Notes</TabsTrigger>
         <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
         <TabsTrigger value="quiz">Quiz</TabsTrigger>
+        <TabsTrigger value="video">Video</TabsTrigger>
       </TabsList>
       <TabsContent value="read">
         <Reader markdown={markdown} sections={sections} />
+      </TabsContent>
+      <TabsContent value="video">
+        <VideoPanel documentId={doc.id} />
       </TabsContent>
       {(["notes", "flashcards", "quiz"] as const).map((kind) => (
         <TabsContent key={kind} value={kind}>

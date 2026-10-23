@@ -20,6 +20,7 @@ import { remindersRoutes, unsubscribeRoutes } from "./routes/reminders.js";
 import { type SearchOptions, searchRoutes } from "./routes/search.js";
 import { type StudyOptions, studyRoutes } from "./routes/study.js";
 import { type LaunchSync, launchWorkflow, syncRoutes } from "./routes/sync.js";
+import { type VideoOptions, videoRoutes } from "./routes/video.js";
 
 export type AppOptions = {
   /** Tests inject a database instead of using Hyperdrive. */
@@ -40,6 +41,8 @@ export type AppOptions = {
   search?: SearchOptions;
   /** Tests use a fake model for briefs and plans. */
   homework?: HomeworkOptions;
+  /** Tests use in-memory files and render inline. */
+  video?: VideoOptions;
 };
 
 /**
@@ -114,6 +117,7 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", searchRoutes(opts.search));
   app.route("/v1", homeworkRoutes(opts.homework));
   app.route("/v1", remindersRoutes(opts.sendEmail));
+  app.route("/v1", videoRoutes(opts.video));
   app.route("/", unsubscribeRoutes);
   app.route("/v1", coursesRoutes);
   app.route("/v1", canvasRoutes(opts.canvasFetch));

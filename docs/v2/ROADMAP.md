@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 9. Whoever picks this up: read this file, then
+Last updated at the end of session 10. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -16,8 +16,8 @@ Last updated at the end of session 9. Whoever picks this up: read this file, the
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
-| 10 | Reminders + video (media container: script → Azure TTS → MP4 in R2) | ⏭ **Next up** |
-| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | Planned |
+| 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
+| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ⏭ **Next up** |
 
 Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
 If you want something usable sooner, the shortest useful path is 4 → 5 → the Today part of 9.
@@ -248,13 +248,47 @@ scheduling a step that then shows on Today.
 
 ---
 
-## Next up: session 10, Reminders + video
+## Session 10 notes (Reminders + video)
 
-1. **Reminders**: per-user rules (`reminder_rules`: offsets like 3 days / 1 day / 3 hours before due,
-   quiet hours, channels email + later push), a daily digest email (Resend, plain + HTML) with
-   overdue, due soon and cards due. Cron every 15 min computes due notifications into
-   `notifications` (idempotent by (user, assignment, offset)), sends, records. Unsubscribe link
-   (signed token) in every email.
-2. **Reminders page** (`/reminders`): rules editor, digest time, preview, send test, history.
-3. **Video** (stretch): `apps/media` Python container (ffmpeg + Azure TTS) turns notes into a short
-   narrated slideshow MP4 in R2. Only if time allows; reminders first.
+**Reminders** (`apps/api/src/reminders/`):
+- `reminder_prefs` (defaults: email on, 1 day + 3 hours before, digest at 7:00, quiet 22–7,
+  America/New_York) and `notifications` (unique `(user, dedupe_key)`).
+- Cron is now every 15 minutes: `planNotifications` (idempotent; the dedupe key includes the due date
+  so a moved deadline re-arms; >2h-old marks are skipped; quiet hours defer unless the deadline comes
+  first; one digest per local day at the chosen hour) then `sendPending` (re-checks the assignment,
+  skips submitted work, 3 attempts). Sync + stuck-document sweep run on the :00/:30 ticks.
+- Emails escape everything, link to the workspace, carry `List-Unsubscribe` + one-click POST
+  (RFC 8058) with an HMAC-signed token; `/api/unsubscribe` works without signing in.
+- `/reminders` page: instant-saving settings, upcoming preview, history, "Send a test" (3/hour).
+- Verified live under `wrangler dev`: cron trigger planned + "sent" (logged, no Resend key locally)
+  a "Due in 3 hours" email, a second run sent nothing, the real unsubscribe link turned emails off.
+
+**Video** (`apps/media`, `apps/api/src/ai/video.ts`):
+- Built from the document's latest notes (no extra model call): title slide, one per section, key
+  terms. Narration: Workers AI `@cf/deepgram/aura-2-en` (or Azure Speech REST when
+  `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` are set). The `MediaContainer` (Python, Pillow + ffmpeg,
+  no internet) renders 1280×720 slides → H.264/AAC MP4 with faststart and returns per-slide durations,
+  which become WebVTT captions. Jobs ride `AI_QUEUE` as `{ type: "video" }`.
+- `GET/POST /documents/:id/video`, `GET /videos/:id/stream` (HTTP Range, 206/416),
+  `GET /videos/:id/captions.vtt`. Document page gets a **Video** tab (captions on by default).
+- Verified live: a real 57s video from real notes in ~33s (remote Workers AI TTS, local container),
+  audible speech, correct codecs/size, captions, range requests. The media image is ~950 MB (ffmpeg);
+  slimming it is a later optimization.
+
+---
+
+## Next up: session 11, Hardening and cutover
+
+1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on
+   auth, sync, uploads, Ask, aids.
+2. **Errors/observability**: Sentry (`@sentry/cloudflare`) for the Worker and web, request ids
+   already flow; structured logs are in place.
+3. **Account data**: GDPR-style export (JSON + files zip from R2) and delete account (cascade + R2
+   prefix purge + Vectorize ids).
+4. **Security review** of the whole v2 diff; CSP for the SPA; `secureHeaders` tuning.
+5. **Playwright e2e** against `wrangler dev` (sign up → connect fake Canvas → sync → study).
+6. **Deploy**: provision Neon, Hyperdrive, R2, Queues, Vectorize, secrets; `wrangler deploy --env
+   production`; smoke test. Needs the owner's accounts/keys (see Open items).
+7. **Cutover**: delete legacy v1 (`frontend/`, `lovable-frontend/`, `services/`, `deploy/`,
+   `migrations/`, old `docs/*`, `infra/docker-compose.yml`, `talvra.zip`, scripts) after tagging
+   `legacy-v1`.

@@ -13,7 +13,7 @@ apps/api  Cloudflare Worker, Hono + zod-openapi
    └── Cron Triggers                   (incremental sync, reminders)        sessions 4, 9
           │
 apps/extract      Python container (FastAPI + pypdfium2/python-docx/pptx)     session 5
-apps/media        Python container (ffmpeg + Azure TTS)                     session 10
+apps/media        Python container (Pillow + ffmpeg; narration via Workers AI) session 10
 ```
 
 ## Layout
@@ -25,6 +25,7 @@ apps/media        Python container (ffmpeg + Azure TTS)                     sess
 | `packages/contracts` | zod schemas shared by API and web: errors, pagination, resources |
 | `packages/db` | Drizzle schema, client, SQL migrations in `migrations/` |
 | `apps/extract` | Python extract service; Cloudflare Container (`ExtractContainer`, no internet) |
+| `apps/media` | Python media service (narrated videos); Cloudflare Container (`MediaContainer`, no internet) |
 | `infra/compose.dev.yml` | Local Postgres 16 |
 
 Legacy v1 code (`frontend/`, `services/`, `deploy/`, `migrations/`, old docs)

@@ -9,6 +9,7 @@ import type {
   ReminderPrefs,
   StudyAid,
   SyncRun,
+  Video,
 } from "@talvra/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
@@ -233,6 +234,7 @@ export function fakeApi(state: {
   courses?: Course[];
   documents?: DocumentDetail[];
   aids?: StudyAid[];
+  video?: Video;
   cards?: Flashcard[];
 }) {
   state.documents ??= [];
@@ -676,6 +678,23 @@ export function fakeApi(state: {
       state.cards = state.cards?.filter((c) => c.id !== card.id);
       const next = new Date(Date.now() + 3 * 86_400_000).toISOString();
       return json({ card: { ...card, due: next, reps: card.reps + 1 }, nextDue: next });
+    }
+    const videoMatch = p.match(/^\/api\/v1\/documents\/([^/]+)\/video$/);
+    if (videoMatch) {
+      const notesReady = (state.aids ?? []).some((a) => a.kind === "notes" && a.status === "ready");
+      if (method === "POST") {
+        state.video = {
+          id: "77777777-7777-4777-8777-777777777777",
+          documentId: videoMatch[1] ?? "",
+          status: "ready",
+          durationSeconds: 154,
+          error: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        return json(state.video, 202);
+      }
+      return json({ video: state.video ?? null, notesReady });
     }
     const aidsMatch = p.match(/^\/api\/v1\/documents\/([^/]+)\/aids$/);
     if (aidsMatch) {

@@ -646,3 +646,28 @@ export const notifications = pgTable(
     index("notifications_user_time_idx").on(t.userId, t.createdAt),
   ],
 );
+
+export const videoStatus = pgEnum("video_status", ["queued", "rendering", "ready", "failed"]);
+
+/** A narrated slideshow made from a document's study notes. */
+export const videos = pgTable(
+  "videos",
+  {
+    id: id(),
+    userId: owner(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    /** The notes version it was made from. */
+    aidId: uuid("aid_id").references(() => studyAids.id, { onDelete: "set null" }),
+    status: videoStatus("status").notNull().default("queued"),
+    r2Key: text("r2_key"),
+    captionsKey: text("captions_key"),
+    sizeBytes: integer("size_bytes"),
+    durationSeconds: integer("duration_seconds"),
+    error: text("error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("videos_user_doc_idx").on(t.userId, t.documentId, t.createdAt)],
+);
