@@ -1,5 +1,7 @@
 > **Talvra v2 is being rebuilt in this repo.** New code lives in `apps/` and `packages/`;
-> see [docs/v2/ARCHITECTURE.md](docs/v2/ARCHITECTURE.md) and [docs/v2/UI_STACK.md](docs/v2/UI_STACK.md).
+> start with [docs/v2/ROADMAP.md](docs/v2/ROADMAP.md) (status and what's next), then
+> [docs/v2/ARCHITECTURE.md](docs/v2/ARCHITECTURE.md), [docs/v2/UI_STACK.md](docs/v2/UI_STACK.md)
+> and [CLAUDE.md](CLAUDE.md) (conventions for AI assistants and humans alike).
 > Everything below describes the legacy v1 services, which are removed in session 10.
 
 # Talvra - Microservice Learning App
