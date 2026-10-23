@@ -40,7 +40,22 @@ is outside the pnpm workspace and is removed in session 10.
 - **Contracts.** Routes are declared with `@hono/zod-openapi`, using schemas
   from `@talvra/contracts`. `/openapi.json` is generated from them. The web
   client validates responses with the same schemas.
-- **Auth.** `requireUser` guards every `/v1` route. Better Auth sets the user in session 3.
+- **Same origin.** One Worker serves the SPA (static assets) and the API under `/api`.
+  Cookies are first-party and there is no CORS. In development Vite proxies `/api` to Wrangler.
+- **Auth (Better Auth).**
+  - Email + password and Google, both limited to `ALLOWED_EMAIL_DOMAINS` (`morgan.edu`). The
+    rule is enforced in a database hook (every sign-up path) plus an explicit check on
+    email sign-up so blocked users get a clear message.
+  - Email verification is required before the first sign-in. Password reset revokes all sessions.
+  - Sessions live in Postgres, expire after 14 days without use and are extended at most daily.
+    A signed 5-minute cookie cache skips the DB lookup on most requests, so revoking a session
+    takes up to 5 minutes to apply everywhere.
+  - `requireUser` guards every `/api/v1` route. The web app's `_app` layout redirects
+    signed-out users to `/sign-in?redirect=…` and unfinished accounts to `/onboarding`.
+- **Canvas tokens.** Checked with Canvas (`/users/self`) before saving, then encrypted with
+  AES-256-GCM (`CANVAS_TOKEN_KEY`) with the user id bound as associated data. Only the last
+  4 characters are ever returned. The server only calls `https://*.instructure.com`, never
+  follows redirects, and rejects pagination links to other hosts (SSRF protection).
 
 ## Local development
 
@@ -48,10 +63,33 @@ is outside the pnpm workspace and is removed in session 10.
 pnpm install
 pnpm db:up                 # Postgres in Docker (or any local PG on :5432)
 pnpm db:migrate
-pnpm --filter @talvra/api dev   # http://localhost:8787  (/health, /openapi.json)
-pnpm --filter @talvra/web dev   # http://localhost:5173
+cp apps/api/.dev.vars.example apps/api/.dev.vars   # fill in the two random secrets
+pnpm --filter @talvra/api dev   # Worker on :8787
+pnpm --filter @talvra/web dev   # open http://localhost:5173 (proxies /api)
 pnpm check                 # lint + typecheck + test + build, same as CI
 ```
+
+Without `RESEND_API_KEY`, verification and reset emails are printed in the Wrangler
+terminal; click the link from there.
+
+## Secrets
+
+| Name | What | Create with |
+| --- | --- | --- |
+| `BETTER_AUTH_SECRET` | Signs session cookies | `openssl rand -base64 32` |
+| `CANVAS_TOKEN_KEY` | AES-256 key for Canvas tokens (32 bytes, base64) | `openssl rand -base64 32` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in (optional; button hidden without them) | Google Cloud console, see below |
+| `RESEND_API_KEY` | Sends email (required in production) | resend.com |
+
+Production: `cd apps/api && npx wrangler secret put NAME --env production` for each one.
+Rotating `CANVAS_TOKEN_KEY` makes stored Canvas tokens unreadable, so users must reconnect.
+
+### Google sign-in
+
+1. Google Cloud console → APIs & Services → Credentials → Create OAuth client ID → Web application.
+2. Authorized redirect URIs: `http://localhost:5173/api/auth/callback/google` and
+   `https://<your domain>/api/auth/callback/google`.
+3. Put the client id and secret in `.dev.vars` (local) or Wrangler secrets (production).
 
 Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <change>`.
 

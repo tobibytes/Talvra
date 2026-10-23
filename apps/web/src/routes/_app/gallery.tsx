@@ -45,7 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiRequestError } from "@/lib/api";
 
-export const Route = createFileRoute("/gallery")({ component: Gallery });
+export const Route = createFileRoute("/_app/gallery")({ component: Gallery });
 
 const reminderOptions = [
   { value: "3d", label: "3 days before" },

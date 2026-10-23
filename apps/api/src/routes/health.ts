@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { Health } from "@talvra/contracts";
-import { sql } from "drizzle-orm";
+import { sql } from "@talvra/db";
 import type { AppEnv } from "../env.js";
 
 const route = createRoute({

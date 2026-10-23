@@ -22,6 +22,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { UserMenu } from "@/components/user-menu";
 import { isActivePath, mobileTabs, type NavItem, primaryNav, secondaryNav } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -106,8 +107,13 @@ function AppSidebar() {
         <NavGroup label="Study" items={primaryNav} />
         <NavGroup label="You" items={secondaryNav} />
       </SidebarContent>
-      <SidebarFooter className="px-3 pb-3 group-data-[collapsible=icon]:hidden">
-        <ApiStatus />
+      <SidebarFooter className="pb-3">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <UserMenu />
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <ApiStatus className="px-2 group-data-[collapsible=icon]:hidden" />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

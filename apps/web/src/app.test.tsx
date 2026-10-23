@@ -1,23 +1,16 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import axe from "axe-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { allNav } from "@/lib/nav";
-import { renderApp } from "./test-utils";
+import { fakeApi, makeMe, renderApp } from "./test-utils";
 
-beforeEach(() => {
-  // The shell polls /health; keep it offline and deterministic.
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify({ status: "ok", version: "test", checks: { database: "ok" } }), {
-      status: 200,
-    }),
-  );
-});
+const signedIn = () => fakeApi({ me: makeMe() });
 
 describe("app shell", () => {
   it("links every page from the sidebar and marks the current one", async () => {
+    signedIn();
     await renderApp("/courses");
-    const nav = screen.getAllByRole("list")[0];
-    expect(nav).toBeDefined();
+    await screen.findByRole("heading", { level: 1, name: "Courses" });
     for (const item of allNav) {
       expect(screen.getAllByRole("link", { name: item.label }).length).toBeGreaterThan(0);
     }
@@ -28,22 +21,26 @@ describe("app shell", () => {
   });
 
   it("has a 5-tab mobile bar", async () => {
+    signedIn();
     await renderApp("/");
-    const bar = screen.getByRole("navigation", { name: "Primary" });
+    const bar = await screen.findByRole("navigation", { name: "Primary" });
     expect(within(bar).getAllByRole("link")).toHaveLength(5);
   });
 
-  it("shows API health from API_BASE in the sidebar", async () => {
+  it("greets the user and shows API health from /api/health", async () => {
+    const api = signedIn();
     await renderApp("/");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /, Oluwatobi$/ }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("All systems normal")).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/^http.*\/health$/),
-      expect.anything(),
-    );
+    expect(api.mock.calls.some(([url]) => String(url).endsWith("/api/health"))).toBe(true);
   });
 
   it("opens the command palette with Ctrl+K and navigates", async () => {
+    signedIn();
     const { router } = await renderApp("/");
+    await screen.findByRole("heading", { level: 1 });
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     const input = await screen.findByPlaceholderText("Search pages and actions…");
     fireEvent.change(input, { target: { value: "remind" } });
@@ -53,24 +50,34 @@ describe("app shell", () => {
   });
 
   it("renders a designed not-found page", async () => {
+    signedIn();
     await renderApp("/does-not-exist");
     expect(await screen.findByText("Page not found")).toBeInTheDocument();
   });
 });
 
 describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
-  for (const path of [
-    "/",
-    "/courses",
-    "/homework",
-    "/search",
-    "/reminders",
-    "/settings",
-    "/gallery",
-  ]) {
+  const pages: [string, () => void][] = [
+    ["/", signedIn],
+    ["/courses", signedIn],
+    ["/homework", signedIn],
+    ["/search", signedIn],
+    ["/reminders", signedIn],
+    ["/settings", signedIn],
+    ["/gallery", signedIn],
+    ["/sign-in", () => fakeApi({ me: null })],
+    ["/sign-up", () => fakeApi({ me: null })],
+    ["/forgot-password", () => fakeApi({ me: null })],
+    ["/check-email?email=a@morgan.edu", () => fakeApi({ me: null })],
+    ["/onboarding", () => fakeApi({ me: makeMe({ onboarded: false, canvas: null }) })],
+  ];
+  for (const [path, setup] of pages) {
     it(`has no violations on ${path}`, async () => {
+      setup();
       const { container } = await renderApp(path);
       await screen.findByRole("heading", { level: 1 });
+      // Let queries settle so we scan the loaded state, not just skeletons.
+      await new Promise((r) => setTimeout(r, 50));
       const result = await axe.run(container, {
         runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] },
         // jsdom can't compute layout colors; contrast is checked in the browser pass.

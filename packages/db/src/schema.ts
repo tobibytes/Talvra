@@ -16,7 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Rule for this schema: every table except `users` has a non-null `user_id`
+ * Rule for this schema: every table except `users` and `verifications` has a non-null `user_id`
  * that cascades on delete. Queries must always filter by it; the API's data
  * layer takes `userId` as its first argument so it can't be forgotten.
  */
@@ -45,10 +45,71 @@ export const users = pgTable(
     name: text("name").notNull(),
     image: text("image"),
     emailVerified: boolean("email_verified").notNull().default(false),
+    /** Set when the onboarding wizard finishes; null sends the user back to it. */
+    onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`)],
+);
+
+/*
+ * Better Auth tables. Column sets follow Better Auth's core schema; the
+ * property names are what its Drizzle adapter reads.
+ */
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: id(),
+    userId: owner(),
+    /** Opaque token stored in the signed session cookie. */
+    token: text("token").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("sessions_token_idx").on(t.token), index("sessions_user_idx").on(t.userId)],
+);
+
+/** Login methods: "credential" (password hash) or an OAuth provider like "google". */
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: id(),
+    userId: owner(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    idToken: text("id_token"),
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("accounts_provider_account_idx").on(t.providerId, t.accountId),
+    index("accounts_user_idx").on(t.userId),
+  ],
+);
+
+/** Short-lived tokens: email verification and password reset. No user_id by design. */
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: id(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
 );
 
 export const canvasConnectionStatus = pgEnum("canvas_connection_status", [
