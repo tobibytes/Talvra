@@ -1,0 +1,2 @@
+# Local secrets for wrangler dev. Copy to .dev.vars (gitignored).
+# Added in later sessions: BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY
