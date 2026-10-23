@@ -1,0 +1,62 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { MailCheck } from "lucide-react";
+import * as React from "react";
+import { z } from "zod";
+import { AuthCard } from "@/components/auth/auth-card";
+import { Button } from "@/components/ui/button";
+import { authClient, authErrorMessage } from "@/lib/auth";
+
+export const Route = createFileRoute("/_auth/check-email")({
+  validateSearch: z.object({ email: z.string().optional() }),
+  component: CheckEmail,
+});
+
+function CheckEmail() {
+  const { email } = Route.useSearch();
+  const [status, setStatus] = React.useState<string | null>(null);
+
+  const resend = async () => {
+    if (!email) return;
+    const res = await authClient.sendVerificationEmail({ email, callbackURL: "/onboarding" });
+    setStatus(
+      res.error ? authErrorMessage(res.error) : "Sent. Check your inbox (and junk folder).",
+    );
+  };
+
+  return (
+    <AuthCard
+      title="Check your email"
+      description={
+        email ? (
+          <>
+            We sent a confirmation link to <strong className="text-foreground">{email}</strong>.
+          </>
+        ) : (
+          "We sent you a confirmation link."
+        )
+      }
+      footer={
+        <Link to="/sign-in" className="text-primary underline-offset-4 hover:underline">
+          Back to sign in
+        </Link>
+      }
+    >
+      <div className="flex justify-center">
+        <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <MailCheck className="size-7" aria-hidden />
+        </span>
+      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        Open the link on this device to finish setting up. It expires in 24 hours.
+      </p>
+      {email ? (
+        <Button variant="outline" onClick={resend}>
+          Resend the link
+        </Button>
+      ) : null}
+      <p role="status" className="text-center text-sm text-muted-foreground">
+        {status}
+      </p>
+    </AuthCard>
+  );
+}

@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
     }
   },
   "scripts": {
@@ -26,5 +30,13 @@
     "drizzle-kit": "0.31.11",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": "0.5.11"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    }
   }
 }

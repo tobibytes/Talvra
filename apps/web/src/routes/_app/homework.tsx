@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardList } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/page";
 
-export const Route = createFileRoute("/homework")({ component: Homework });
+export const Route = createFileRoute("/_app/homework")({ component: Homework });
 
 function Homework() {
   return (

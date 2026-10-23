@@ -1,11 +1,22 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { ApiError, CourseList, PageQuery } from "@talvra/contracts";
-import { schema } from "@talvra/db";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, schema } from "@talvra/db";
 import type { AppEnv } from "../env.js";
 import { requireUser } from "../middleware/auth.js";
 
 const { courses } = schema;
+
+export function toCourse(r: typeof courses.$inferSelect) {
+  return {
+    id: r.id,
+    canvasId: r.canvasId,
+    name: r.name,
+    courseCode: r.courseCode,
+    term: r.term,
+    selected: r.selected,
+    lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null,
+  };
+}
 
 const list = createRoute({
   method: "get",
@@ -29,15 +40,7 @@ export const coursesRoutes = new OpenAPIHono<AppEnv>().openapi(list, async (c) =
     .where(and(eq(courses.userId, userId), cursor ? gt(courses.id, cursor) : undefined))
     .orderBy(asc(courses.id))
     .limit(limit + 1);
-  const items = rows.slice(0, limit).map((r) => ({
-    id: r.id,
-    canvasId: r.canvasId,
-    name: r.name,
-    courseCode: r.courseCode,
-    term: r.term,
-    selected: r.selected,
-    lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null,
-  }));
+  const items = rows.slice(0, limit).map(toCourse);
   const nextCursor = rows.length > limit ? (items.at(-1)?.id ?? null) : null;
   return c.json({ items, nextCursor }, 200);
 });

@@ -1,14 +1,24 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "talvra-api",
+  "name": "talvra",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // One Worker serves the SPA and the API on the same origin. Requests to
+  // /api/* run the Worker; everything else is a static asset, with unknown
+  // paths falling back to index.html for client-side routing.
+  "assets": {
+    "directory": "../web/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
   "vars": {
     "APP_ENV": "development",
     "APP_VERSION": "2.0.0-alpha.0",
-    "WEB_ORIGIN": "http://localhost:5173"
+    "APP_URL": "http://localhost:5173",
+    "ALLOWED_EMAIL_DOMAINS": "morgan.edu",
+    "EMAIL_FROM": "Talvra <hello@talvra.app>"
   },
   // Neon through Hyperdrive. Create it with:
   //   wrangler hyperdrive create talvra-db --connection-string="$NEON_URL"
@@ -19,7 +29,19 @@
       "id": "REPLACE_WITH_HYPERDRIVE_ID",
       "localConnectionString": "postgres://talvra:talvra@localhost:5432/talvra"
     }
-  ]
-  // Added in later sessions: R2 (5), Vectorize (7), Queues/Workflows (4),
-  // Durable Objects (4), Cron Triggers (4, 9).
+  ],
+  // Secrets (wrangler secret put NAME; locally in .dev.vars):
+  //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ENV": "production",
+        "APP_VERSION": "2.0.0-alpha.0",
+        "APP_URL": "https://talvra.app",
+        "ALLOWED_EMAIL_DOMAINS": "morgan.edu",
+        "EMAIL_FROM": "Talvra <hello@talvra.app>"
+      },
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }]
+    }
+  }
 }

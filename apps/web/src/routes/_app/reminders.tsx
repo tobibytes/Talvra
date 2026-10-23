@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BellRing } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/page";
 
-export const Route = createFileRoute("/reminders")({ component: Reminders });
+export const Route = createFileRoute("/_app/reminders")({ component: Reminders });
 
 function Reminders() {
   return (

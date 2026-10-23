@@ -3,15 +3,46 @@ import type { Database } from "@talvra/db";
 export type Bindings = {
   APP_ENV: "development" | "preview" | "production";
   APP_VERSION: string;
-  WEB_ORIGIN: string;
+  /** Public origin of the app, e.g. https://talvra.app (SPA + /api, same origin). */
+  APP_URL: string;
+  /** Comma-separated list, e.g. "morgan.edu". */
+  ALLOWED_EMAIL_DOMAINS: string;
+  EMAIL_FROM: string;
   HYPERDRIVE?: Hyperdrive;
+  // Secrets (wrangler secret put / .dev.vars)
+  BETTER_AUTH_SECRET: string;
+  /** base64 of 32 random bytes; encrypts Canvas tokens with AES-256-GCM. */
+  CANVAS_TOKEN_KEY: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  RESEND_API_KEY?: string;
+};
+
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+  emailVerified: boolean;
 };
 
 export type Variables = {
   requestId: string;
   db: Database;
-  /** Set by the auth middleware (session 3). Undefined means anonymous. */
+  /** Set by the session middleware. Undefined means anonymous. */
   userId?: string;
+  user?: SessionUser;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };
+
+export function allowedDomains(env: Pick<Bindings, "ALLOWED_EMAIL_DOMAINS">) {
+  return env.ALLOWED_EMAIL_DOMAINS.split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isAllowedEmail(email: string, domains: string[]) {
+  const domain = email.toLowerCase().split("@")[1];
+  return !!domain && domains.includes(domain);
+}

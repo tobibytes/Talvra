@@ -1,8 +1,15 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+// Full-app renders run route guards and queries; the 1s default is tight
+// when turbo runs every package's tests in parallel.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom lacks these browser APIs that next-themes, the sidebar and Base UI use.
 if (!window.matchMedia) {

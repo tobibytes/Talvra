@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Search as SearchIcon } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/page";
 
-export const Route = createFileRoute("/search")({ component: Search });
+export const Route = createFileRoute("/_app/search")({ component: Search });
 
 function Search() {
   return (
