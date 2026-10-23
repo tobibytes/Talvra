@@ -10,11 +10,14 @@ import hmac
 import os
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
 
 from .video import RenderError, Slide, render
 
 SECRET = os.environ.get("MEDIA_SECRET", "")
+if not SECRET and os.environ.get("ALLOW_NO_AUTH") != "1":
+    raise SystemExit("MEDIA_SECRET is required (or ALLOW_NO_AUTH=1 inside a private container)")
 MAX_BODY = 60 * 1024 * 1024
 
 app = FastAPI(title="talvra-media", docs_url=None, redoc_url=None, openapi_url=None)
@@ -52,7 +55,7 @@ async def render_route(request: Request):
             {"error": {"code": "bad_request", "message": "Malformed request."}}, status_code=400
         )
     try:
-        mp4, durations = render(title, slides)
+        mp4, durations = await run_in_threadpool(render, title, slides)
     except RenderError as e:
         return JSONResponse(
             {"error": {"code": "render_failed", "message": str(e)[:300]}}, status_code=422

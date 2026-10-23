@@ -338,7 +338,11 @@ export class CanvasClient {
           signal: AbortSignal.timeout(60_000),
         });
       } catch (err) {
-        throw new CanvasError("unavailable", `Download failed: ${String(err)}`);
+        console.warn(JSON.stringify({ msg: "canvas download failed", error: String(err) }));
+        throw new CanvasError(
+          "unavailable",
+          "Couldn't download this file from Canvas. Trying again soon.",
+        );
       }
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");

@@ -90,6 +90,12 @@
       "instance_type": "standard-1"
     }
   ],
+  // Rate limits (fixed 60s windows). namespace_id is any unique number per limiter.
+  "ratelimits": [
+    { "name": "RL_AUTH", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_HEAVY", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_API", "namespace_id": "1003", "simple": { "limit": 300, "period": 60 } }
+  ],
   // Every 15 minutes: reminders; every 30 (in code): incremental sync + stuck-document sweep.
   "triggers": { "crons": ["*/15 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
@@ -159,6 +165,11 @@
           "max_instances": 3,
           "instance_type": "standard-1"
         }
+      ],
+      "ratelimits": [
+        { "name": "RL_AUTH", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } },
+        { "name": "RL_HEAVY", "namespace_id": "2002", "simple": { "limit": 20, "period": 60 } },
+        { "name": "RL_API", "namespace_id": "2003", "simple": { "limit": 300, "period": 60 } }
       ],
       "triggers": { "crons": ["*/15 * * * *"] }
     }

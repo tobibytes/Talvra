@@ -13,14 +13,18 @@ import time
 from urllib.parse import unquote
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from .dispatch import extract
 from .model import BadFile, UnsupportedType
 
 MAX_BYTES = int(os.environ.get("EXTRACT_MAX_BYTES", str(100 * 1024 * 1024)))
-# Only required when exposed over the network (the Azure Container Apps fallback).
 SECRET = os.environ.get("EXTRACT_SECRET", "")
+# Fail closed: without a secret the service only runs where the network can't
+# reach it (the Cloudflare Container sets ALLOW_NO_AUTH=1; it has no ingress).
+if not SECRET and os.environ.get("ALLOW_NO_AUTH") != "1":
+    raise SystemExit("EXTRACT_SECRET is required (or ALLOW_NO_AUTH=1 inside a private container)")
 
 app = FastAPI(title="talvra-extract", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -37,6 +41,8 @@ def _error(status: int, code: str, message: str):
 
 @app.post("/extract")
 async def extract_route(request: Request):
+    # Parsing is CPU-bound: run it in a worker thread so health checks and
+    # other requests aren't blocked.
     if SECRET:
         auth = request.headers.get("authorization", "")
         if not hmac.compare_digest(auth, f"Bearer {SECRET}"):
@@ -53,7 +59,7 @@ async def extract_route(request: Request):
     content_type = request.headers.get("content-type", "")
     started = time.monotonic()
     try:
-        result = extract(data, filename, content_type)
+        result = await run_in_threadpool(extract, data, filename, content_type)
     except UnsupportedType as e:
         return _error(415, "unsupported_type", str(e))
     except BadFile as e:

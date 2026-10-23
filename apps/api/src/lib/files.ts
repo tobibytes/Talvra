@@ -41,3 +41,19 @@ export function contentDisposition(filename: string) {
   const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_") || "download";
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
+
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain; charset=utf-8",
+  md: "text/markdown; charset=utf-8",
+  html: "text/plain; charset=utf-8",
+  htm: "text/plain; charset=utf-8",
+};
+
+/** Content-Type for serving a stored original: from the extension, never the client's claim. */
+export function servedMime(title: string) {
+  const ext = title.toLowerCase().split(".").pop() ?? "";
+  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+}

@@ -1,16 +1,17 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { ApiError, RemindersOverview, UpdateReminderPrefs } from "@talvra/contracts";
-import { and, eq, gt, schema, sql } from "@talvra/db";
+import { eq, schema } from "@talvra/db";
 import { z } from "zod";
 import type { AppEnv } from "../env.js";
 import { emailSender, type SendEmail } from "../lib/email.js";
 import { AppError } from "../lib/errors.js";
 import { testEmail } from "../lib/notify-email.js";
+import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
 import { getPrefs, history, savePrefs, upcomingReminders } from "../reminders/engine.js";
 import { unsubscribeUrl, verifyUnsubscribe } from "../reminders/unsubscribe.js";
 
-const { usageEvents, notifications, users } = schema;
+const { notifications, users } = schema;
 const json = <T>(s: T) => ({ "application/json": { schema: s } });
 const unauthorized = { 401: { description: "Not signed in", content: json(ApiError) } };
 
@@ -72,19 +73,11 @@ export function remindersRoutes(sendOverride?: SendEmail) {
     .openapi(test, async (c) => {
       const userId = c.get("userId") as string;
       const db = c.var.db;
-      const [{ n } = { n: 0 }] = await db
-        .select({ n: sql<number>`count(*)::int` })
-        .from(usageEvents)
-        .where(
-          and(
-            eq(usageEvents.userId, userId),
-            eq(usageEvents.kind, "reminder_test"),
-            gt(usageEvents.createdAt, new Date(Date.now() - 3600_000)),
-          ),
-        );
-      if (n >= 3)
-        throw new AppError("rate_limited", "That's a few tests already. Try again in an hour.");
-      await db.insert(usageEvents).values({ userId, kind: "reminder_test" });
+      await meter(db, userId, "reminder_test", {
+        limit: 3,
+        windowMs: 3600_000,
+        message: "That's a few tests already. Try again in an hour.",
+      });
       const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!user) throw new AppError("unauthorized", "Sign in to continue.");
       const message = testEmail({
@@ -124,7 +117,8 @@ export const unsubscribeRoutes = new OpenAPIHono<AppEnv>().on(
   ["GET", "POST"],
   "/unsubscribe",
   async (c) => {
-    const userId = await verifyUnsubscribe(c.env.BETTER_AUTH_SECRET, c.req.query("token") ?? "");
+    const token = c.req.query("token") ?? "";
+    const userId = await verifyUnsubscribe(c.env.BETTER_AUTH_SECRET, token);
     const html = (title: string, body: string, status: 200 | 400) =>
       c.html(page(title, body), status, {
         "Cache-Control": "no-store",
@@ -137,13 +131,28 @@ export const unsubscribeRoutes = new OpenAPIHono<AppEnv>().on(
         400,
       );
     }
+    // GET only asks: mail security scanners open links, and must not unsubscribe anyone.
+    // POST (the button, or RFC 8058 one-click from the mail provider) does it.
+    if (c.req.method === "GET") {
+      return html(
+        "Turn off Talvra emails?",
+        `<p>You'll stop getting due-date reminders and the daily digest. You can turn them back on anytime in Reminders.</p>
+<form method="post" action="/api/unsubscribe?token=${encodeURIComponent(token)}"><button type="submit" style="font:inherit;padding:.6rem 1rem;border-radius:.5rem;border:0;background:#1d4ed8;color:#fff;cursor:pointer">Turn off emails</button></form>`,
+        200,
+      );
+    }
     const [user] = await c.var.db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
     if (user) await savePrefs(c.var.db, userId, { emailEnabled: false });
-    if (c.req.method === "POST") return c.body(null, 200);
+    if (
+      c.req.header("content-type")?.includes("application/x-www-form-urlencoded") &&
+      c.req.header("sec-fetch-mode") !== "navigate"
+    ) {
+      return c.body(null, 200);
+    }
     return html(
       "You won't get Talvra emails",
       `<p>Reminders and digests are off. You can turn them back on anytime in <a href="/reminders">Reminders</a>.</p>`,

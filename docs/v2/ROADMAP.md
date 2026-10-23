@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 10. Whoever picks this up: read this file, then
+Last updated at the end of session 11. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -17,7 +17,7 @@ Last updated at the end of session 10. Whoever picks this up: read this file, th
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
-| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ⏭ **Next up** |
+| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done in code (deploy and Sentry DSN wait on the owner, see below) |
 
 Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
 If you want something usable sooner, the shortest useful path is 4 → 5 → the Today part of 9.
@@ -62,8 +62,11 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 - Session tokens are not rotated; sessions expire after 14 idle days, are extended at most daily,
   and are revoked on sign-out/password reset. A 5-minute cookie cache means revocation can
   take up to 5 minutes to apply everywhere.
-- Better Auth's built-in rate limiter uses memory storage, which doesn't share state across
-  isolates on Workers. Real rate limits come in session 11 (Durable Object or Workers rate limiting).
+- Workers Rate Limiting is per Cloudflare location and eventually consistent: a ceiling against
+  abuse, not exact accounting. Exact per-user budgets (Claude, video, test emails) live in
+  `usage_events` (`lib/usage.ts`).
+- Ask history is sent by the client, so a student can put words in the "assistant" turns of their
+  own conversation. It only affects their own answer and the integrity rules still apply.
 - `documents.module_id` uses a plain FK (not the composite owner FK) because `ON DELETE SET NULL`
   on a composite key would null `user_id` too.
 - Rotating `CANVAS_TOKEN_KEY` makes stored tokens unreadable; users must reconnect.
@@ -277,7 +280,55 @@ scheduling a step that then shows on Today.
 
 ---
 
-## Next up: session 11, Hardening and cutover
+## Session 11 notes (Hardening and cutover)
+
+**Rate limits** (`middleware/rate-limit.ts`, Workers Rate Limiting bindings in `wrangler.jsonc`):
+- `RL_AUTH` 10/min per IP on sign-in, sign-up, password reset and verification email.
+  `RL_API` 300/min per user on `/v1/*`. `RL_HEAVY` 20/min per user on sync, Canvas connect,
+  uploads, aids, video, retry, Ask, brief, plan suggestions and test emails. 429 + `Retry-After`.
+- Daily budgets in `usage_events` via `meter()` (insert, count, roll back if over): Ask 150/day,
+  aids 40/day plus 3M input tokens/day, briefs and plan suggestions 30/day each, videos 10/day with
+  one in flight, test emails 3/hour.
+
+**CSRF / origin**: `middleware/csrf.ts` rejects non-GET `/v1/*` requests whose `Origin` isn't the
+app (or that say `Sec-Fetch-Site: cross-site`). `appOrigins(env)` is the single list (also used by
+Better Auth's `trustedOrigins` and the sync WebSocket check); it includes `localhost:8787` in dev.
+
+**Account data** (`routes/account.ts`, Settings → Your data):
+- `GET /v1/me/export`: JSON download of everything the user owns (no secrets, no token ciphertext).
+- `DELETE /v1/me` with `{ confirm: <email> }`: deletes Vectorize ids, purges the user's R2 prefix,
+  deletes the user (cascade) and clears the session cookies. The dialog requires typing the email.
+
+**Security review fixes**: extract container zip-bomb guard (300 MB / 100:1) and 2000-page PDF cap;
+both containers fail closed without their shared secret (tests set `ALLOW_NO_AUTH=1`); media ffmpeg
+inputs locked to `-protocol_whitelist file`; Worker → container timeouts (extract 120s, media 300s);
+`*_URL` without `*_SECRET` throws; Canvas `htmlUrl`/`externalUrl` kept only if http(s); Canvas base
+URL rejects custom ports; unsubscribe tokens expire (366 days) and need a POST (GET shows a confirm
+page, so link scanners can't unsubscribe people); `/original` serves a safe MIME type; prompt
+escaping fixes; video title query scoped by user. Provider errors map to friendly messages.
+
+**SPA headers**: `apps/web/public/_headers` sets a strict CSP (`script-src 'self'`, no inline
+scripts; the pre-paint theme script is `public/theme-init.js`), `nosniff`, `frame-ancestors 'none'`,
+COOP and a Permissions-Policy. Light `--success` darkened for contrast.
+
+**E2E** (`e2e/`, see its README): Playwright on desktop Chrome and Pixel 7 against `wrangler dev`:
+sign up → verify (link from the Wrangler log) → upload Markdown → wait for the extract container →
+document page → search with highlights → reminders settings → delete account. axe (WCAG 2.2 AA,
+incl. contrast) runs on each screen after transitions settle, and any CSP violation fails the test.
+Not part of `pnpm check` (needs Docker and a running stack). Don't rebuild `apps/web` while
+`wrangler dev` runs: it reloads and can crash on a locked local SQLite; restart it.
+
+**Not done, needs the owner**:
+- Sentry: no DSN yet. Add `@sentry/cloudflare` (Worker) and `@sentry/react` (web) gated on
+  `SENTRY_DSN`, and add the ingest host to the CSP `connect-src`.
+- Deploy (see Open items): paid Workers plan, Neon + Hyperdrive id, R2 bucket, queues + DLQs,
+  Vectorize index (`bge-m3`, 1024 dims, cosine, metadata indexes on `userId`/`documentId`),
+  secrets, then `wrangler deploy --env production` and a smoke test.
+
+**Cutover**: legacy v1 is tagged `legacy-v1` and removed from the tree (see the last commit of this
+session). Restore anything with `git checkout legacy-v1 -- <path>`.
+
+## Original session 11 plan (for reference)
 
 1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on
    auth, sync, uploads, Ask, aids.

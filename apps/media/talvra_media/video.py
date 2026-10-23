@@ -49,7 +49,7 @@ def render(title: str, slides: list[Slide]) -> tuple[bytes, list[float]]:
         segments: list[Path] = []
         durations: list[float] = []
         for i, s in enumerate(slides):
-            png, audio, seg = t / f"s{i}.png", t / f"a{i}", t / f"seg{i}.mp4"
+            png, audio, seg = t / f"s{i}.png", t / f"a{i}.mp3", t / f"seg{i}.mp4"
             render_slide(png, s.heading, s.bullets, title, i)
             audio.write_bytes(s.audio)
             dur = duration(audio) + 0.6  # a short pause after each slide

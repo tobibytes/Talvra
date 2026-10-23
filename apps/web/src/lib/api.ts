@@ -98,6 +98,9 @@ export const api = {
     }
   },
   updateMe: (body: UpdateMe) => request("/v1/me", Me, { method: "PATCH", json: body }),
+  exportUrl: `${API_BASE}/v1/me/export`,
+  deleteAccount: (confirm: string) =>
+    request("/v1/me", z.undefined(), { method: "DELETE", json: { confirm } }),
   completeOnboarding: () => request("/v1/me/onboarding/complete", Me, { method: "POST" }),
   connectCanvas: (body: ConnectCanvas) =>
     request("/v1/canvas/connection", ConnectCanvasResult, { method: "PUT", json: body }),

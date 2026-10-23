@@ -38,7 +38,7 @@ export const ConnectCanvas = z.object({
     .default(DEFAULT_CANVAS_URL)
     .refine((u) => {
       const url = new URL(u);
-      return url.protocol === "https:" && CANVAS_HOST_PATTERN.test(url.hostname);
+      return url.protocol === "https:" && url.port === "" && CANVAS_HOST_PATTERN.test(url.hostname);
     }, "Use your school's https://<school>.instructure.com address")
     .transform((u) => new URL(u).origin),
   token: z.string().trim().min(20, "That doesn't look like a Canvas access token").max(200),
@@ -74,3 +74,9 @@ export const PublicConfig = z.object({
   allowedEmailDomains: z.array(z.string()),
 });
 export type PublicConfig = z.infer<typeof PublicConfig>;
+
+export const DeleteAccount = z.object({
+  /** Must equal the account email: a deliberate, typed confirmation. */
+  confirm: z.string().trim(),
+});
+export type DeleteAccount = z.infer<typeof DeleteAccount>;

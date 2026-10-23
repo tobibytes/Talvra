@@ -71,7 +71,8 @@ export function workersAiSpeaker(ai: Ai): Speaker {
       );
     } catch (err) {
       if (err instanceof VideoError) throw err;
-      throw new VideoError(true, `Text-to-speech failed: ${String(err)}`);
+      console.warn(JSON.stringify({ msg: "tts failed", error: String(err) }));
+      throw new VideoError(true, "Narration is busy right now. Trying again shortly.");
     }
   };
 }
@@ -121,6 +122,7 @@ export function httpRenderer(
     const res = await send(
       new Request(url, {
         method: "POST",
+        signal: AbortSignal.timeout(300_000),
         headers,
         body: JSON.stringify({
           title,
@@ -132,7 +134,8 @@ export function httpRenderer(
         }),
       }),
     ).catch((err) => {
-      throw new VideoError(true, `Media service unreachable: ${String(err)}`);
+      console.warn(JSON.stringify({ msg: "media service unreachable", error: String(err) }));
+      throw new VideoError(true, "The video maker is busy. Trying again shortly.");
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -242,7 +245,7 @@ export async function renderVideo(
     const [doc] = await deps.db
       .select({ title: documents.title })
       .from(documents)
-      .where(eq(documents.id, v.documentId))
+      .where(and(eq(documents.userId, userId), eq(documents.id, v.documentId)))
       .limit(1);
     await save({ status: "rendering", error: null, aidId: notes.id });
     const script = scriptFromNotes(notes.content as StudyNotes);

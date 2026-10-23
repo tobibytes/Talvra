@@ -3,7 +3,7 @@ import { schema } from "@talvra/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
-import { allowedDomains, type Bindings, isAllowedEmail } from "./env.js";
+import { allowedDomains, appOrigins, type Bindings, isAllowedEmail } from "./env.js";
 import { actionEmail, type SendEmail } from "./lib/email.js";
 
 const DAY = 60 * 60 * 24;
@@ -28,7 +28,7 @@ export function createAuth(env: Bindings, db: Database, sendEmail: SendEmail) {
     baseURL: env.APP_URL,
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.APP_URL],
+    trustedOrigins: appOrigins(env),
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: {

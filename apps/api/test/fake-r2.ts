@@ -28,6 +28,10 @@ export function fakeR2() {
         json: async () => JSON.parse(new TextDecoder().decode(bytes)),
       };
     },
+    async list(opts?: { prefix?: string }) {
+      const keys = [...objects.keys()].filter((k) => k.startsWith(opts?.prefix ?? ""));
+      return { objects: keys.map((key) => ({ key })), truncated: false };
+    },
     async delete(keys: string | string[]) {
       for (const k of Array.isArray(keys) ? keys : [keys]) objects.delete(k);
     },

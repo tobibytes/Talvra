@@ -29,7 +29,8 @@
   --accent: oklch(0.95 0.03 75);
   --accent-foreground: oklch(0.35 0.08 60);
   --destructive: oklch(0.55 0.2 27);
-  --success: oklch(0.55 0.13 150);
+  /* Dark enough for 4.5:1 text on its own 10% tint (checked by axe in e2e). */
+  --success: oklch(0.47 0.12 150);
   --warning: oklch(0.7 0.15 75);
   --border: oklch(0.91 0.008 255);
   --input: oklch(0.89 0.01 255);

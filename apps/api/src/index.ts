@@ -162,6 +162,7 @@ function videoDeps(env: Bindings) {
             throw new VideoError(false, "Narration isn't available right now.");
           };
   const media = env.MEDIA;
+  if (env.MEDIA_URL && !env.MEDIA_SECRET) throw new Error("MEDIA_URL is set without MEDIA_SECRET");
   const render = env.MEDIA_URL
     ? httpRenderer((r) => fetch(r), `${env.MEDIA_URL.replace(/\/$/, "")}/render`, env.MEDIA_SECRET)
     : media

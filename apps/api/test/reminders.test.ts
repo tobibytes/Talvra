@@ -239,12 +239,17 @@ describe("reminders API", () => {
     const { h, db, user } = await setup();
     const url = new URL(await unsubscribeUrl(APP_URL, env.BETTER_AUTH_SECRET, user.id));
     h.clearCookies();
-    const res = await h.request(url.pathname + url.search);
+    // GET only asks (link scanners open links); nothing changes yet.
+    const ask = await h.request(url.pathname + url.search);
+    expect(ask.status).toBe(200);
+    expect(await ask.text()).toContain('<form method="post"');
+    expect(await db.select().from(schema.reminderPrefs)).toEqual([]);
+    // The button (or the mail provider's one-click POST) turns emails off.
+    const res = await h.request(url.pathname + url.search, { method: "POST" });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("You won't get Talvra emails");
     const [prefs] = await db.select().from(schema.reminderPrefs);
     expect(prefs?.emailEnabled).toBe(false);
     expect((await h.request("/api/unsubscribe?token=nope")).status).toBe(400);
-    expect((await h.request(url.pathname + url.search, { method: "POST" })).status).toBe(200);
   });
 });

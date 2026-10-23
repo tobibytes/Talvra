@@ -34,7 +34,7 @@ const brief = {
 
 function fakeStructured() {
   return vi.fn(async ({ schema: s }: Parameters<Structured>[0]) => {
-    const isPlan = "steps" in (s as { shape?: object }).shape!;
+    const isPlan = "steps" in ((s as { shape?: object }).shape ?? {});
     const data = isPlan
       ? {
           steps: [

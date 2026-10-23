@@ -225,15 +225,9 @@ describe("study aids", () => {
       .update(schema.documents)
       .set({ status: "ready" })
       .where(eq(schema.documents.id, docId));
-    await db.insert(schema.studyAids).values(
-      Array.from({ length: DAILY_AID_LIMIT }, (_, i) => ({
-        userId,
-        documentId: docId,
-        kind: "quiz" as const,
-        version: i + 1,
-        status: "failed" as const,
-      })),
-    );
+    await db
+      .insert(schema.usageEvents)
+      .values(Array.from({ length: DAILY_AID_LIMIT }, () => ({ userId, kind: "aid" })));
     const res = await make(h, docId, "notes");
     expect(res.status).toBe(429);
     expect(ApiError.parse(await res.json()).error.code).toBe("rate_limited");

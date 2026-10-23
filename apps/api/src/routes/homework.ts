@@ -34,6 +34,7 @@ import {
 } from "../homework/service.js";
 import { AppError } from "../lib/errors.js";
 import { sha256Hex } from "../lib/files.js";
+import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
 import { toCourseDocument } from "./documents.js";
@@ -232,6 +233,10 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
           .returning();
         return row;
       };
+      await meter(c.var.db, userId, "brief", {
+        limit: 30,
+        message: "That's a lot of assignment breakdowns today. Try again tomorrow.",
+      });
       try {
         const out = await structuredFor(
           c.env,
@@ -365,7 +370,14 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
       const { assignmentId } = c.req.valid("param");
       const a = await assignmentDetail(c.var.db, userId, assignmentId);
       const brief = await loadBrief(c.var.db, userId, assignmentId);
-      const context = brief?.content ? `\n\n<brief>${JSON.stringify(brief.content)}</brief>` : "";
+      await meter(c.var.db, userId, "plan_suggest", {
+        limit: 30,
+        message: "That's a lot of plan suggestions today. Try again tomorrow.",
+      });
+      // JSON can't contain a raw "<" here, so it can't close the <brief> tag.
+      const context = brief?.content
+        ? `\n\n<brief>${JSON.stringify(brief.content).replace(/</g, "\\u003c")}</brief>`
+        : "";
       try {
         const out = await structuredFor(
           c.env,
