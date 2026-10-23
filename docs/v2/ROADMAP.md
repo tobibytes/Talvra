@@ -14,7 +14,7 @@ Last updated at the end of session 11. Whoever picks this up: read this file, th
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
-| 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
+| 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed (the only session left) |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done in code (deploy and Sentry DSN wait on the owner, see below) |
@@ -42,7 +42,8 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 ## Open items for the owner
 
 - [ ] Rotate the secrets that were committed in v1 (`deploy/secrets.yaml`, `infra/.env`): Canvas
-      tokens, DB password, OpenAI key (revoke). Then purge those files from git history. That
+      tokens, DB password, OpenAI key (revoke). They're gone from the tree since the cutover but still
+      in git history (and the `legacy-v1` tag). Then purge them from history. That
       rewrite needs a force-push to `main`; only do it when the owner says so.
 - [ ] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
 - [ ] Resend API key (required in production).
