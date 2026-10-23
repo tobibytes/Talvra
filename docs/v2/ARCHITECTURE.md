@@ -105,9 +105,12 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
    `npx wrangler r2 bucket create talvra-files`,
    `npx wrangler queues create talvra-ingest`, `npx wrangler queues create talvra-ingest-dlq`,
    `npx wrangler queues create talvra-ai`, `npx wrangler queues create talvra-ai-dlq`.
-6. Containers need the Workers Paid plan and Docker on the machine that deploys
+6. Semantic search: `npx wrangler vectorize create talvra-chunks --dimensions=1024 --metric=cosine`,
+   then `npx wrangler vectorize create-metadata-index talvra-chunks --property-name=userId --type=string`
+   (and the same for `courseId`, `documentId`). Workers AI needs no setup.
+7. Containers need the Workers Paid plan and Docker on the machine that deploys
    (`wrangler deploy` builds `apps/extract/Dockerfile` and pushes it).
-7. `pnpm --filter @talvra/api deploy`
+8. `pnpm --filter @talvra/api deploy`
 
 Azure fallback for extraction: run the same image on Azure Container Apps with
 `EXTRACT_SECRET` set, then set `EXTRACT_URL` + `EXTRACT_SECRET` as Worker secrets. When

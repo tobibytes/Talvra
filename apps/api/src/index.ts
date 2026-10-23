@@ -13,7 +13,9 @@ import {
 } from "./ingest/process.js";
 import { extractorFor } from "./lib/extractor.js";
 import { publishAidToHub, publishDocumentToHub } from "./realtime/hub.js";
+import { searchDepsFor } from "./routes/search.js";
 import { launchWorkflow } from "./routes/sync.js";
+import { indexDocument } from "./search/engine.js";
 import { dueForScheduledSync, startSync } from "./sync/run.js";
 
 export { ExtractContainer } from "./extract-container.js";
@@ -49,12 +51,14 @@ function ingestDeps(env: Bindings): IngestDeps {
   if (!env.HYPERDRIVE || !env.FILES || !extract) {
     throw new Error("Ingest needs HYPERDRIVE, FILES and EXTRACT (or EXTRACT_URL)");
   }
+  const db = createDb(env.HYPERDRIVE.connectionString);
   return {
-    db: createDb(env.HYPERDRIVE.connectionString),
+    db,
     files: env.FILES,
     extract,
     tokenKey: env.CANVAS_TOKEN_KEY,
     notify: (userId, doc) => publishDocumentToHub(env, userId, doc),
+    index: (doc, sections) => indexDocument({ db, ...searchDepsFor(env) }, doc, sections),
   };
 }
 

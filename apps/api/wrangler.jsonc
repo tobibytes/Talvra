@@ -109,6 +109,10 @@
         ]
       },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
+      // Semantic search. Not in local dev (Vectorize has no local simulation), where
+      // search falls back to Postgres full text. See ARCHITECTURE.md for setup.
+      "ai": { "binding": "AI" },
+      "vectorize": [{ "binding": "VECTORS", "index_name": "talvra-chunks" }],
       "queues": {
         "producers": [
           { "binding": "INGEST_QUEUE", "queue": "talvra-ingest" },

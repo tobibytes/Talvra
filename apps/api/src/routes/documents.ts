@@ -17,6 +17,8 @@ import { enqueueAll, type FileStore, type IngestMessage } from "../ingest/proces
 import { AppError } from "../lib/errors.js";
 import { contentDisposition, fileKeys, isSupported, sha256Hex } from "../lib/files.js";
 import { requireUser } from "../middleware/auth.js";
+import { unindexDocument } from "../search/engine.js";
+import { searchDepsFor } from "./search.js";
 
 const { documents, courses } = schema;
 const json = <T>(s: T) => ({ "application/json": { schema: s } });
@@ -214,6 +216,7 @@ export function documentsRoutes(opts: DocumentsOptions = {}) {
           throw new AppError("conflict", "Canvas files follow Canvas; remove them there.");
         }
         const keys = fileKeys(userId, doc.id);
+        await unindexDocument({ db: c.var.db, ...searchDepsFor(c.env) }, userId, doc.id);
         await filesOf(c.env, opts).delete([keys.original, keys.markdown, keys.structure]);
         await c.var.db
           .delete(documents)

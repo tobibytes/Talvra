@@ -1,5 +1,5 @@
 import type * as React from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { type Components, defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
@@ -86,11 +86,39 @@ const components: Components = {
   img: () => null,
 };
 
-export function Markdown({ children, className }: { children: string; className?: string }) {
+/**
+ * `renderCite` turns `[n]` citations into custom links (the `cite:` scheme is
+ * the only non-standard URL let through the sanitizer).
+ */
+export function Markdown({
+  children,
+  className,
+  renderCite,
+}: {
+  children: string;
+  className?: string;
+  renderCite?: (n: number) => React.ReactNode;
+}) {
+  const text = renderCite ? children.replace(/\[(\d{1,2})\]/g, "[$1](cite:$1)") : children;
+  const comps: Components = renderCite
+    ? {
+        ...components,
+        a: (props) =>
+          props.href?.startsWith("cite:")
+            ? renderCite(Number(props.href.slice(5)))
+            : components.a
+              ? (components.a as (p: typeof props) => React.ReactNode)(props)
+              : null,
+      }
+    : components;
   return (
     <div className={cn("text-[15px] text-foreground [overflow-wrap:anywhere]", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {children}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={comps}
+        urlTransform={(url) => (/^cite:\d+$/.test(url) ? url : defaultUrlTransform(url))}
+      >
+        {text}
       </ReactMarkdown>
     </div>
   );

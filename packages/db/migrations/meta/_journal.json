@@ -36,6 +36,20 @@
       "when": 1792785610268,
       "tag": "0004_study_aids",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792786560129,
+      "tag": "0005_chunks",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792786665479,
+      "tag": "0006_usage",
+      "breakpoints": true
     }
   ]
 }

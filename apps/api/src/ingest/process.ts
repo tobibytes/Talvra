@@ -1,4 +1,4 @@
-import type { DocumentEvent } from "@talvra/contracts";
+import type { DocSection, DocumentEvent } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
 import { and, eq, inArray, lt, schema, sql } from "@talvra/db";
 import {
@@ -28,6 +28,11 @@ export type IngestDeps = {
   canvas?: CanvasClientOptions;
   /** Pushes status changes to the user's live connection(s). */
   notify?: (userId: string, event: DocumentEvent) => Promise<void>;
+  /** Builds search chunks (and vectors) once the text is extracted. */
+  index?: (
+    doc: { id: string; userId: string; courseId: string | null },
+    sections: DocSection[],
+  ) => Promise<unknown>;
 };
 
 /** Thrown for problems worth retrying later (Canvas or extractor down). */
@@ -197,6 +202,14 @@ export async function processDocument(
     await deps.files.put(keys.structure, JSON.stringify({ sections: result.sections }), {
       httpMetadata: { contentType: "application/json" },
     });
+    // Searchable right away. Never fail ingestion over search indexing.
+    await deps
+      .index?.({ id: doc.id, userId, courseId: doc.courseId }, result.sections)
+      .catch((err) =>
+        console.warn(
+          JSON.stringify({ msg: "indexing failed", documentId: doc.id, error: String(err) }),
+        ),
+      );
     await setStatus(deps, doc, {
       status: "ready",
       error: null,

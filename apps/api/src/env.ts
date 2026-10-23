@@ -24,6 +24,10 @@ export type Bindings = {
   INGEST_QUEUE?: Queue<IngestMessage>;
   /** Study-aid generation jobs (Claude). */
   AI_QUEUE?: Queue<AidMessage>;
+  /** Workers AI (embeddings for semantic search). */
+  AI?: Ai;
+  /** Vectorize index of chunk embeddings (metadata: userId, courseId, documentId). */
+  VECTORS?: Vectorize;
   /** Python extract service on Cloudflare Containers. */
   EXTRACT?: DurableObjectNamespace<ExtractContainer>;
   /** Fallback: the same image on Azure Container Apps. */
