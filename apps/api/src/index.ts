@@ -1,4 +1,6 @@
 import { createDb } from "@talvra/db";
+import { claudeGenerator, GenerationError } from "./ai/claude.js";
+import { type AidMessage, generateAid } from "./ai/generate.js";
 import { createApp } from "./app.js";
 import type { Bindings } from "./env.js";
 import {
@@ -10,7 +12,7 @@ import {
   stuckDocuments,
 } from "./ingest/process.js";
 import { extractorFor } from "./lib/extractor.js";
-import { publishDocumentToHub } from "./realtime/hub.js";
+import { publishAidToHub, publishDocumentToHub } from "./realtime/hub.js";
 import { launchWorkflow } from "./routes/sync.js";
 import { dueForScheduledSync, startSync } from "./sync/run.js";
 
@@ -71,10 +73,14 @@ export default {
     ctx.waitUntil(scheduledSync(env));
     ctx.waitUntil(sweepStuckDocuments(env));
   },
-  /** Ingest consumer: download → extract → store, one document per message. */
+  /** Two queues: ingest (download → extract) and ai (study aids with Claude). */
   async queue(batch, env) {
+    if (batch.queue.startsWith("talvra-ai")) {
+      await consumeAid(batch as MessageBatch<AidMessage>, env);
+      return;
+    }
     const deps = ingestDeps(env);
-    for (const msg of batch.messages) {
+    for (const msg of (batch as MessageBatch<IngestMessage>).messages) {
       try {
         await processDocument(deps, msg.body);
         msg.ack();
@@ -91,4 +97,37 @@ export default {
       }
     }
   },
-} satisfies ExportedHandler<Bindings, IngestMessage>;
+} satisfies ExportedHandler<Bindings, IngestMessage | AidMessage>;
+
+async function consumeAid(batch: MessageBatch<AidMessage>, env: Bindings) {
+  if (!env.HYPERDRIVE || !env.FILES) throw new Error("Study aids need HYPERDRIVE and FILES");
+  // Without a key, fail each aid cleanly instead of leaving it queued forever.
+  const generate = env.ANTHROPIC_API_KEY
+    ? claudeGenerator(env.ANTHROPIC_API_KEY)
+    : async () => {
+        console.error(JSON.stringify({ msg: "ANTHROPIC_API_KEY is not set" }));
+        throw new GenerationError(false, "Study tools are temporarily unavailable.");
+      };
+  const deps = {
+    db: createDb(env.HYPERDRIVE.connectionString),
+    files: env.FILES,
+    generate,
+    notify: (userId: string, aid: Parameters<typeof publishAidToHub>[2]) =>
+      publishAidToHub(env, userId, aid),
+  };
+  for (const msg of batch.messages) {
+    try {
+      await generateAid(deps, msg.body, msg.attempts);
+      msg.ack();
+    } catch (err) {
+      if (err instanceof GenerationError && err.retryable) {
+        msg.retry({ delaySeconds: Math.min(600, 20 * 2 ** msg.attempts) });
+      } else {
+        console.error(
+          JSON.stringify({ msg: "aid consumer error", body: msg.body, error: String(err) }),
+        );
+        msg.ack();
+      }
+    }
+  }
+}

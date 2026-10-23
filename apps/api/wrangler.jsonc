@@ -49,8 +49,18 @@
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files-dev" }],
   // Ingest pipeline: sync and uploads produce, this Worker consumes.
   "queues": {
-    "producers": [{ "binding": "INGEST_QUEUE", "queue": "talvra-ingest-dev" }],
+    "producers": [
+      { "binding": "INGEST_QUEUE", "queue": "talvra-ingest-dev" },
+      { "binding": "AI_QUEUE", "queue": "talvra-ai-dev" }
+    ],
     "consumers": [
+      // One generation at a time per batch: each is a long Claude stream.
+      {
+        "queue": "talvra-ai-dev",
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "talvra-ai-dlq-dev"
+      },
       {
         "queue": "talvra-ingest-dev",
         "max_batch_size": 4,
@@ -72,7 +82,8 @@
   // Every 30 minutes: incremental sync for users whose data is older than 6 hours.
   "triggers": { "crons": ["*/30 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
-  //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY
+  //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY,
+  //   ANTHROPIC_API_KEY
   "env": {
     "production": {
       "vars": {
@@ -99,8 +110,17 @@
       },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
       "queues": {
-        "producers": [{ "binding": "INGEST_QUEUE", "queue": "talvra-ingest" }],
+        "producers": [
+          { "binding": "INGEST_QUEUE", "queue": "talvra-ingest" },
+          { "binding": "AI_QUEUE", "queue": "talvra-ai" }
+        ],
         "consumers": [
+          {
+            "queue": "talvra-ai",
+            "max_batch_size": 1,
+            "max_retries": 3,
+            "dead_letter_queue": "talvra-ai-dlq"
+          },
           {
             "queue": "talvra-ingest",
             "max_batch_size": 4,

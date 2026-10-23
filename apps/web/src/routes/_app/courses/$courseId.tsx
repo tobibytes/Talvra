@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
 import { meQuery } from "@/lib/auth";
-import { dateTime, relativeTime } from "@/lib/time";
+import { dateTime, plural, relativeTime } from "@/lib/time";
 
 const tabs = ["modules", "files", "assignments", "study"] as const;
 type Tab = (typeof tabs)[number];
@@ -215,14 +215,52 @@ function CoursePage() {
           )}
         </TabsContent>
         <TabsContent value="study">
-          <EmptyState
-            icon={GraduationCap}
-            title="Study tools are on the way"
-            description="Notes, flashcards and quizzes made from this course's material will live here."
-          />
+          <CourseStudy courseId={courseId} />
         </TabsContent>
       </Tabs>
     </>
+  );
+}
+
+/** Course "Study" tab: review this course's due cards; aids are made per document. */
+function CourseStudy({ courseId }: { courseId: string }) {
+  const due = useQuery({
+    queryKey: ["study", "due", { courseId }],
+    queryFn: () => api.dueCards({ courseId, limit: 100 }),
+  });
+  const n = due.data?.items.length ?? 0;
+  return (
+    <div className="space-y-4">
+      {n ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
+          <p className="text-sm">
+            <span className="font-medium">{plural(n, "flashcard")}</span>{" "}
+            <span className="text-muted-foreground">due from this course.</span>
+          </p>
+          <Button render={<Link to="/review" search={{ courseId }} />}>Review now</Button>
+        </div>
+      ) : null}
+      <EmptyState
+        icon={GraduationCap}
+        title="Study any file in this course"
+        description="Open a file or page from Modules or Files, then pick Notes, Flashcards or Quiz. Everything Claude makes cites the page it came from."
+        action={
+          <Button
+            variant="outline"
+            render={
+              <Link
+                to="/courses/$courseId"
+                params={{ courseId }}
+                search={(prev) => ({ ...prev, tab: "files" })}
+                replace
+              />
+            }
+          >
+            Browse files
+          </Button>
+        }
+      />
+    </div>
   );
 }
 

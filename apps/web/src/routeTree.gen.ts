@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppGalleryRouteImport } from './routes/_app/gallery'
 import { Route as AppHomeworkRouteImport } from './routes/_app/homework'
 import { Route as AppRemindersRouteImport } from './routes/_app/reminders'
+import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AuthCheckEmailRouteImport } from './routes/_auth/check-email'
@@ -58,6 +59,11 @@ const AppHomeworkRoute = AppHomeworkRouteImport.update({
 const AppRemindersRoute = AppRemindersRouteImport.update({
   id: '/reminders',
   path: '/reminders',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReviewRoute = AppReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSearchRoute = AppSearchRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof AppGalleryRoute
   '/homework': typeof AppHomeworkRoute
   '/reminders': typeof AppRemindersRoute
+  '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
   '/check-email': typeof AuthCheckEmailRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/gallery': typeof AppGalleryRoute
   '/homework': typeof AppHomeworkRoute
   '/reminders': typeof AppRemindersRoute
+  '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
   '/check-email': typeof AuthCheckEmailRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/_app/gallery': typeof AppGalleryRoute
   '/_app/homework': typeof AppHomeworkRoute
   '/_app/reminders': typeof AppRemindersRoute
+  '/_app/review': typeof AppReviewRoute
   '/_app/search': typeof AppSearchRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_auth/check-email': typeof AuthCheckEmailRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/homework'
     | '/reminders'
+    | '/review'
     | '/search'
     | '/settings'
     | '/check-email'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/homework'
     | '/reminders'
+    | '/review'
     | '/search'
     | '/settings'
     | '/check-email'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/_app/gallery'
     | '/_app/homework'
     | '/_app/reminders'
+    | '/_app/review'
     | '/_app/search'
     | '/_app/settings'
     | '/_auth/check-email'
@@ -276,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/reminders'
       fullPath: '/reminders'
       preLoaderRoute: typeof AppRemindersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/review': {
+      id: '/_app/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof AppReviewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/search': {
@@ -355,6 +374,7 @@ interface AppRouteChildren {
   AppGalleryRoute: typeof AppGalleryRoute
   AppHomeworkRoute: typeof AppHomeworkRoute
   AppRemindersRoute: typeof AppRemindersRoute
+  AppReviewRoute: typeof AppReviewRoute
   AppSearchRoute: typeof AppSearchRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -367,6 +387,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGalleryRoute: AppGalleryRoute,
   AppHomeworkRoute: AppHomeworkRoute,
   AppRemindersRoute: AppRemindersRoute,
+  AppReviewRoute: AppReviewRoute,
   AppSearchRoute: AppSearchRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

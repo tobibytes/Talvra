@@ -7,3 +7,5 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 # Optional in development: without it, verification/reset emails print to the terminal.
 RESEND_API_KEY=
+# Claude, for study aids (notes, flashcards, quizzes).
+ANTHROPIC_API_KEY=

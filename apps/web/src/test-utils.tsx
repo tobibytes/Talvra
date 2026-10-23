@@ -1,4 +1,12 @@
-import type { Course, DocumentDetail, Me, SyncRun } from "@talvra/contracts";
+import type {
+  Course,
+  DocumentAids,
+  DocumentDetail,
+  Flashcard,
+  Me,
+  StudyAid,
+  SyncRun,
+} from "@talvra/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
@@ -120,13 +128,91 @@ export function makeDocument(overrides: Partial<DocumentDetail> = {}): DocumentD
   };
 }
 
+export const NOTES = {
+  title: "Arrays and lists",
+  summary: "How arrays and linked lists store data.",
+  sections: [
+    {
+      heading: "Arrays",
+      bullets: [
+        { text: "Arrays store elements contiguously.", cite: [{ kind: "page" as const, n: 1 }] },
+      ],
+    },
+  ],
+  keyTerms: [{ term: "Array", definition: "A contiguous block.", cite: [] }],
+};
+
+export const QUIZ = {
+  questions: [
+    {
+      type: "multiple_choice" as const,
+      prompt: "How are arrays stored?",
+      choices: ["Contiguously", "As linked nodes", "In a hash table", "As a tree"],
+      answerIndex: 0,
+      answer: "Contiguously",
+      explanation: "Arrays use one block of memory.",
+      cite: [{ kind: "page" as const, n: 1 }],
+    },
+    {
+      type: "short_answer" as const,
+      prompt: "Why is array indexing O(1)?",
+      choices: [],
+      answerIndex: -1,
+      answer: "The address is base + index × size.",
+      explanation: "Direct address arithmetic.",
+      cite: [],
+    },
+  ],
+};
+
+export function makeAid(kind: StudyAid["kind"], overrides: Partial<StudyAid> = {}): StudyAid {
+  return {
+    id: crypto.randomUUID(),
+    documentId: DOC_ID,
+    kind,
+    version: 1,
+    status: "ready",
+    error: null,
+    model: "claude-opus-5-5",
+    content:
+      kind === "notes"
+        ? NOTES
+        : kind === "quiz"
+          ? QUIZ
+          : { cards: [{ front: "How are arrays stored?", back: "Contiguously.", cite: [] }] },
+    createdAt: "2026-10-23T12:00:00.000Z",
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  } as StudyAid;
+}
+
+export function makeCard(overrides: Partial<Flashcard> = {}): Flashcard {
+  return {
+    id: crypto.randomUUID(),
+    documentId: DOC_ID,
+    documentTitle: "Lecture 1.pdf",
+    courseId: COURSE_ID,
+    front: "How are arrays stored?",
+    back: "Contiguously, in one block.",
+    cite: [],
+    due: "2026-10-23T00:00:00.000Z",
+    state: "new",
+    reps: 0,
+    ...overrides,
+  };
+}
+
 export function fakeApi(state: {
   me: Me | null;
   runs?: SyncRun[];
   courses?: Course[];
   documents?: DocumentDetail[];
+  aids?: StudyAid[];
+  cards?: Flashcard[];
 }) {
   state.documents ??= [];
+  state.aids ??= [];
+  state.cards ??= [];
   state.runs ??= [];
   state.courses ??= [];
   const json = (body: unknown, status = 200) =>
@@ -388,6 +474,50 @@ export function fakeApi(state: {
     if (p === "/api/v1/documents" && method === "GET") {
       const source = url.searchParams.get("source");
       return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
+    }
+    if (p === "/api/v1/study/summary") {
+      return json({ dueNow: state.cards?.length ?? 0, newCards: 0, reviewedToday: 0 });
+    }
+    if (p === "/api/v1/flashcards/due") return json({ items: state.cards });
+    const reviewMatch = p.match(/^\/api\/v1\/flashcards\/([^/]+)\/review$/);
+    if (reviewMatch) {
+      const card = state.cards?.find((c) => c.id === reviewMatch[1]);
+      if (!card) return apiError(404, "not_found", "Card not found.");
+      state.cards = state.cards?.filter((c) => c.id !== card.id);
+      const next = new Date(Date.now() + 3 * 86_400_000).toISOString();
+      return json({ card: { ...card, due: next, reps: card.reps + 1 }, nextDue: next });
+    }
+    const aidsMatch = p.match(/^\/api\/v1\/documents\/([^/]+)\/aids$/);
+    if (aidsMatch) {
+      if (method === "POST") {
+        // Generation "finishes" on the next read.
+        const aid = makeAid(body.kind, {
+          documentId: aidsMatch[1],
+          status: "generating",
+          content: null,
+        });
+        state.aids?.push(aid);
+        setTimeout(() => {
+          const ready = makeAid(body.kind, { id: aid.id, documentId: aid.documentId });
+          state.aids = state.aids?.map((a) => (a.id === aid.id ? ready : a));
+        }, 0);
+        return json(aid, 202);
+      }
+      const slot = (kind: StudyAid["kind"]) => {
+        const mine = (state.aids ?? []).filter(
+          (a) => a.documentId === aidsMatch[1] && a.kind === kind,
+        );
+        return {
+          current: [...mine].reverse().find((a) => a.status === "ready") ?? null,
+          latest: mine.at(-1) ?? null,
+        };
+      };
+      const aids: DocumentAids = {
+        notes: slot("notes"),
+        flashcards: slot("flashcards"),
+        quiz: slot("quiz"),
+      };
+      return json(aids);
     }
     const docMatch = p.match(/^\/api\/v1\/documents\/([^/]+)(\/content|\/retry)?$/);
     if (docMatch) {

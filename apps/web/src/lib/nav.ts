@@ -4,13 +4,22 @@ import {
   BookOpen,
   CalendarCheck,
   ClipboardList,
+  Layers,
   LayoutGrid,
   Search,
   Settings,
 } from "lucide-react";
 
 export type NavItem = {
-  to: "/" | "/courses" | "/homework" | "/search" | "/reminders" | "/settings" | "/gallery";
+  to:
+    | "/"
+    | "/courses"
+    | "/review"
+    | "/homework"
+    | "/search"
+    | "/reminders"
+    | "/settings"
+    | "/gallery";
   label: string;
   icon: LucideIcon;
   /** Shown in the 5-tab bottom bar on phones. */
@@ -40,6 +49,12 @@ export const primaryNav: NavItem[] = [
     icon: ClipboardList,
     mobileTab: true,
     keywords: ["assignments", "plan"],
+  },
+  {
+    to: "/review",
+    label: "Review",
+    icon: Layers,
+    keywords: ["flashcards", "study", "spaced repetition", "cards"],
   },
   { to: "/search", label: "Search", icon: Search, mobileTab: true, keywords: ["find", "ask"] },
   {

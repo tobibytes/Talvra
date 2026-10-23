@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   customType,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -384,4 +385,103 @@ export const syncRuns = pgTable(
       foreignColumns: [courses.id, courses.userId],
     }).onDelete("cascade"),
   ],
+);
+
+export const studyAidKind = pgEnum("study_aid_kind", ["notes", "flashcards", "quiz"]);
+export const studyAidStatus = pgEnum("study_aid_status", [
+  "queued",
+  "generating",
+  "ready",
+  "failed",
+]);
+
+/**
+ * AI-made study material for one document. Each regeneration is a new version;
+ * the newest ready version is what the UI shows. `content` is validated JSON
+ * (see @talvra/contracts study.ts) whose citations point at document anchors.
+ */
+export const studyAids = pgTable(
+  "study_aids",
+  {
+    id: id(),
+    userId: owner(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    kind: studyAidKind("kind").notNull(),
+    version: integer("version").notNull(),
+    status: studyAidStatus("status").notNull().default("queued"),
+    model: text("model"),
+    /** sha256 of the extracted Markdown + prompt version; reused when unchanged. */
+    inputSha256: text("input_sha256"),
+    content: jsonb("content"),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("study_aids_doc_kind_version_idx").on(t.documentId, t.kind, t.version),
+    index("study_aids_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+/** One card from a flashcards aid, with its FSRS schedule. */
+export const flashcards = pgTable(
+  "flashcards",
+  {
+    id: id(),
+    userId: owner(),
+    aidId: uuid("aid_id")
+      .notNull()
+      .references(() => studyAids.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    front: text("front").notNull(),
+    back: text("back").notNull(),
+    cite: jsonb("cite")
+      .$type<{ kind: "page" | "slide" | "section"; n: number }[]>()
+      .notNull()
+      .default([]),
+    // FSRS state (ts-fsrs Card)
+    due: timestamp("due", { withTimezone: true }).notNull().defaultNow(),
+    stability: doublePrecision("stability").notNull().default(0),
+    difficulty: doublePrecision("difficulty").notNull().default(0),
+    scheduledDays: integer("scheduled_days").notNull().default(0),
+    learningSteps: integer("learning_steps").notNull().default(0),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    /** 0 New, 1 Learning, 2 Review, 3 Relearning */
+    state: integer("state").notNull().default(0),
+    lastReview: timestamp("last_review", { withTimezone: true }),
+    /** Hidden from review (e.g. a newer version of the deck replaced it). */
+    suspended: boolean("suspended").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("flashcards_user_due_idx").on(t.userId, t.suspended, t.due),
+    index("flashcards_aid_idx").on(t.aidId, t.position),
+  ],
+);
+
+/** Every review, for stats and (later) FSRS parameter tuning. */
+export const flashcardReviews = pgTable(
+  "flashcard_reviews",
+  {
+    id: id(),
+    userId: owner(),
+    flashcardId: uuid("flashcard_id")
+      .notNull()
+      .references(() => flashcards.id, { onDelete: "cascade" }),
+    /** 1 Again, 2 Hard, 3 Good, 4 Easy */
+    rating: integer("rating").notNull(),
+    stateBefore: integer("state_before").notNull(),
+    scheduledDays: integer("scheduled_days").notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("flashcard_reviews_user_time_idx").on(t.userId, t.reviewedAt)],
 );

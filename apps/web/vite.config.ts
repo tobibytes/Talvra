@@ -14,5 +14,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    // Full-app renders (router + guards + queries) run beside the API's PGlite
+    // suites under turbo; 5s is too tight there.
+    testTimeout: 20_000,
   },
 });

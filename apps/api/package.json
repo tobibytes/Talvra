@@ -11,12 +11,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.2.0",
     "@cloudflare/containers": "0.3.7",
     "@hono/zod-openapi": "1.6.3",
     "@talvra/contracts": "workspace:*",
     "@talvra/db": "workspace:*",
     "better-auth": "1.7.12",
     "hono": "4.13.13",
+    "ts-fsrs": "5.4.2",
     "zod": "4.6.7"
   },
   "devDependencies": {

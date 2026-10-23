@@ -1,6 +1,6 @@
-import type { DocSection, DocumentDetail } from "@talvra/contracts";
+import type { Anchor, DocSection, DocumentDetail } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   CircleAlert,
   Download,
@@ -15,10 +15,15 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { kindOf } from "@/components/course/files-table";
 import { Markdown, slugify } from "@/components/document/markdown";
 import { DocumentStatusBadge, isProcessing } from "@/components/document/status";
 import { EmptyState, ErrorState, PageHeader } from "@/components/page";
+import { AidPanel } from "@/components/study/aid-panel";
+import { DeckView } from "@/components/study/deck-view";
+import { NotesView } from "@/components/study/notes-view";
+import { QuizRunner } from "@/components/study/quiz-runner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb,
@@ -40,11 +45,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
 import { fileSize, plural, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/documents/$documentId")({ component: DocumentPage });
+const tabs = ["read", "notes", "flashcards", "quiz"] as const;
+type Tab = (typeof tabs)[number];
+
+export const Route = createFileRoute("/_app/documents/$documentId")({
+  validateSearch: z.object({ tab: z.enum(tabs).optional().catch(undefined) }),
+  component: DocumentPage,
+});
+
+const anchorKey = (a: Anchor) => `${a.kind}:${a.n}`;
 
 function DocumentPage() {
   const { documentId } = Route.useParams();
@@ -136,9 +150,75 @@ function DocumentPage() {
       ) : content.isError ? (
         <ErrorState error={content.error} onRetry={() => content.refetch()} />
       ) : (
-        <Reader markdown={content.data.markdown} sections={content.data.sections} />
+        <Study doc={d} markdown={content.data.markdown} sections={content.data.sections} />
       )}
     </>
+  );
+}
+
+/** Ready documents: read it, or study it (notes, flashcards, quiz). */
+function Study({
+  doc,
+  markdown,
+  sections,
+}: {
+  doc: DocumentDetail;
+  markdown: string;
+  sections: DocSection[];
+}) {
+  const { tab = "read" } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const aids = useQuery({
+    queryKey: ["document", doc.id, "aids"],
+    queryFn: () => api.documentAids(doc.id),
+    // Live updates come over the socket; poll as a fallback while something is cooking.
+    refetchInterval: (q) =>
+      Object.values(q.state.data ?? {}).some(
+        (s) => s.latest?.status === "queued" || s.latest?.status === "generating",
+      )
+        ? 4000
+        : false,
+  });
+  // Citation -> heading id in the reader (headings are slugged the same way).
+  const slugs = React.useMemo(
+    () => new Map(sections.map((s) => [anchorKey(s.anchor), slugify(s.heading)])),
+    [sections],
+  );
+  const slugFor = React.useCallback((a: Anchor) => slugs.get(anchorKey(a)) ?? null, [slugs]);
+
+  return (
+    <Tabs value={tab} onValueChange={(v) => navigate({ search: { tab: v as Tab }, replace: true })}>
+      <TabsList className="mb-4">
+        <TabsTrigger value="read">Read</TabsTrigger>
+        <TabsTrigger value="notes">Notes</TabsTrigger>
+        <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
+        <TabsTrigger value="quiz">Quiz</TabsTrigger>
+      </TabsList>
+      <TabsContent value="read">
+        <Reader markdown={markdown} sections={sections} />
+      </TabsContent>
+      {(["notes", "flashcards", "quiz"] as const).map((kind) => (
+        <TabsContent key={kind} value={kind}>
+          {aids.isPending ? (
+            <ReaderSkeleton />
+          ) : aids.isError ? (
+            <ErrorState error={aids.error} onRetry={() => aids.refetch()} />
+          ) : (
+            <AidPanel documentId={doc.id} kind={kind} slot={aids.data[kind]}>
+              {(aid) =>
+                aid.kind === "notes" && aid.content ? (
+                  <NotesView notes={aid.content} documentId={doc.id} slugFor={slugFor} />
+                ) : aid.kind === "flashcards" && aid.content ? (
+                  <DeckView deck={aid.content} documentId={doc.id} slugFor={slugFor} />
+                ) : aid.kind === "quiz" && aid.content ? (
+                  <QuizRunner quiz={aid.content} documentId={doc.id} slugFor={slugFor} />
+                ) : null
+              }
+            </AidPanel>
+          )}
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 
@@ -315,6 +395,11 @@ function Failed({ doc }: { doc: DocumentDetail }) {
 
 /** Rendered Markdown with a sticky outline (pages/slides/headings) on wide screens. */
 function Reader({ markdown, sections }: { markdown: string; sections: DocSection[] }) {
+  // Citations link here with #page-3 etc.; scroll once the text has rendered.
+  const { hash } = useLocation();
+  React.useEffect(() => {
+    if (hash) document.getElementById(hash)?.scrollIntoView({ block: "start" });
+  }, [hash]);
   const outline = sections.filter((s) => s.level <= 3).slice(0, 200);
   if (!markdown.trim()) {
     return (

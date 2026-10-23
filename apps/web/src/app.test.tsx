@@ -6,6 +6,8 @@ import {
   COURSE_ID,
   DOC_ID,
   fakeApi,
+  makeAid,
+  makeCard,
   makeCourse,
   makeDocument,
   makeMe,
@@ -83,6 +85,19 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
       `/documents/${DOC_ID} (failed)`,
       () => fakeApi({ me: makeMe(), documents: [makeDocument({ status: "failed", error: "x" })] }),
     ],
+    [
+      `/documents/${DOC_ID}?tab=notes`,
+      () => fakeApi({ me: makeMe(), documents: [makeDocument()], aids: [makeAid("notes")] }),
+    ],
+    [
+      `/documents/${DOC_ID}?tab=quiz`,
+      () => fakeApi({ me: makeMe(), documents: [makeDocument()], aids: [makeAid("quiz")] }),
+    ],
+    [
+      `/documents/${DOC_ID}?tab=flashcards (empty)`,
+      () => fakeApi({ me: makeMe(), documents: [makeDocument()] }),
+    ],
+    ["/review", () => fakeApi({ me: makeMe(), cards: [makeCard()] })],
     ["/homework", signedIn],
     ["/search", signedIn],
     ["/reminders", signedIn],

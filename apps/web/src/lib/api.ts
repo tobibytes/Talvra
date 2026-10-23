@@ -9,12 +9,18 @@ import {
   CourseDocumentList,
   CourseList,
   CourseModuleList,
+  DocumentAids,
   DocumentContent,
   DocumentDetail,
   DocumentList,
+  FlashcardList,
   Health,
   Me,
   PublicConfig,
+  ReviewResult,
+  StudyAid,
+  type StudyAidKind,
+  StudySummary,
   SyncRun,
   SyncRunList,
   type UpdateMe,
@@ -126,4 +132,15 @@ export const api = {
     return CourseDocument.parse(body);
   },
   originalUrl: (id: string) => `${API_BASE}/v1/documents/${id}/original`,
+  documentAids: (id: string) => request(`/v1/documents/${id}/aids`, DocumentAids),
+  generateAid: (id: string, kind: StudyAidKind, regenerate = false) =>
+    request(`/v1/documents/${id}/aids`, StudyAid, { method: "POST", json: { kind, regenerate } }),
+  dueCards: (params: { courseId?: string; documentId?: string; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, String(v));
+    return request(`/v1/flashcards/due?${q}`, FlashcardList);
+  },
+  reviewCard: (id: string, rating: 1 | 2 | 3 | 4) =>
+    request(`/v1/flashcards/${id}/review`, ReviewResult, { method: "POST", json: { rating } }),
+  studySummary: () => request("/v1/study/summary", StudySummary),
 };

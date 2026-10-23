@@ -81,6 +81,7 @@ terminal; click the link from there.
 | `CANVAS_TOKEN_KEY` | AES-256 key for Canvas tokens (32 bytes, base64) | `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in (optional; button hidden without them) | Google Cloud console, see below |
 | `RESEND_API_KEY` | Sends email (required in production) | resend.com |
+| `ANTHROPIC_API_KEY` | Claude for study aids (notes, flashcards, quizzes) | console.anthropic.com |
 
 Production: `cd apps/api && npx wrangler secret put NAME --env production` for each one.
 Rotating `CANVAS_TOKEN_KEY` makes stored Canvas tokens unreadable, so users must reconnect.
@@ -102,7 +103,8 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 4. `DATABASE_URL=<neon url> pnpm db:migrate`
 5. R2 and Queues (names match `wrangler.jsonc`, `-dev` for local is simulated by Wrangler):
    `npx wrangler r2 bucket create talvra-files`,
-   `npx wrangler queues create talvra-ingest`, `npx wrangler queues create talvra-ingest-dlq`.
+   `npx wrangler queues create talvra-ingest`, `npx wrangler queues create talvra-ingest-dlq`,
+   `npx wrangler queues create talvra-ai`, `npx wrangler queues create talvra-ai-dlq`.
 6. Containers need the Workers Paid plan and Docker on the machine that deploys
    (`wrangler deploy` builds `apps/extract/Dockerfile` and pushes it).
 7. `pnpm --filter @talvra/api deploy`

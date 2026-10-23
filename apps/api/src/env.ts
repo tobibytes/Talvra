@@ -1,4 +1,5 @@
 import type { Database } from "@talvra/db";
+import type { AidMessage } from "./ai/generate.js";
 import type { ExtractContainer } from "./extract-container.js";
 import type { IngestMessage } from "./ingest/process.js";
 import type { UserHub } from "./realtime/user-hub.js";
@@ -21,6 +22,8 @@ export type Bindings = {
   FILES?: R2Bucket;
   /** Documents to download and extract. */
   INGEST_QUEUE?: Queue<IngestMessage>;
+  /** Study-aid generation jobs (Claude). */
+  AI_QUEUE?: Queue<AidMessage>;
   /** Python extract service on Cloudflare Containers. */
   EXTRACT?: DurableObjectNamespace<ExtractContainer>;
   /** Fallback: the same image on Azure Container Apps. */
@@ -33,6 +36,8 @@ export type Bindings = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
+  /** Claude, for study aids. */
+  ANTHROPIC_API_KEY?: string;
 };
 
 export type SessionUser = {
