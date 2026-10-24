@@ -145,7 +145,8 @@ export function httpRenderer(
     const res = await send(
       new Request(url, {
         method: "POST",
-        signal: AbortSignal.timeout(300_000),
+        // A cold container plus a 5-minute video can take a while; don't give up early.
+        signal: AbortSignal.timeout(600_000),
         headers,
         body: JSON.stringify({
           title,
@@ -293,11 +294,23 @@ export async function renderVideo(
       .limit(1);
     await save({ status: "rendering", error: null, aidId: notes.id });
     const studyNotes = notes.content as StudyNotes;
+    const t0 = Date.now();
     const script = await (deps.script?.(userId, studyNotes) ?? Promise.reject(new Error("none")))
       .then(tidyScript)
       .catch(() => scriptFromNotes(studyNotes, { short: true }));
-    const audio: Uint8Array[] = [];
-    for (const s of script) audio.push(await deps.speak(s.narration));
+    const t1 = Date.now();
+    // Narrate a few slides at a time (order kept).
+    const audio: Uint8Array[] = new Array(script.length);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, script.length) }, async () => {
+        while (next < script.length) {
+          const i = next++;
+          audio[i] = await deps.speak(script[i]?.narration ?? "");
+        }
+      }),
+    );
+    const t2 = Date.now();
     const out = await deps.render({
       title: doc?.title ?? "Talvra",
       slides: script.map((s, i) => ({
@@ -309,6 +322,18 @@ export async function renderVideo(
       pdf: await sourcePdf(deps.files, userId, v.documentId, doc),
     });
     const keys = videoKeys(userId, v.documentId, v.id);
+    // Where the time goes (script, narration, render), for the Workers logs.
+    console.log(
+      JSON.stringify({
+        msg: "video timing",
+        slides: script.length,
+        pages: script.filter((s) => s.page).length,
+        scriptMs: t1 - t0,
+        ttsMs: t2 - t1,
+        renderMs: Date.now() - t2,
+        seconds: Math.round(out.durations.reduce((a, b) => a + b, 0)),
+      }),
+    );
     await deps.files.put(keys.mp4, out.mp4, { httpMetadata: { contentType: "video/mp4" } });
     await deps.files.put(keys.vtt, captions(script, out.durations), {
       httpMetadata: { contentType: "text/vtt; charset=utf-8" },
