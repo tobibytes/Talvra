@@ -54,7 +54,7 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
     },
     onboarded: true,
     canvas: {
-      baseUrl: "https://morgan.instructure.com",
+      baseUrl: "https://morganstate.instructure.com",
       status: "active",
       tokenLast4: "good",
       lastVerifiedAt: "2026-10-23T12:00:00.000Z",
@@ -127,7 +127,7 @@ export function makeDocument(overrides: Partial<DocumentDetail> = {}): DocumentD
     warnings: [],
     error: null,
     extractedAt: "2026-10-20T00:00:00.000Z",
-    canvasHtmlUrl: "https://morgan.instructure.com/courses/101/files/501",
+    canvasHtmlUrl: "https://morganstate.instructure.com/courses/101/files/501",
     hasOriginal: true,
     ...overrides,
   };
@@ -218,7 +218,7 @@ export function makeHomework(overrides: Partial<HomeworkItem> = {}): HomeworkIte
     name: "Lab 2: reverse an array",
     dueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
     pointsPossible: 10,
-    htmlUrl: "https://morgan.instructure.com/courses/101/assignments/2",
+    htmlUrl: "https://morganstate.instructure.com/courses/101/assignments/2",
     status: "todo",
     late: false,
     plan: { done: 0, total: 0 },
@@ -395,7 +395,7 @@ export function fakeApi(state: {
                 indent: 0,
                 documentId: null,
                 assignmentId: null,
-                htmlUrl: "https://morgan.instructure.com/courses/101/modules/items/11",
+                htmlUrl: "https://morganstate.instructure.com/courses/101/modules/items/11",
                 externalUrl: null,
               },
               {
@@ -455,7 +455,7 @@ export function fakeApi(state: {
             lockAt: null,
             pointsPossible: 10,
             submissionTypes: ["online_upload"],
-            htmlUrl: "https://morgan.instructure.com/courses/101/assignments/301",
+            htmlUrl: "https://morganstate.instructure.com/courses/101/assignments/301",
             moduleIds: [MODULE_ID],
           },
           {

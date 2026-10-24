@@ -57,7 +57,7 @@ describe("canvas connection", () => {
     const body = ConnectCanvasResult.parse(await res.json());
     expect(body.canvasUserName).toBe("Test Student");
     expect(body.connection).toMatchObject({
-      baseUrl: "https://morgan.instructure.com",
+      baseUrl: "https://morganstate.instructure.com",
       tokenLast4: "oken",
       status: "active",
     });

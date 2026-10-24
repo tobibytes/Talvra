@@ -66,7 +66,7 @@ describe("account data", () => {
       .values({ userId, canvasId: "1", name: "COSC 220", selected: true });
     await db.insert(schema.canvasConnections).values({
       userId,
-      baseUrl: "https://morgan.instructure.com",
+      baseUrl: "https://morganstate.instructure.com",
       tokenCiphertext: new Uint8Array([1, 2, 3]),
       tokenIv: new Uint8Array([4]),
       tokenLast4: "abcd",
@@ -85,7 +85,7 @@ describe("account data", () => {
     expect(data.user.email).toBe("student@morgan.edu");
     expect(data.courses.map((c: { name: string }) => c.name)).toEqual(["COSC 220"]);
     expect(data.canvas).toEqual({
-      baseUrl: "https://morgan.instructure.com",
+      baseUrl: "https://morganstate.instructure.com",
       status: "active",
       tokenLast4: "abcd",
     });

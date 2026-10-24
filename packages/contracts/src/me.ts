@@ -30,7 +30,7 @@ export type UpdateMe = z.infer<typeof UpdateMe>;
 
 /** Canvas hosts we will call. Anything else is rejected before any request is made. */
 export const CANVAS_HOST_PATTERN = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.instructure\.com$/;
-export const DEFAULT_CANVAS_URL = "https://morgan.instructure.com";
+export const DEFAULT_CANVAS_URL = "https://morganstate.instructure.com";
 
 export const ConnectCanvas = z.object({
   baseUrl: z
