@@ -18,6 +18,7 @@
     "db:generate": "pnpm --filter @talvra/db generate",
     "db:migrate": "pnpm --filter @talvra/db migrate",
     "e2e": "pnpm --filter @talvra/e2e e2e",
+    "prod:env": "node scripts/prod-env.mjs",
     "db:up": "docker compose -f infra/compose.dev.yml up -d",
     "db:down": "docker compose -f infra/compose.dev.yml down"
   },

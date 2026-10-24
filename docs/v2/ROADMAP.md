@@ -41,6 +41,11 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 
 ## Open items for the owner
 
+Production secrets: run `pnpm prod:env`. It asks for each value (hidden input), generates the
+app's own secrets, checks the database and keys against their services, and writes the gitignored
+`apps/api/.prod.vars` (`pnpm prod:env --check` re-validates). Any Postgres 15+ works (Neon,
+Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
+
 - [ ] Rotate the secrets that were committed in v1 (`deploy/secrets.yaml`, `infra/.env`): Canvas
       tokens, DB password, OpenAI key (revoke). They're gone from the tree since the cutover but still
       in git history. Then purge them from history. That
