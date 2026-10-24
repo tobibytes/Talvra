@@ -485,3 +485,20 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
   command shown when making a key.
 - Next: OAuth (so claude.ai connectors work without pasting a key), and maybe homework tools.
 
+## UI refresh, part 1: family theme + shorter copy (2026-10-24)
+
+- Feedback: "the UI is too wordy". The owner wants UI/UX best practice applied everywhere, and the
+  app interesting to use on phone and desktop. Design rules come from the owner's `tobi-ui-theme`
+  skill (family look shared with his other apps), with **both light and dark kept** (owner's call).
+- Accent: highlighter lime `#c5e063` in dark, deep olive `#4a6310` in light (same hue, readable as
+  text). Not Morgan-specific, on purpose. One token (`--primary`) to change it.
+- Foundations: family tokens (ink/panel/line, status colors only for status), Bricolage
+  Grotesque / Instrument Sans / JetBrains Mono (self-hosted via fontsource), pill buttons, 16px
+  cards on line borders, 40px inputs, display-face page titles, rise/fade motion (off under
+  reduced motion), mono sidebar labels, phone tab bar with a tinted active pill.
+- Copy: every screen cut to one short line or less; no dot separators (course codes are mono
+  tags); buttons are verbs.
+- **Next (part 2):** per-screen layouts in the family patterns: Today stat tiles, list rows with
+  icon tiles, empty states with a faint sketch, the document/aid panels, maybe Hugeicons instead
+  of lucide. Check every screen at 1440 and 390, both themes.
+

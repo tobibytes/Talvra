@@ -121,10 +121,9 @@ function CoursePage() {
         <PageHeader
           title={courseLabel(c.courseCode, c.name)}
           description={
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>{c.name}</span>
               {c.term && !c.name.includes(c.term) ? <span>{c.term}</span> : null}
-              <span aria-hidden>·</span>
               {c.lastSyncedAt ? (
                 <span title={dateTime(c.lastSyncedAt)}>Synced {relativeTime(c.lastSyncedAt)}</span>
               ) : (
