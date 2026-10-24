@@ -375,6 +375,13 @@ deleted, and there is no backup tag (the owner didn't want one). Only git histor
 - **Shorter videos:** the model writes a 6-8 slide, ~450-700 word script (3-5 minutes) from the
   notes (`VideoScript`, `tidyScript`); if that fails, a trimmed notes-based script is used.
 - Component gallery removed.
+- **Videos show the real lecture.** The script picks a source page per slide (from the notes'
+  page citations); the Worker sends the original PDF (≤ 40 MB) with the script, and the media
+  container renders those pages with pypdfium2 (≤ 20 pages, ~2000 px) beside the slide's points,
+  with a slow zoom (landscape) or a top-to-bottom pan (portrait). PowerPoint/uploads without a PDF,
+  missing pages and broken PDFs fall back to the text layout. ffmpeg inputs are now explicitly
+  `-protocol_whitelist file` with stated formats (the session 11 note claimed this, but only the
+  `.mp3` rename had landed).
 
 ## Original session 11 plan (for reference)
 
