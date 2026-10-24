@@ -127,5 +127,6 @@ def render_page_slide(
     d.text((MARGIN, H - 56), footer[:48], font=small, fill=MUTED)
     img.save(bg_path, "PNG", optimize=True)
 
-    page.resize((fw * 2, fh * 2), Image.Resampling.LANCZOS).save(page_path, "PNG")
+    # 1.5x the display size: enough detail for a gentle zoom, without the cost of 2x.
+    page.resize((fw * 3 // 2, fh * 3 // 2), Image.Resampling.LANCZOS).save(page_path, "PNG")
     return px, py, fw, fh

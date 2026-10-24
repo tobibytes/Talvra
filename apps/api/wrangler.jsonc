@@ -172,7 +172,8 @@
           "class_name": "MediaContainer",
           "image": "../media/Dockerfile",
           "max_instances": 3,
-          "instance_type": "standard-1"
+          // A full vCPU: renders ~2x faster than standard-1 for about the same cost per video.
+          "instance_type": "standard-2"
         }
       ],
       "ratelimits": [
