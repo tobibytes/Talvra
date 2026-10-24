@@ -667,7 +667,7 @@ export function fakeApi(state: {
               {
                 id: crypto.randomUUID(),
                 role: "assistant",
-                text: "Added the explanation to your current files.",
+                text: "Added the **explanation** to your current files:\n\n- `lab2.py` explains the result",
                 createdAt: new Date().toISOString(),
               },
             ],
