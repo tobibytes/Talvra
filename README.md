@@ -37,5 +37,3 @@ Playwright suite against a running stack (see `e2e/README.md`).
 - `docs/v2/ARCHITECTURE.md`: layout, rules, secrets, deployment.
 - `docs/v2/UI_STACK.md`: UI libraries and conventions.
 - `CLAUDE.md`: rules for contributors (human or AI).
-
-The v1 codebase is preserved at the git tag `legacy-v1`.

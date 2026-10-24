@@ -21,7 +21,7 @@ Other docs: `docs/v2/ARCHITECTURE.md` (layout, rules, secrets, setup) and
 | `infra/compose.dev.yml` | Local Postgres 16 |
 | `e2e` | Playwright e2e against `wrangler dev` (opt-in: `pnpm e2e`, see `e2e/README.md`) |
 
-Legacy v1 was removed at the cutover; it lives at the git tag `legacy-v1`.
+Legacy v1 was removed at the cutover (its old branches too); only git history has it.
 
 ## Commands
 

@@ -31,7 +31,7 @@ apps/media        Python container (Pillow + ffmpeg; narration via Workers AI) s
 | `e2e` | Playwright end-to-end tests against `wrangler dev` (opt-in, `pnpm e2e`) |
 
 Legacy v1 (`frontend/`, `services/`, `deploy/`, root `migrations/`, old docs) was removed at the
-cutover. It is preserved at the git tag `legacy-v1`.
+cutover, along with its old branches. Only git history has it now.
 
 ## Rules
 

@@ -43,7 +43,7 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 
 - [ ] Rotate the secrets that were committed in v1 (`deploy/secrets.yaml`, `infra/.env`): Canvas
       tokens, DB password, OpenAI key (revoke). They're gone from the tree since the cutover but still
-      in git history (and the `legacy-v1` tag). Then purge them from history. That
+      in git history. Then purge them from history. That
       rewrite needs a force-push to `main`; only do it when the owner says so.
 - [ ] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
 - [ ] Resend API key (required in production).
@@ -326,8 +326,8 @@ Not part of `pnpm check` (needs Docker and a running stack). Don't rebuild `apps
   Vectorize index (`bge-m3`, 1024 dims, cosine, metadata indexes on `userId`/`documentId`),
   secrets, then `wrangler deploy --env production` and a smoke test.
 
-**Cutover**: legacy v1 is tagged `legacy-v1` and removed from the tree (see the last commit of this
-session). Restore anything with `git checkout legacy-v1 -- <path>`.
+**Cutover**: legacy v1 is removed from the tree, its old branches and the local leftovers are
+deleted, and there is no backup tag (the owner didn't want one). Only git history has it.
 
 ## Original session 11 plan (for reference)
 
