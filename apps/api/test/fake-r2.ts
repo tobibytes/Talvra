@@ -14,16 +14,18 @@ export function fakeR2() {
       objects.set(key, { data: toBytes(value), contentType: opts?.httpMetadata?.contentType });
       return null;
     },
-    async get(key: string) {
+    async get(key: string, opts?: { range?: { offset: number; length: number } }) {
       const o = objects.get(key);
       if (!o) return null;
-      const copy = () => o.data.slice().buffer;
+      const r = opts?.range;
+      const bytes = r ? o.data.slice(r.offset, r.offset + r.length) : o.data.slice();
+      const copy = () => bytes.slice().buffer;
       return {
-        body: new Response(o.data.slice()).body,
+        body: new Response(bytes).body,
         httpMetadata: { contentType: o.contentType },
         arrayBuffer: async () => copy(),
-        text: async () => new TextDecoder().decode(o.data),
-        json: async () => JSON.parse(new TextDecoder().decode(o.data)),
+        text: async () => new TextDecoder().decode(bytes),
+        json: async () => JSON.parse(new TextDecoder().decode(bytes)),
       };
     },
     async delete(keys: string | string[]) {

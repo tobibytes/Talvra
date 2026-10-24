@@ -138,3 +138,23 @@ export const AidEvent = z.object({
   status: StudyAidStatus,
 });
 export type AidEvent = z.infer<typeof AidEvent>;
+
+export const VideoStatus = z.enum(["queued", "rendering", "ready", "failed"]);
+
+export const Video = z.object({
+  id: Id,
+  documentId: Id,
+  status: VideoStatus,
+  durationSeconds: z.number().int().nullable(),
+  error: z.string().nullable(),
+  createdAt: Timestamp,
+  updatedAt: Timestamp,
+});
+export type Video = z.infer<typeof Video>;
+
+export const VideoState = z.object({
+  video: Video.nullable(),
+  /** Videos are made from study notes, so notes must exist first. */
+  notesReady: z.boolean(),
+});
+export type VideoState = z.infer<typeof VideoState>;

@@ -1,6 +1,14 @@
 import { createDb } from "@talvra/db";
 import { claudeGenerator, GenerationError } from "./ai/claude.js";
 import { type AidMessage, generateAid } from "./ai/generate.js";
+import {
+  azureSpeaker,
+  httpRenderer,
+  renderVideo,
+  VideoError,
+  type VideoMessage,
+  workersAiSpeaker,
+} from "./ai/video.js";
 import { createApp } from "./app.js";
 import type { Bindings } from "./env.js";
 import {
@@ -11,14 +19,17 @@ import {
   RetryableIngestError,
   stuckDocuments,
 } from "./ingest/process.js";
+import { emailSender } from "./lib/email.js";
 import { extractorFor } from "./lib/extractor.js";
-import { publishAidToHub, publishDocumentToHub } from "./realtime/hub.js";
+import { publishAidToHub, publishDocumentToHub, publishVideoToHub } from "./realtime/hub.js";
+import { planNotifications, sendPending } from "./reminders/engine.js";
 import { searchDepsFor } from "./routes/search.js";
 import { launchWorkflow } from "./routes/sync.js";
 import { indexDocument } from "./search/engine.js";
 import { dueForScheduledSync, startSync } from "./sync/run.js";
 
 export { ExtractContainer } from "./extract-container.js";
+export { MediaContainer } from "./media-container.js";
 export { UserHub } from "./realtime/user-hub.js";
 export { SyncWorkflow } from "./sync/workflow.js";
 
@@ -62,6 +73,20 @@ function ingestDeps(env: Bindings): IngestDeps {
   };
 }
 
+/** Cron: plan due reminders and digests, then send what's due. */
+async function runReminders(env: Bindings) {
+  if (!env.HYPERDRIVE) return;
+  const db = createDb(env.HYPERDRIVE.connectionString);
+  const planned = await planNotifications(db);
+  const sent = await sendPending({
+    db,
+    send: emailSender(env),
+    appUrl: env.APP_URL,
+    secret: env.BETTER_AUTH_SECRET,
+  });
+  if (planned || sent) console.log(JSON.stringify({ msg: "reminders tick", planned, sent }));
+}
+
 /** Cron: re-enqueue documents stuck for 30+ minutes (lost message, crashed consumer). */
 async function sweepStuckDocuments(env: Bindings) {
   if (!env.HYPERDRIVE || !env.INGEST_QUEUE) return;
@@ -73,14 +98,18 @@ async function sweepStuckDocuments(env: Bindings) {
 
 export default {
   fetch: app.fetch,
-  scheduled(_controller, env, ctx) {
-    ctx.waitUntil(scheduledSync(env));
-    ctx.waitUntil(sweepStuckDocuments(env));
+  scheduled(controller, env, ctx) {
+    // Every 15 minutes: reminders (time-sensitive). Every 30: sync + sweeps.
+    ctx.waitUntil(runReminders(env));
+    if (new Date(controller.scheduledTime).getUTCMinutes() % 30 === 0) {
+      ctx.waitUntil(scheduledSync(env));
+      ctx.waitUntil(sweepStuckDocuments(env));
+    }
   },
   /** Two queues: ingest (download → extract) and ai (study aids with Claude). */
   async queue(batch, env) {
     if (batch.queue.startsWith("talvra-ai")) {
-      await consumeAid(batch as MessageBatch<AidMessage>, env);
+      await consumeAi(batch as MessageBatch<AidMessage | VideoMessage>, env);
       return;
     }
     const deps = ingestDeps(env);
@@ -101,7 +130,54 @@ export default {
       }
     }
   },
-} satisfies ExportedHandler<Bindings, IngestMessage | AidMessage>;
+} satisfies ExportedHandler<Bindings, IngestMessage | AidMessage | VideoMessage>;
+
+/** The AI queue carries study aids and videos. */
+async function consumeAi(batch: MessageBatch<AidMessage | VideoMessage>, env: Bindings) {
+  const aids = batch.messages.filter((m): m is Message<AidMessage> => !("type" in m.body));
+  const vids = batch.messages.filter(
+    (m): m is Message<VideoMessage> => "type" in m.body && m.body.type === "video",
+  );
+  if (aids.length) await consumeAid({ ...batch, messages: aids } as MessageBatch<AidMessage>, env);
+  for (const msg of vids) {
+    try {
+      await renderVideo(videoDeps(env), msg.body, msg.attempts);
+      msg.ack();
+    } catch (err) {
+      if (err instanceof VideoError && err.retryable)
+        msg.retry({ delaySeconds: Math.min(600, 30 * 2 ** msg.attempts) });
+      else msg.ack();
+    }
+  }
+}
+
+function videoDeps(env: Bindings) {
+  if (!env.HYPERDRIVE || !env.FILES) throw new Error("Video needs HYPERDRIVE and FILES");
+  const speak =
+    env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION
+      ? azureSpeaker(env.AZURE_SPEECH_KEY, env.AZURE_SPEECH_REGION)
+      : env.AI
+        ? workersAiSpeaker(env.AI)
+        : async () => {
+            throw new VideoError(false, "Narration isn't available right now.");
+          };
+  const media = env.MEDIA;
+  const render = env.MEDIA_URL
+    ? httpRenderer((r) => fetch(r), `${env.MEDIA_URL.replace(/\/$/, "")}/render`, env.MEDIA_SECRET)
+    : media
+      ? httpRenderer((r) => media.getByName("media-0").fetch(r), "http://media/render")
+      : async () => {
+          throw new VideoError(false, "Video isn't available right now.");
+        };
+  return {
+    db: createDb(env.HYPERDRIVE.connectionString),
+    files: env.FILES,
+    speak,
+    render,
+    notify: (userId: string, video: Parameters<typeof publishVideoToHub>[2]) =>
+      publishVideoToHub(env, userId, video),
+  };
+}
 
 async function consumeAid(batch: MessageBatch<AidMessage>, env: Bindings) {
   if (!env.HYPERDRIVE || !env.FILES) throw new Error("Study aids need HYPERDRIVE and FILES");

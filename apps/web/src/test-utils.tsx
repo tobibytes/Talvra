@@ -6,8 +6,10 @@ import type {
   HomeworkItem,
   Me,
   PlanStep,
+  ReminderPrefs,
   StudyAid,
   SyncRun,
+  Video,
 } from "@talvra/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
@@ -226,11 +228,13 @@ export function makeHomework(overrides: Partial<HomeworkItem> = {}): HomeworkIte
 export function fakeApi(state: {
   me: Me | null;
   homework?: HomeworkItem[];
+  reminderPrefs?: ReminderPrefs;
   plan?: PlanStep[];
   runs?: SyncRun[];
   courses?: Course[];
   documents?: DocumentDetail[];
   aids?: StudyAid[];
+  video?: Video;
   cards?: Flashcard[];
 }) {
   state.documents ??= [];
@@ -498,6 +502,36 @@ export function fakeApi(state: {
       const source = url.searchParams.get("source");
       return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
     }
+    if (p === "/api/v1/reminders" || p === "/api/v1/reminders/prefs") {
+      state.reminderPrefs ??= {
+        emailEnabled: true,
+        offsets: [1440, 180],
+        digestEnabled: true,
+        digestHour: 7,
+        timezone: "America/New_York",
+        quietStart: 22,
+        quietEnd: 7,
+      };
+      const prefs = state.reminderPrefs;
+      if (method === "PUT") Object.assign(prefs, body);
+      return json({
+        prefs,
+        upcoming: prefs.emailEnabled
+          ? [
+              {
+                assignmentId: ASSIGNMENT_ID,
+                assignmentName: "Lab 2: reverse an array",
+                courseName: "COSC 220",
+                dueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+                remindAt: new Date(Date.now() + 86_400_000).toISOString(),
+                offsetMinutes: 1440,
+              },
+            ]
+          : [],
+        history: [],
+      });
+    }
+    if (p === "/api/v1/reminders/test") return json({ sentTo: state.me?.user.email ?? "" });
     if (p === "/api/v1/homework") return json({ items: state.homework ?? [] });
     if (p === "/api/v1/today") {
       const items = state.homework ?? [];
@@ -644,6 +678,23 @@ export function fakeApi(state: {
       state.cards = state.cards?.filter((c) => c.id !== card.id);
       const next = new Date(Date.now() + 3 * 86_400_000).toISOString();
       return json({ card: { ...card, due: next, reps: card.reps + 1 }, nextDue: next });
+    }
+    const videoMatch = p.match(/^\/api\/v1\/documents\/([^/]+)\/video$/);
+    if (videoMatch) {
+      const notesReady = (state.aids ?? []).some((a) => a.kind === "notes" && a.status === "ready");
+      if (method === "POST") {
+        state.video = {
+          id: "77777777-7777-4777-8777-777777777777",
+          documentId: videoMatch[1] ?? "",
+          status: "ready",
+          durationSeconds: 154,
+          error: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        return json(state.video, 202);
+      }
+      return json({ video: state.video ?? null, notesReady });
     }
     const aidsMatch = p.match(/^\/api\/v1\/documents\/([^/]+)\/aids$/);
     if (aidsMatch) {

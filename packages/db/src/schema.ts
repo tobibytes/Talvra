@@ -588,3 +588,86 @@ export const planSteps = pgTable(
   },
   (t) => [index("plan_steps_assignment_idx").on(t.userId, t.assignmentId, t.position)],
 );
+
+/** How and when a student wants to be reminded. One row per user (created on first save). */
+export const reminderPrefs = pgTable(
+  "reminder_prefs",
+  {
+    id: id(),
+    userId: owner(),
+    emailEnabled: boolean("email_enabled").notNull().default(true),
+    /** Minutes before the due time to remind, e.g. {1440, 180} = 1 day and 3 hours. */
+    offsets: integer("offsets").array().notNull().default(sql`'{1440,180}'::int[]`),
+    digestEnabled: boolean("digest_enabled").notNull().default(true),
+    /** Local hour (0-23) for the daily digest. */
+    digestHour: integer("digest_hour").notNull().default(7),
+    /** IANA time zone, e.g. America/New_York. */
+    timezone: text("timezone").notNull().default("America/New_York"),
+    /** No reminders between these local hours (start inclusive, end exclusive). */
+    quietStart: integer("quiet_start").notNull().default(22),
+    quietEnd: integer("quiet_end").notNull().default(7),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("reminder_prefs_user_idx").on(t.userId)],
+);
+
+export const notificationStatus = pgEnum("notification_status", [
+  "pending",
+  "sent",
+  "skipped",
+  "failed",
+]);
+
+/**
+ * Every reminder/digest, planned then sent. `dedupeKey` makes planning
+ * idempotent: the cron can run any number of times without double-sending.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: owner(),
+    kind: text("kind", { enum: ["due_reminder", "digest", "test"] }).notNull(),
+    assignmentId: uuid("assignment_id").references(() => assignments.id, { onDelete: "cascade" }),
+    offsetMinutes: integer("offset_minutes"),
+    dedupeKey: text("dedupe_key").notNull(),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    status: notificationStatus("status").notNull().default("pending"),
+    subject: text("subject"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notifications_dedupe_idx").on(t.userId, t.dedupeKey),
+    index("notifications_due_idx").on(t.status, t.scheduledFor),
+    index("notifications_user_time_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+export const videoStatus = pgEnum("video_status", ["queued", "rendering", "ready", "failed"]);
+
+/** A narrated slideshow made from a document's study notes. */
+export const videos = pgTable(
+  "videos",
+  {
+    id: id(),
+    userId: owner(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    /** The notes version it was made from. */
+    aidId: uuid("aid_id").references(() => studyAids.id, { onDelete: "set null" }),
+    status: videoStatus("status").notNull().default("queued"),
+    r2Key: text("r2_key"),
+    captionsKey: text("captions_key"),
+    sizeBytes: integer("size_bytes"),
+    durationSeconds: integer("duration_seconds"),
+    error: text("error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("videos_user_doc_idx").on(t.userId, t.documentId, t.createdAt)],
+);

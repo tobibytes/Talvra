@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { AidEvent, DocumentEvent, SyncRun } from "@talvra/contracts";
+import type { AidEvent, DocumentEvent, SyncRun, Video } from "@talvra/contracts";
 import type { Bindings } from "../env.js";
 
 /**
@@ -51,6 +51,18 @@ export class UserHub extends DurableObject<Bindings> {
   /** RPC from the study-aid consumer. */
   async publishAid(aid: AidEvent) {
     const message = JSON.stringify({ type: "aid", aid });
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.send(message);
+      } catch {
+        // Socket already closing.
+      }
+    }
+  }
+
+  /** RPC from the video consumer. */
+  async publishVideo(video: Video) {
+    const message = JSON.stringify({ type: "video", video });
     for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(message);

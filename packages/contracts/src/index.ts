@@ -5,6 +5,7 @@ export * from "./errors.js";
 export * from "./health.js";
 export * from "./homework.js";
 export * from "./me.js";
+export * from "./reminders.js";
 export * from "./search.js";
 export * from "./study.js";
 export * from "./sync.js";

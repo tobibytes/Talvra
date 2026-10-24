@@ -100,3 +100,30 @@ describe("review", () => {
     );
   });
 });
+
+describe("video", () => {
+  it("asks for notes first", async () => {
+    fakeApi({ me: makeMe(), documents: [makeDocument()] });
+    await renderApp(`/documents/${DOC_ID}?tab=video`);
+    expect(await screen.findByText("Make notes first")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Notes" })).toHaveAttribute(
+      "href",
+      `/documents/${DOC_ID}?tab=notes`,
+    );
+  });
+
+  it("makes a video and plays it with captions", async () => {
+    fakeApi({ me: makeMe(), documents: [makeDocument()], aids: [makeAid("notes")] });
+    const { container } = await renderApp(`/documents/${DOC_ID}?tab=video`);
+    fireEvent.click(await screen.findByRole("button", { name: /Make a video/ }));
+    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+    const video = container.querySelector("video");
+    expect(video?.getAttribute("src")).toBe(
+      "/api/v1/videos/77777777-7777-4777-8777-777777777777/stream",
+    );
+    const track = video?.querySelector("track");
+    expect(track?.getAttribute("kind")).toBe("captions");
+    expect(track?.getAttribute("src")).toContain("/captions.vtt");
+    expect(screen.getByText(/2:34/)).toBeInTheDocument();
+  });
+});

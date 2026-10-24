@@ -25,6 +25,7 @@ import {
   Plan,
   PlanSuggestion,
   PublicConfig,
+  RemindersOverview,
   ReviewResult,
   type SavePlan,
   SearchResult,
@@ -35,6 +36,9 @@ import {
   SyncRunList,
   Today,
   type UpdateMe,
+  type UpdateReminderPrefs,
+  Video,
+  VideoState,
 } from "@talvra/contracts";
 import { z } from "zod";
 
@@ -179,6 +183,16 @@ export const api = {
   suggestPlan: (id: string) =>
     request(`/v1/homework/${id}/plan/suggest`, PlanSuggestion, { method: "POST" }),
   today: (date: string) => request(`/v1/today?date=${date}`, Today),
+  reminders: () => request("/v1/reminders", RemindersOverview),
+  videoState: (documentId: string) => request(`/v1/documents/${documentId}/video`, VideoState),
+  makeVideo: (documentId: string) =>
+    request(`/v1/documents/${documentId}/video`, Video, { method: "POST" }),
+  videoStreamUrl: (id: string) => `${API_BASE}/v1/videos/${id}/stream`,
+  videoCaptionsUrl: (id: string) => `${API_BASE}/v1/videos/${id}/captions.vtt`,
+  saveReminderPrefs: (body: UpdateReminderPrefs) =>
+    request("/v1/reminders/prefs", RemindersOverview, { method: "PUT", json: body }),
+  testReminder: () =>
+    request("/v1/reminders/test", z.object({ sentTo: z.string() }), { method: "POST" }),
   /** Streams an answer; calls `onEvent` for each server-sent event. */
   ask: async (input: AskInput, onEvent: (e: AskEvent) => void, signal?: AbortSignal) => {
     const res = await fetch(`${API_BASE}/v1/ask`, {

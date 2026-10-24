@@ -1,7 +1,9 @@
 import type { Database } from "@talvra/db";
 import type { AidMessage } from "./ai/generate.js";
+import type { VideoMessage } from "./ai/video.js";
 import type { ExtractContainer } from "./extract-container.js";
 import type { IngestMessage } from "./ingest/process.js";
+import type { MediaContainer } from "./media-container.js";
 import type { UserHub } from "./realtime/user-hub.js";
 import type { SyncParams } from "./sync/run.js";
 
@@ -22,14 +24,21 @@ export type Bindings = {
   FILES?: R2Bucket;
   /** Documents to download and extract. */
   INGEST_QUEUE?: Queue<IngestMessage>;
-  /** Study-aid generation jobs (Claude). */
-  AI_QUEUE?: Queue<AidMessage>;
+  /** Study-aid generation and video jobs. */
+  AI_QUEUE?: Queue<AidMessage | VideoMessage>;
   /** Workers AI (embeddings for semantic search). */
   AI?: Ai;
   /** Vectorize index of chunk embeddings (metadata: userId, courseId, documentId). */
   VECTORS?: Vectorize;
   /** Python extract service on Cloudflare Containers. */
   EXTRACT?: DurableObjectNamespace<ExtractContainer>;
+  /** Python media service (narrated videos) on Cloudflare Containers. */
+  MEDIA?: DurableObjectNamespace<MediaContainer>;
+  MEDIA_URL?: string;
+  MEDIA_SECRET?: string;
+  /** Optional higher-quality narration; otherwise Workers AI speaks. */
+  AZURE_SPEECH_KEY?: string;
+  AZURE_SPEECH_REGION?: string;
   /** Fallback: the same image on Azure Container Apps. */
   EXTRACT_URL?: string;
   EXTRACT_SECRET?: string;

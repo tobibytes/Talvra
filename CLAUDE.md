@@ -15,6 +15,7 @@ Other docs: `docs/v2/ARCHITECTURE.md` (layout, rules, secrets, setup) and
 | `apps/web` | React 19 SPA: Vite, TanStack Router (file routes) + Query, Tailwind v4, shadcn on Base UI |
 | `apps/api` | Cloudflare Worker: Hono + `@hono/zod-openapi`, Better Auth. Serves the SPA too. Also the sync Workflow, the UserHub DO, the ingest queue consumer and the extract container class |
 | `apps/extract` | Python 3.13 extract service (FastAPI, pypdfium2, python-docx/pptx). Runs as a Cloudflare Container with no internet. `uv run pytest` |
+| `apps/media` | Python media service (Pillow + ffmpeg → narrated MP4). Cloudflare Container, no internet. `uv run pytest` (needs ffmpeg) |
 | `packages/contracts` | zod schemas shared by API and web (request/response shapes, error envelope) |
 | `packages/db` | Drizzle schema, SQL migrations, `createTestDb()` (PGlite) |
 | `infra/compose.dev.yml` | Local Postgres 16 |

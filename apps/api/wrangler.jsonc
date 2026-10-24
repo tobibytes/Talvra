@@ -38,13 +38,17 @@
   "durable_objects": {
     "bindings": [
       { "name": "USER_HUB", "class_name": "UserHub" },
-      { "name": "EXTRACT", "class_name": "ExtractContainer" }
+      { "name": "EXTRACT", "class_name": "ExtractContainer" },
+      { "name": "MEDIA", "class_name": "MediaContainer" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["UserHub"] },
-    { "tag": "v2", "new_sqlite_classes": ["ExtractContainer"] }
+    { "tag": "v2", "new_sqlite_classes": ["ExtractContainer"] },
+    { "tag": "v3", "new_sqlite_classes": ["MediaContainer"] }
   ],
+  // Workers AI: narration (text-to-speech). Runs remotely even in wrangler dev.
+  "ai": { "binding": "AI" },
   // Originals, extracted Markdown and structure. Private; the API streams them.
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files-dev" }],
   // Ingest pipeline: sync and uploads produce, this Worker consumes.
@@ -77,10 +81,17 @@
       "image": "../extract/Dockerfile",
       "max_instances": 3,
       "instance_type": "standard-1"
+    },
+    // Python media service (apps/media): narrated videos. No internet.
+    {
+      "class_name": "MediaContainer",
+      "image": "../media/Dockerfile",
+      "max_instances": 2,
+      "instance_type": "standard-1"
     }
   ],
-  // Every 30 minutes: incremental sync for users whose data is older than 6 hours.
-  "triggers": { "crons": ["*/30 * * * *"] },
+  // Every 15 minutes: reminders; every 30 (in code): incremental sync + stuck-document sweep.
+  "triggers": { "crons": ["*/15 * * * *"] },
   // Secrets (wrangler secret put NAME; locally in .dev.vars):
   //   BETTER_AUTH_SECRET, CANVAS_TOKEN_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, RESEND_API_KEY,
   //   ANTHROPIC_API_KEY
@@ -105,7 +116,8 @@
       "durable_objects": {
         "bindings": [
           { "name": "USER_HUB", "class_name": "UserHub" },
-          { "name": "EXTRACT", "class_name": "ExtractContainer" }
+          { "name": "EXTRACT", "class_name": "ExtractContainer" },
+          { "name": "MEDIA", "class_name": "MediaContainer" }
         ]
       },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
@@ -140,9 +152,15 @@
           "image": "../extract/Dockerfile",
           "max_instances": 5,
           "instance_type": "standard-1"
+        },
+        {
+          "class_name": "MediaContainer",
+          "image": "../media/Dockerfile",
+          "max_instances": 3,
+          "instance_type": "standard-1"
         }
       ],
-      "triggers": { "crons": ["*/30 * * * *"] }
+      "triggers": { "crons": ["*/15 * * * *"] }
     }
   }
 }

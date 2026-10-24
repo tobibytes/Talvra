@@ -1,0 +1,162 @@
+import { ApiError, type StudyNotes, Video, VideoState } from "@talvra/contracts";
+import { schema } from "@talvra/db";
+import { createTestDb } from "@talvra/db/testing";
+import { describe, expect, it, vi } from "vitest";
+import {
+  captions,
+  type Renderer,
+  renderVideo,
+  type Speaker,
+  scriptFromNotes,
+  type VideoDeps,
+  VideoError,
+} from "../src/ai/video.js";
+import { fakeR2 } from "./fake-r2.js";
+import { harness, signedInUser } from "./helpers.js";
+
+const notes: StudyNotes = {
+  title: "Arrays",
+  summary: "How arrays store data.",
+  sections: [
+    {
+      heading: "Layout",
+      bullets: [
+        { text: "Contiguous memory.", cite: [] },
+        { text: "O(1) indexing.", cite: [] },
+      ],
+    },
+  ],
+  keyTerms: [{ term: "Index", definition: "A position.", cite: [] }],
+};
+
+const MP4 = new Uint8Array(Array.from({ length: 1000 }, (_, i) => i % 256));
+
+async function setup() {
+  const db = await createTestDb();
+  const r2 = fakeR2();
+  const speak = vi.fn<Speaker>(async (t) => new TextEncoder().encode(`audio:${t.slice(0, 10)}`));
+  const render = vi.fn<Renderer>(async ({ slides }) => ({
+    mp4: MP4,
+    durations: slides.map(() => 2.5),
+  }));
+  const deps: VideoDeps = { db, files: r2.store, speak, render };
+  const h = await harness({
+    db,
+    video: {
+      files: r2.store,
+      enqueueVideo: async (m) => void (await renderVideo(deps, m, 99).catch(() => {})),
+    },
+  });
+  await signedInUser(h);
+  const [user] = await db.select().from(schema.users);
+  const [doc] = await db
+    .insert(schema.documents)
+    .values({ userId: user?.id ?? "", source: "upload", title: "Lecture 3.pdf", status: "ready" })
+    .returning();
+  if (!user || !doc) throw new Error("setup");
+  const addNotes = () =>
+    db.insert(schema.studyAids).values({
+      userId: user.id,
+      documentId: doc.id,
+      kind: "notes",
+      version: 1,
+      status: "ready",
+      content: notes,
+    });
+  return { h, db, r2, speak, render, deps, userId: user.id, docId: doc.id, addNotes };
+}
+
+describe("video script", () => {
+  it("turns notes into a title slide, section slides and a key-terms recap", () => {
+    const s = scriptFromNotes(notes);
+    expect(s.map((x) => x.heading)).toEqual(["Arrays", "Layout", "Key terms"]);
+    expect(s[1]?.narration).toBe("Layout. Contiguous memory. O(1) indexing.");
+    expect(s[2]?.bullets).toEqual(["Index: A position."]);
+  });
+
+  it("writes WebVTT captions timed to each slide", () => {
+    const vtt = captions(scriptFromNotes(notes), [3, 3, 3]);
+    expect(vtt.startsWith("WEBVTT\n\n00:00:00.000 --> ")).toBe(true);
+    expect(vtt).toContain(
+      "00:00:03.000 --> 00:00:05.400\nLayout. Contiguous memory. O(1) indexing.",
+    );
+  });
+});
+
+describe("video API", () => {
+  it("needs notes first", async () => {
+    const { h, docId } = await setup();
+    const s = VideoState.parse(await (await h.request(`/api/v1/documents/${docId}/video`)).json());
+    expect(s).toEqual({ video: null, notesReady: false });
+    const res = await h.request(`/api/v1/documents/${docId}/video`, { method: "POST" });
+    expect(res.status).toBe(409);
+    expect(ApiError.parse(await res.json()).error.message).toMatch(/notes first/);
+  });
+
+  it("makes a narrated video, streams it with ranges, and serves captions", async () => {
+    const ctx = await setup();
+    await ctx.addNotes();
+    const res = await ctx.h.request(`/api/v1/documents/${ctx.docId}/video`, { method: "POST" });
+    expect(res.status).toBe(202);
+    const v = Video.parse(await res.json());
+    expect(v).toMatchObject({ status: "ready", durationSeconds: 8 });
+    expect(ctx.speak).toHaveBeenCalledTimes(3);
+    expect(ctx.render.mock.calls[0]?.[0].title).toBe("Lecture 3.pdf");
+
+    const full = await ctx.h.request(`/api/v1/videos/${v.id}/stream`);
+    expect(full.status).toBe(200);
+    expect(full.headers.get("accept-ranges")).toBe("bytes");
+    expect(new Uint8Array(await full.arrayBuffer())).toEqual(MP4);
+
+    const part = await ctx.h.request(`/api/v1/videos/${v.id}/stream`, {
+      headers: { range: "bytes=100-199" },
+    });
+    expect(part.status).toBe(206);
+    expect(part.headers.get("content-range")).toBe("bytes 100-199/1000");
+    expect(new Uint8Array(await part.arrayBuffer())).toEqual(MP4.slice(100, 200));
+    const tail = await ctx.h.request(`/api/v1/videos/${v.id}/stream`, {
+      headers: { range: "bytes=-50" },
+    });
+    expect(tail.headers.get("content-range")).toBe("bytes 950-999/1000");
+    expect(
+      (await ctx.h.request(`/api/v1/videos/${v.id}/stream`, { headers: { range: "bytes=5000-" } }))
+        .status,
+    ).toBe(416);
+
+    const vtt = await ctx.h.request(`/api/v1/videos/${v.id}/captions.vtt`);
+    expect(vtt.headers.get("content-type")).toContain("text/vtt");
+    expect(await vtt.text()).toContain("WEBVTT");
+  });
+
+  it("retries a busy renderer, then fails with a clear message", async () => {
+    const { db, deps, render, userId, docId, addNotes } = await setup();
+    await addNotes();
+    render.mockRejectedValue(new VideoError(true, "Media service unreachable"));
+    const [v] = await db.insert(schema.videos).values({ userId, documentId: docId }).returning();
+    const msg = { userId, videoId: v?.id ?? "" };
+    await expect(renderVideo(deps, msg, 1)).rejects.toBeInstanceOf(VideoError);
+    expect((await db.select().from(schema.videos))[0]?.status).toBe("queued");
+    expect(await renderVideo(deps, msg, 3)).toBe("failed");
+    expect((await db.select().from(schema.videos))[0]?.error).toBe("Media service unreachable");
+  });
+
+  it("never serves one student's video to another", async () => {
+    const { h, docId, addNotes } = await setup();
+    await addNotes();
+    const v = Video.parse(
+      await (await h.request(`/api/v1/documents/${docId}/video`, { method: "POST" })).json(),
+    );
+    h.clearCookies();
+    await signedInUser(h, "other@morgan.edu");
+    for (const path of [
+      `/api/v1/documents/${docId}/video`,
+      `/api/v1/videos/${v.id}/stream`,
+      `/api/v1/videos/${v.id}/captions.vtt`,
+    ]) {
+      expect((await h.request(path)).status, path).toBe(404);
+    }
+    expect((await h.request(`/api/v1/documents/${docId}/video`, { method: "POST" })).status).toBe(
+      404,
+    );
+  });
+});
