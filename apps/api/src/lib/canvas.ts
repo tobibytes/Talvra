@@ -369,6 +369,142 @@ export class CanvasClient {
   }
 
   /** Stable API url for a file (download urls are short-lived and never stored). */
+  /**
+   * A form POST to the Canvas API. Never retried automatically: repeating a POST
+   * (e.g. a submission) could do it twice.
+   */
+  private async post<T>(path: string, form: [string, string][]): Promise<T> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.baseUrl}/api/v1${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": CANVAS_USER_AGENT,
+        },
+        body: new URLSearchParams(form).toString(),
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      throw new CanvasError("unavailable", "Couldn't reach Canvas. Try again soon.");
+    }
+    return this.postResult<T>(res);
+  }
+
+  private async postResult<T>(res: Response): Promise<T> {
+    if (res.status >= 300 && res.status < 400)
+      throw new CanvasError("bad_response", "Canvas tried to redirect; refusing to follow.");
+    if (res.status === 401) throw new CanvasError("unauthorized", "Canvas rejected this token.");
+    if (res.status === 403)
+      throw new CanvasError(
+        "forbidden",
+        "Canvas didn't allow this. The assignment may be locked, closed or not accept uploads.",
+      );
+    if (res.status === 404) throw new CanvasError("not_found", "Canvas couldn't find this.");
+    if (!res.ok) throw new CanvasError("unavailable", `Canvas returned ${res.status}.`);
+    return (await res.json().catch(() => ({}))) as T;
+  }
+
+  /**
+   * Uploads one file for the student's own submission (Canvas's 3-step upload) and
+   * returns its Canvas file id. The upload goes only to an allowlisted storage host,
+   * without the token; the confirm step only to Canvas itself.
+   */
+  async uploadSubmissionFile(
+    courseId: string,
+    assignmentId: string,
+    file: { name: string; contentType: string; data: Uint8Array },
+  ): Promise<number> {
+    const slot = await this.post<{ upload_url?: string; upload_params?: Record<string, unknown> }>(
+      `/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}/submissions/self/files`,
+      [
+        ["name", file.name],
+        ["size", String(file.data.byteLength)],
+        ["content_type", file.contentType],
+        ["on_duplicate", "rename"],
+      ],
+    );
+    if (!slot.upload_url)
+      throw new CanvasError("bad_response", "Canvas didn't give an upload address.");
+    const target = new URL(slot.upload_url);
+    if (target.protocol !== "https:" || !FILE_HOSTS.some((re) => re.test(target.hostname)))
+      throw new CanvasError("bad_response", `Refusing to upload to ${target.hostname}.`);
+    const form = new FormData();
+    for (const [k, v] of Object.entries(slot.upload_params ?? {})) form.append(k, String(v));
+    form.append("file", new Blob([file.data], { type: file.contentType }), file.name);
+    let res: Response;
+    try {
+      res = await this.fetchImpl(target.toString(), {
+        method: "POST",
+        headers: { "User-Agent": CANVAS_USER_AGENT },
+        body: form,
+        redirect: "manual",
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch {
+      throw new CanvasError("unavailable", "Couldn't upload the file to Canvas. Try again.");
+    }
+    // Some storage answers with a redirect to Canvas that confirms the upload.
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400) {
+      if (!location) throw new CanvasError("bad_response", "Upload redirect without a location.");
+      return this.confirmUpload(new URL(location, target));
+    }
+    if (!res.ok) throw new CanvasError("unavailable", `The upload failed (${res.status}).`);
+    const body = (await res.json().catch(() => ({}))) as { id?: number };
+    if (typeof body.id === "number") return body.id;
+    if (location) return this.confirmUpload(new URL(location, target));
+    throw new CanvasError("bad_response", "Canvas didn't return the uploaded file.");
+  }
+
+  private async confirmUpload(url: URL): Promise<number> {
+    if (url.origin !== this.origin)
+      throw new CanvasError("bad_response", "Upload confirmation pointed away from Canvas.");
+    let res: Response;
+    try {
+      res = await this.fetchImpl(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          Accept: "application/json",
+          "User-Agent": CANVAS_USER_AGENT,
+        },
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      throw new CanvasError("unavailable", "Couldn't confirm the upload with Canvas.");
+    }
+    const body = await this.postResult<{ id?: number }>(res);
+    if (typeof body.id !== "number")
+      throw new CanvasError("bad_response", "Canvas didn't return the uploaded file.");
+    return body.id;
+  }
+
+  /** Submits the student's own work: uploaded files, or a text entry. */
+  async submit(
+    courseId: string,
+    assignmentId: string,
+    s: { fileIds: number[] } | { body: string },
+  ) {
+    const form: [string, string][] =
+      "fileIds" in s
+        ? [
+            ["submission[submission_type]", "online_upload"],
+            ...s.fileIds.map((id): [string, string] => ["submission[file_ids][]", String(id)]),
+          ]
+        : [
+            ["submission[submission_type]", "online_text_entry"],
+            ["submission[body]", s.body],
+          ];
+    return this.post<{ id?: number; submitted_at?: string; workflow_state?: string }>(
+      `/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}/submissions`,
+      form,
+    );
+  }
+
   fileApiUrl(fileId: string) {
     return `${this.origin}/api/v1/files/${fileId}`;
   }

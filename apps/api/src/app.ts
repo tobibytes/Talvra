@@ -143,6 +143,8 @@ export function createApp(opts: AppOptions = {}) {
   app.post("/v1/homework/:id/brief", heavy);
   app.post("/v1/homework/:id/plan/suggest", heavy);
   app.post("/v1/reminders/test", heavy);
+  app.post("/v1/homework/:id/draft", heavy);
+  app.post("/v1/homework/:id/draft/submit", heavy);
   app.post("/v1/me/ai/models", heavy);
   app.put("/v1/me/ai", heavy);
 
@@ -156,7 +158,7 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", documentsRoutes(opts.documents));
   app.route("/v1", studyRoutes(opts.study));
   app.route("/v1", searchRoutes(opts.search));
-  app.route("/v1", homeworkRoutes(opts.homework));
+  app.route("/v1", homeworkRoutes({ canvasFetch: opts.canvasFetch, ...opts.homework }));
   app.route("/v1", remindersRoutes(opts.sendEmail));
   app.route("/v1", videoRoutes(opts.video));
   app.route("/", unsubscribeRoutes);

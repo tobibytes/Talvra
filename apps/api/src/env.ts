@@ -57,6 +57,8 @@ export type Bindings = {
   RL_API?: RateLimit;
   /** Claude, for study aids. */
   ANTHROPIC_API_KEY?: string;
+  /** Emails (comma-separated) allowed to use "Do my homework". Unset: nobody. */
+  DO_HOMEWORK_EMAILS?: string;
   /** Workers AI model for the free fallback ("basic" mode). */
   BASIC_MODEL?: string;
 };

@@ -40,7 +40,7 @@ function canvasFailure(err: unknown): never {
 }
 
 /** Loads and decrypts the user's Canvas token, or fails with 409. */
-async function clientFor(
+export async function canvasClientFor(
   c: { env: Bindings; var: { db: Database }; get: (key: "userId") => string | undefined },
   fetchImpl: Fetch,
 ) {
@@ -140,7 +140,7 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
       return c.json({ connection: connectionView(conn), canvasUserName: self.name }, 200);
     })
     .openapi(verify, async (c) => {
-      const { conn, client } = await clientFor(c, fetchImpl);
+      const { conn, client } = await canvasClientFor(c, fetchImpl);
       try {
         const self = await client.getSelf();
         const [updated] = await c.var.db
@@ -170,7 +170,7 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
     })
     .openapi(listCanvasCourses, async (c) => {
       const userId = c.get("userId") as string;
-      const { client } = await clientFor(c, fetchImpl);
+      const { client } = await canvasClientFor(c, fetchImpl);
       const live = await client.activeCourses().catch(canvasFailure);
       const saved = await c.var.db
         .select({ canvasId: courses.canvasId, selected: courses.selected })
@@ -185,7 +185,7 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
     .openapi(selectCourses, async (c) => {
       const userId = c.get("userId") as string;
       const { canvasIds } = c.req.valid("json");
-      const { client } = await clientFor(c, fetchImpl);
+      const { client } = await canvasClientFor(c, fetchImpl);
       const live = await client.activeCourses().catch(canvasFailure);
       const known = new Set(live.map((l) => l.canvasId));
       const unknown = canvasIds.filter((id) => !known.has(id));

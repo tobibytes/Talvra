@@ -59,8 +59,9 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
       tokenLast4: "good",
       lastVerifiedAt: "2026-10-23T12:00:00.000Z",
     },
+    features: { doHomework: false },
     ...overrides,
-  };
+  } as Me;
 }
 
 /**
@@ -238,6 +239,7 @@ export function fakeApi(state: {
   video?: Video;
   cards?: Flashcard[];
   ai?: Record<string, unknown>;
+  draft?: Record<string, unknown>;
 }) {
   state.documents ??= [];
   state.aids ??= [];
@@ -594,7 +596,7 @@ export function fakeApi(state: {
       });
     }
     const hw = p.match(
-      /^\/api\/v1\/homework\/([^/]+)(\/brief|\/resources|\/plan(?:\/suggest|\/[^/]+)?)?$/,
+      /^\/api\/v1\/homework\/([^/]+)(\/brief|\/resources|\/plan(?:\/suggest|\/[^/]+)?|\/draft(?:\/submit|\/files\/.+)?)?$/,
     );
     if (hw) {
       const item = (state.homework ?? []).find((i) => i.id === hw[1]);
@@ -610,6 +612,34 @@ export function fakeApi(state: {
           lockAt: null,
           submissionTypes: ["online_upload"],
         });
+      }
+      if (sub.startsWith("/draft")) {
+        if (!me.features?.doHomework) return apiError(404, "not_found", "Not found.");
+        const file = sub.match(/^\/draft\/files\/(.+)$/);
+        if (file) return new Response(`print("answer")  # ${decodeURIComponent(file[1] ?? "")}`);
+        if (sub === "/draft/submit") {
+          if (!state.draft) return apiError(409, "conflict", "Make the files first.");
+          state.draft = {
+            ...state.draft,
+            status: "submitted",
+            submittedAt: new Date().toISOString(),
+          };
+          return json({ draft: state.draft });
+        }
+        if (method === "POST") {
+          state.draft = {
+            id: "55555555-5555-4555-8555-555555555555",
+            status: "ready",
+            files: [{ name: "lab2.py", contentType: "text/x-python", size: 2048 }],
+            notes: "Put your name at the top.",
+            instructions: body?.instructions ?? null,
+            error: null,
+            model: "claude-opus-5-5",
+            submittedAt: null,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return json({ draft: state.draft ?? null });
       }
       if (sub === "/brief" && method === "GET") return json({ brief: null });
       if (sub === "/brief") {

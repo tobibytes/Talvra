@@ -20,6 +20,7 @@ import {
   DocumentContent,
   DocumentDetail,
   DocumentList,
+  DraftResponse,
   FlashcardList,
   Health,
   HomeworkList,
@@ -184,6 +185,17 @@ export const api = {
   },
   assignment: (id: string) => request(`/v1/homework/${id}`, AssignmentDetail),
   brief: (id: string) => request(`/v1/homework/${id}/brief`, BriefResponse),
+  // "Do my homework" (only for accounts the server switches on).
+  draft: (id: string) => request(`/v1/homework/${id}/draft`, DraftResponse),
+  makeDraft: (id: string, instructions?: string) =>
+    request(`/v1/homework/${id}/draft`, DraftResponse, {
+      method: "POST",
+      json: instructions ? { instructions } : {},
+    }),
+  submitDraft: (id: string) =>
+    request(`/v1/homework/${id}/draft/submit`, DraftResponse, { method: "POST" }),
+  draftFileUrl: (id: string, name: string) =>
+    `${API_BASE}/v1/homework/${id}/draft/files/${encodeURIComponent(name)}`,
   makeBrief: (id: string, regenerate = false) =>
     request(`/v1/homework/${id}/brief`, BriefResponse, { method: "POST", json: { regenerate } }),
   resources: (id: string) => request(`/v1/homework/${id}/resources`, SearchResult),

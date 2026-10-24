@@ -107,6 +107,15 @@ const FIELDS = [
     secret: true,
   },
   {
+    key: "DO_HOMEWORK_EMAILS",
+    label: "Do my homework: allowed accounts (optional)",
+    help: 'Comma-separated emails that see the owner-only "Do my homework" feature. Skip to keep it off.',
+    validate: (v) =>
+      v.split(",").every((e) => /^[^@\s]+@[^@\s]+$/.test(e.trim()))
+        ? null
+        : "Use emails separated by commas.",
+  },
+  {
     key: "AZURE_SPEECH_KEY",
     label: "Azure Speech key (optional)",
     help: "Only if you prefer Azure voices for videos. Skip to use Workers AI (default).",
