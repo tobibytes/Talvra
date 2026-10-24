@@ -134,8 +134,8 @@
         "bindings": [
           { "name": "USER_HUB", "class_name": "UserHub" },
           { "name": "EXTRACT", "class_name": "ExtractContainer" },
-          { "name": "MEDIA", "class_name": "MediaContainer" },
-          { "name": "SANDBOX", "class_name": "SandboxContainer" }
+          { "name": "MEDIA", "class_name": "MediaContainer" }
+          // SANDBOX (SandboxContainer) comes back once its image uploads; see docs/v2/SANDBOX.md.
         ]
       },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
@@ -176,14 +176,6 @@
           "image": "../media/Dockerfile",
           "max_instances": 3,
           // A full vCPU: renders ~2x faster than standard-1 for about the same cost per video.
-          "instance_type": "standard-2"
-        },
-        // Homework sandbox: one instance per run, internet on (see SandboxContainer). Only used
-        // when HOMEWORK_SANDBOX / HOMEWORK_SANDBOX_EMAILS say so; idle instances cost nothing.
-        {
-          "class_name": "SandboxContainer",
-          "image": "../sandbox/Dockerfile",
-          "max_instances": 4,
           "instance_type": "standard-2"
         }
       ],
