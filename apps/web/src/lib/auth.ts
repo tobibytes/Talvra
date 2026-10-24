@@ -1,3 +1,4 @@
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createAuthClient } from "better-auth/react";
 import { api } from "./api";
@@ -6,6 +7,9 @@ export const authClient = createAuthClient({
   basePath: "/api/auth",
   // Resolve fetch at call time (not import time) so tests can stub it.
   fetchOptions: { customFetchImpl: (input, init) => fetch(input, init) },
+  // During an MCP connector's OAuth sign-in, attaches the signed authorize query to sign-in and
+  // consent requests so the flow can continue.
+  plugins: [oauthProviderClient()],
 });
 
 export const meQuery = queryOptions({ queryKey: ["me"], queryFn: api.me, staleTime: 60_000 });

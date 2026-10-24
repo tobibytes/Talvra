@@ -113,6 +113,13 @@
       "when": 1792856375135,
       "tag": "0015_api_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792868599546,
+      "tag": "0016_oauth_mcp",
+      "breakpoints": true
     }
   ]
 }

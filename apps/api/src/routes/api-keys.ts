@@ -1,12 +1,20 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { ApiError, ApiKeyList, ApiKeyParams, CreateApiKey, CreatedApiKey } from "@talvra/contracts";
+import {
+  ApiError,
+  ApiKeyList,
+  ApiKeyParams,
+  ConnectedAppList,
+  ConnectedAppParams,
+  CreateApiKey,
+  CreatedApiKey,
+} from "@talvra/contracts";
 import { and, count, desc, eq, schema } from "@talvra/db";
 import type { AppEnv } from "../env.js";
 import { MAX_API_KEYS, newApiKey, toApiKey } from "../lib/api-keys.js";
 import { AppError } from "../lib/errors.js";
 import { requireUser } from "../middleware/auth.js";
 
-const { apiKeys } = schema;
+const { apiKeys, oauthClients, oauthConsents, oauthRefreshTokens, oauthAccessTokens } = schema;
 const json = <T>(s: T) => ({ "application/json": { schema: s } });
 const unauthorized = { 401: { description: "Not signed in", content: json(ApiError) } };
 
@@ -47,7 +55,67 @@ const revoke = createRoute({
   },
 });
 
+const listApps = createRoute({
+  method: "get",
+  path: "/me/connected-apps",
+  tags: ["account"],
+  summary: "Apps connected to the MCP server over OAuth (ChatGPT, Claude, ...)",
+  middleware: [requireUser] as const,
+  responses: { 200: { description: "Apps", content: json(ConnectedAppList) }, ...unauthorized },
+});
+
+const disconnectApp = createRoute({
+  method: "delete",
+  path: "/me/connected-apps/{clientId}",
+  tags: ["account"],
+  summary: "Disconnect an app: its consent and refresh tokens are deleted at once",
+  middleware: [requireUser] as const,
+  request: { params: ConnectedAppParams },
+  responses: {
+    204: { description: "Disconnected" },
+    404: { description: "Not connected", content: json(ApiError) },
+    ...unauthorized,
+  },
+});
+
 export const apiKeyRoutes = new OpenAPIHono<AppEnv>()
+  .openapi(listApps, async (c) => {
+    const userId = c.get("userId") as string;
+    const rows = await c.var.db
+      .select({ consent: oauthConsents, client: oauthClients })
+      .from(oauthConsents)
+      .innerJoin(oauthClients, eq(oauthClients.clientId, oauthConsents.clientId))
+      .where(eq(oauthConsents.userId, userId))
+      .orderBy(desc(oauthConsents.createdAt));
+    return c.json(
+      {
+        apps: rows.map(({ consent, client }) => ({
+          clientId: client.clientId,
+          name: client.name?.trim() || "An app",
+          uri: client.uri ?? null,
+          connectedAt: (consent.createdAt ?? new Date()).toISOString(),
+        })),
+      },
+      200,
+    );
+  })
+  .openapi(disconnectApp, async (c) => {
+    const userId = c.get("userId") as string;
+    const { clientId } = c.req.valid("param");
+    const gone = await c.var.db
+      .delete(oauthConsents)
+      .where(and(eq(oauthConsents.userId, userId), eq(oauthConsents.clientId, clientId)))
+      .returning({ id: oauthConsents.id });
+    // Access tokens (JWTs) can't be recalled; they expire within 15 minutes.
+    await c.var.db
+      .delete(oauthAccessTokens)
+      .where(and(eq(oauthAccessTokens.userId, userId), eq(oauthAccessTokens.clientId, clientId)));
+    await c.var.db
+      .delete(oauthRefreshTokens)
+      .where(and(eq(oauthRefreshTokens.userId, userId), eq(oauthRefreshTokens.clientId, clientId)));
+    if (!gone.length) throw new AppError("not_found", "That app isn't connected.");
+    return c.body(null, 204);
+  })
   .openapi(list, async (c) => {
     const userId = c.get("userId") as string;
     const rows = await c.var.db

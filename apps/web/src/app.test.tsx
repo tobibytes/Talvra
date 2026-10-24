@@ -109,6 +109,7 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
     ["/search?mode=ask", signedIn],
     ["/reminders", signedIn],
     ["/settings", signedIn],
+    ["/oauth/consent?client_id=chatgpt-1", signedIn],
     ["/sign-in", () => fakeApi({ me: null })],
     ["/sign-up", () => fakeApi({ me: null })],
     ["/forgot-password", () => fakeApi({ me: null })],

@@ -22,6 +22,7 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as AppCoursesIndexRouteImport } from './routes/_app/courses/index'
 import { Route as AppCoursesCourseIdRouteImport } from './routes/_app/courses/$courseId'
 import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app/documents/$documentId'
@@ -91,6 +92,11 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => AuthRoute,
 } as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppCoursesIndexRoute = AppCoursesIndexRouteImport.update({
   id: '/courses/',
   path: '/courses/',
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
   '/homework/$assignmentId': typeof AppHomeworkAssignmentIdRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
   '/homework/$assignmentId': typeof AppHomeworkAssignmentIdRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/_app/': typeof AppIndexRoute
   '/_app/courses/$courseId': typeof AppCoursesCourseIdRoute
   '/_app/documents/$documentId': typeof AppDocumentsDocumentIdRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/oauth/consent'
     | '/courses/$courseId'
     | '/documents/$documentId'
     | '/homework/$assignmentId'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/oauth/consent'
     | '/courses/$courseId'
     | '/documents/$documentId'
     | '/homework/$assignmentId'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/_auth/reset-password'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
+    | '/oauth/consent'
     | '/_app/'
     | '/_app/courses/$courseId'
     | '/_app/documents/$documentId'
@@ -237,6 +249,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
+  OauthConsentRoute: typeof OauthConsentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/courses/': {
       id: '/_app/courses/'
       path: '/courses'
@@ -420,6 +440,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
+  OauthConsentRoute: OauthConsentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

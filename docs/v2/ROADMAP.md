@@ -519,3 +519,20 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
 - ErrorState no longer prints raw schema-validation JSON.
 - Ideas left: dashboard charts (study streak), a per-course accent tint, page transitions.
 
+## MCP over OAuth (2026-10-24)
+
+- Connectors that can't set headers (ChatGPT, claude.ai) now sign in with OAuth 2.1: Better Auth
+  `@better-auth/oauth-provider` + `jwt` plugins, dynamic client registration (public clients,
+  PKCE S256), consent page `/oauth/consent`, refresh tokens (rotating). Access tokens are JWTs for
+  the resource `<APP_URL>/api/mcp`, 15-minute TTL, verified in-process (`mcp/auth.ts`, keys from
+  `auth.api.getJwks()`, no self-fetch).
+- Discovery at the site root (front.ts → API): `/.well-known/oauth-protected-resource[/api/mcp]`,
+  `/.well-known/oauth-authorization-server[/api/auth]`, `/.well-known/openid-configuration`; a 401
+  from `/api/mcp` carries `WWW-Authenticate: Bearer resource_metadata=…`.
+- Personal keys also work as `X-API-Key` for clients that can't change `Authorization`.
+- Settings → AI assistants lists connected apps; Disconnect deletes the consent and refresh/access
+  token rows (an issued JWT still lives ≤15 min). Better Auth's own delete-consent doesn't revoke
+  tokens, hence our route.
+- Migration 0016 (`jwks`, `oauth_*`). Not done: CIMD (client ID metadata documents) and DPoP;
+  connectors use DCR and bearer tokens today.
+

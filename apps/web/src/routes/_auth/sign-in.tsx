@@ -12,7 +12,12 @@ import { Input } from "@/components/ui/input";
 import { authClient, authErrorMessage, configQuery, meQuery, safeRedirect } from "@/lib/auth";
 
 export const Route = createFileRoute("/_auth/sign-in")({
-  validateSearch: z.object({ redirect: z.string().optional(), error: z.string().optional() }),
+  // Loose: an MCP connector's OAuth sign-in arrives with signed authorize params, which must
+  // stay in the URL for the auth client to send back.
+  validateSearch: z.looseObject({
+    redirect: z.string().optional(),
+    error: z.string().optional(),
+  }),
   component: SignIn,
 });
 
@@ -48,6 +53,12 @@ function SignIn() {
             : authErrorMessage(res.error),
         );
       }
+      return;
+    }
+    // In a connector's OAuth sign-in, the server says where the flow continues (consent).
+    const next = (res.data as { url?: unknown } | null)?.url;
+    if (typeof next === "string" && next) {
+      window.location.assign(next);
       return;
     }
     await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });

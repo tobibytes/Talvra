@@ -12,6 +12,7 @@ import {
   CanvasCourseList,
   type ConnectCanvas,
   ConnectCanvasResult,
+  ConnectedAppList,
   CourseDetail,
   CourseDocument,
   CourseDocumentList,
@@ -121,6 +122,11 @@ export const api = {
   saveAiKey: (body: SaveAiKey) => request("/v1/me/ai", AiSettings, { method: "PUT", json: body }),
   removeAiKey: () => request("/v1/me/ai", AiSettings, { method: "DELETE" }),
   apiKeys: () => request("/v1/me/api-keys", ApiKeyList),
+  connectedApps: () => request("/v1/me/connected-apps", ConnectedAppList),
+  disconnectApp: (clientId: string) =>
+    request(`/v1/me/connected-apps/${encodeURIComponent(clientId)}`, z.undefined(), {
+      method: "DELETE",
+    }),
   createApiKey: (body: CreateApiKey) =>
     request("/v1/me/api-keys", CreatedApiKey, { method: "POST", json: body }),
   revokeApiKey: (id: string) =>
