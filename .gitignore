@@ -96,3 +96,5 @@ __pycache__/
 # Playwright
 e2e/test-results/
 e2e/playwright-report/
+# Production secrets handed to the deploy (never committed)
+.prod.vars
