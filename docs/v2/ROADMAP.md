@@ -46,19 +46,15 @@ app's own secrets, checks the database and keys against their services, and writ
 `apps/api/.prod.vars` (`pnpm prod:env --check` re-validates). Any Postgres 15+ works (Neon,
 Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
 
-- [ ] Rotate the secrets that were committed in v1 (`deploy/secrets.yaml`, `infra/.env`): Canvas
-      tokens, DB password, OpenAI key (revoke). They're gone from the tree since the cutover but still
-      in git history. Then purge them from history. That
-      rewrite needs a force-push to `main`; only do it when the owner says so.
+- [ ] Rotate the secrets that were committed in v1 (Canvas tokens, DB password, OpenAI key). History
+      was rewritten on 2026-10-24 (it now starts at session 1), but GitHub still serves the old commits
+      through closed PRs' refs until GitHub Support purges them, so rotation is still required.
 - [x] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
 - [x] Resend API key, hwrk.help verified.
 - [x] Cloudflare Workers paid plan.
 - [x] Neon project + Hyperdrive (`talvra-db`).
-- [x] **A valid `ANTHROPIC_API_KEY`** (production key verified; the live smoke test is still worth running).** The key in the agent's environment returned 401, so study
-      aids were never generated against the real API (everything else, including the failure path,
-      was). Put it in `apps/api/.dev.vars`, then run the opt-in smoke test:
-      `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`
-      (3 small calls). Production: `wrangler secret put ANTHROPIC_API_KEY --env production`.
+- [x] Valid `ANTHROPIC_API_KEY` in production (verified by `pnpm prod:env`). To smoke-test real
+      generation: `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`.
 - [ ] Confirm the MCP server session (8). The proposal: personal API keys first, OAuth later. Tools:
       `list_courses`, `upcoming_due`, `search_material`, `get_document`, `generate_study_aid`,
       `review_flashcards`, `homework_brief`. Same integrity rule.
