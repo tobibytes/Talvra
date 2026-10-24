@@ -187,7 +187,9 @@ def test_shows_the_cited_lecture_pages():
     starts = [sum(d[:i]) for i in range(len(d))]
     # The title slide stays plain; slides 2 and 3 show their page on the right.
     right = (900, 360)
-    assert frame_at(r.content, starts[0] + 0.5).getpixel(right) == (250, 250, 252)
+    # H.264 is lossy and ffmpeg builds round differently, so allow a couple of levels.
+    plain = frame_at(r.content, starts[0] + 0.5).getpixel(right)
+    assert all(abs(a - b) <= 3 for a, b in zip(plain, (250, 250, 252), strict=True))
     r2, g2, b2 = frame_at(r.content, starts[1] + 0.5).getpixel(right)
     assert r2 > 180 and g2 < 80 and b2 < 80
     r3, g3, b3 = frame_at(r.content, starts[2] + 0.5).getpixel(right)
