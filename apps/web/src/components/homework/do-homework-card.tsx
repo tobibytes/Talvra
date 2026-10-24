@@ -1,5 +1,8 @@
 import type { AssignmentDetail, DraftFile, HomeworkDraft } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as React from "react";
+import { toast } from "sonner";
+import { Markdown } from "@/components/document/markdown";
 import {
   CircleCheck,
   ClipboardCheck,
@@ -12,10 +15,7 @@ import {
   Pencil,
   Send,
   Sparkles,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { Markdown } from "@/components/document/markdown";
+} from "@/components/icons";
 import { ErrorState, ListSkeleton } from "@/components/page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";

@@ -1,9 +1,11 @@
 import type { ApiKey, CreatedApiKey } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { IconTile } from "@/components/blocks";
+import { Check, Copy, KeyRound, Plus, Trash2 } from "@/components/icons";
 import { ErrorState } from "@/components/page";
+import { TileRow } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -105,31 +107,37 @@ export function ApiKeysCard() {
         ) : keys.isError ? (
           <ErrorState error={keys.error} onRetry={() => keys.refetch()} />
         ) : keys.data.keys.length ? (
-          <ul className="divide-y rounded-lg border" aria-label="API keys">
+          <ul className="-mx-2 grid gap-0.5" aria-label="API keys">
             {keys.data.keys.map((k) => (
-              <li key={k.id} className="flex items-center gap-3 p-3">
-                <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{k.name}</p>
-                  <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                    <span className="font-mono">…{k.last4}</span>
-                    <span title={dateTime(k.createdAt)}>Made {relativeTime(k.createdAt)}</span>
-                    {k.lastUsedAt ? (
-                      <span title={dateTime(k.lastUsedAt)}>Used {relativeTime(k.lastUsedAt)}</span>
-                    ) : (
-                      <span>Never used</span>
-                    )}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Revoke ${k.name}`}
-                  onClick={() => setRevoking(k)}
-                >
-                  <Trash2 />
-                  <span className="hidden sm:inline">Revoke</span>
-                </Button>
+              <li key={k.id}>
+                <TileRow
+                  tile={<IconTile icon={KeyRound} />}
+                  title={k.name}
+                  meta={
+                    <span className="flex flex-wrap gap-x-3">
+                      <span className="font-mono">…{k.last4}</span>
+                      <span title={dateTime(k.createdAt)}>Made {relativeTime(k.createdAt)}</span>
+                      {k.lastUsedAt ? (
+                        <span title={dateTime(k.lastUsedAt)}>
+                          Used {relativeTime(k.lastUsedAt)}
+                        </span>
+                      ) : (
+                        <span>Never used</span>
+                      )}
+                    </span>
+                  }
+                  trailing={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Revoke ${k.name}`}
+                      onClick={() => setRevoking(k)}
+                    >
+                      <Trash2 />
+                      <span className="hidden sm:inline">Revoke</span>
+                    </Button>
+                  }
+                />
               </li>
             ))}
           </ul>

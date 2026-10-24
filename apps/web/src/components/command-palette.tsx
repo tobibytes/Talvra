@@ -1,9 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, MessageCircleQuestion } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
 import { slugify } from "@/components/document/markdown";
+import { FileText, MessageCircleQuestion } from "@/components/icons";
 import { anchorLabel } from "@/components/search/highlight";
 import { themes } from "@/components/theme";
 import {
@@ -84,7 +84,7 @@ function CommandPalette({ open, setOpen }: PaletteContext) {
       description="Jump to a page or run an action"
     >
       {/* CommandDialog is only the dialog; cmdk needs its own <Command> root inside. */}
-      <Command>
+      <Command className="[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:uppercase">
         <CommandInput
           placeholder="Search pages and actions…"
           value={query}
@@ -126,7 +126,7 @@ function CommandPalette({ open, setOpen }: PaletteContext) {
                 >
                   <FileText />
                   <span className="truncate">{h.documentTitle}</span>
-                  <span className="ms-auto shrink-0 text-xs text-muted-foreground">
+                  <span className="ms-auto shrink-0 rounded-[6px] border bg-background px-1.5 py-px font-mono text-[11px] text-soft">
                     {anchorLabel(h.anchor)}
                   </span>
                 </CommandItem>
@@ -160,7 +160,7 @@ function CommandPalette({ open, setOpen }: PaletteContext) {
           </CommandGroup>
         </CommandList>
       </Command>
-      <div className="flex items-center justify-end gap-1 border-t px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex items-center justify-end gap-1 border-t px-3 py-2 font-mono text-[11px] text-muted-foreground">
         Open anywhere with <CommandShortcut className="ml-1">⌘K</CommandShortcut>
       </div>
     </CommandDialog>

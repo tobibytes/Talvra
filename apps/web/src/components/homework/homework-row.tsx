@@ -1,24 +1,43 @@
 import type { HomeworkItem, HomeworkStatus } from "@talvra/contracts";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "@/components/blocks";
+import { ChevronRight } from "@/components/icons";
 import { courseLabel } from "@/lib/course-label";
 import { dateTime, relativeTime } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
-const STATUS: Record<
-  HomeworkStatus,
-  { label: string; variant: "secondary" | "success" | "destructive" | "outline" | "warning" }
-> = {
-  todo: { label: "To do", variant: "outline" },
-  submitted: { label: "Submitted", variant: "success" },
-  graded: { label: "Graded", variant: "success" },
-  overdue: { label: "Overdue", variant: "destructive" },
-  offline: { label: "Not online", variant: "secondary" },
+const STATUS: Record<HomeworkStatus, { label: string; tone: "neutral" | "ok" | "stop" }> = {
+  todo: { label: "To do", tone: "neutral" },
+  submitted: { label: "Submitted", tone: "ok" },
+  graded: { label: "Graded", tone: "ok" },
+  overdue: { label: "Overdue", tone: "stop" },
+  offline: { label: "Not online", tone: "neutral" },
 };
 
 export function HomeworkStatusBadge({ status }: { status: HomeworkStatus }) {
   const s = STATUS[status];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  return <StatusPill tone={s.tone}>{s.label}</StatusPill>;
+}
+
+/** A small calendar leaf: month over day. Red when overdue. */
+function DateLeaf({ dueAt, overdue }: { dueAt: string | null; overdue: boolean }) {
+  const d = dueAt ? new Date(dueAt) : null;
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "grid w-11 shrink-0 place-items-center rounded-[11px] border py-1.5 leading-none",
+        overdue ? "border-destructive/30 bg-destructive/10 text-destructive" : "bg-background",
+      )}
+    >
+      <span className="font-mono text-[10px] tracking-[0.12em] uppercase opacity-80">
+        {d ? d.toLocaleDateString(undefined, { month: "short" }) : "No"}
+      </span>
+      <span className="font-display text-lg font-extrabold" data-numeric>
+        {d ? d.getDate() : "date"}
+      </span>
+    </span>
+  );
 }
 
 export function dueText(item: Pick<HomeworkItem, "dueAt" | "status">) {
@@ -40,10 +59,11 @@ export function HomeworkRow({
     <Link
       to="/homework/$assignmentId"
       params={{ assignmentId: item.id }}
-      className="group flex items-center gap-3 p-4 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 p-3.5 outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50 sm:p-4"
     >
+      <DateLeaf dueAt={item.dueAt} overdue={item.status === "overdue"} />
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="truncate font-medium">{item.name}</p>
+        <p className="truncate font-semibold">{item.name}</p>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {showCourse ? (
             <span
@@ -69,7 +89,7 @@ export function HomeworkRow({
       </div>
       <HomeworkStatusBadge status={item.status} />
       <ChevronRight
-        className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        className="size-4 shrink-0 text-muted-foreground transition-colors duration-150 group-hover:text-primary"
         aria-hidden
       />
     </Link>

@@ -7,6 +7,12 @@ import type {
 } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { toast } from "sonner";
+import { StatusPill } from "@/components/blocks";
+import { Markdown, slugify } from "@/components/document/markdown";
+import { DoHomeworkCard } from "@/components/homework/do-homework-card";
+import { dueText, HomeworkStatusBadge } from "@/components/homework/homework-row";
 import {
   ArrowDown,
   ArrowUp,
@@ -20,12 +26,7 @@ import {
   SearchX,
   Sparkles,
   Trash2,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { Markdown, slugify } from "@/components/document/markdown";
-import { DoHomeworkCard } from "@/components/homework/do-homework-card";
-import { dueText, HomeworkStatusBadge } from "@/components/homework/homework-row";
+} from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { anchorLabel, Highlighted } from "@/components/search/highlight";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiRequestError, api } from "@/lib/api";
 import { courseLabel } from "@/lib/course-label";
-import { duration, relativeTime } from "@/lib/time";
+import { dateTime, duration, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/homework/$assignmentId")({ component: Workspace });
@@ -115,13 +116,18 @@ function Workspace() {
         </BreadcrumbList>
       </Breadcrumb>
       <PageHeader
+        eyebrow={courseLabel(d.courseCode, d.courseName)}
         title={d.name}
         description={
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <HomeworkStatusBadge status={d.status} />
-            <span>{dueText(d)}</span>
-            {d.pointsPossible ? <span>{d.pointsPossible} points</span> : null}
-            {d.late ? <Badge variant="warning">Submitted late</Badge> : null}
+            {d.late ? <StatusPill tone="warn">Submitted late</StatusPill> : null}
+            <span title={d.dueAt ? dateTime(d.dueAt) : undefined}>{dueText(d)}</span>
+            {d.pointsPossible ? (
+              <span data-numeric>
+                <span className="font-semibold text-foreground">{d.pointsPossible}</span> points
+              </span>
+            ) : null}
           </span>
         }
         actions={
@@ -266,7 +272,7 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
                 <CircleAlert className="size-4" aria-hidden /> {b.error}
               </p>
             ) : null}
-            <Button onClick={() => make.mutate(false)}>
+            <Button variant="secondary" onClick={() => make.mutate(false)}>
               <Sparkles /> {b?.status === "failed" ? "Try again" : "Break it down"}
             </Button>
           </div>

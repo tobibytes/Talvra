@@ -1,22 +1,24 @@
 import type { AskSource, SearchHit, TitleMatch } from "@talvra/contracts";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { z } from "zod";
+import { Eyebrow, IconTile, SectionLabel } from "@/components/blocks";
+import { Markdown, slugify } from "@/components/document/markdown";
 import {
   ArrowUp,
   BookOpen,
+  ChevronDown,
   ClipboardList,
   FileText,
   LoaderCircle,
   MessageCircleQuestion,
   Search as SearchIcon,
+  Sparkles,
   Square,
-} from "lucide-react";
-import * as React from "react";
-import { z } from "zod";
-import { Markdown, slugify } from "@/components/document/markdown";
+} from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { anchorLabel, Highlighted } from "@/components/search/highlight";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,7 +33,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ApiRequestError, api } from "@/lib/api";
 import { courseLabel } from "@/lib/course-label";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/search")({
   validateSearch: z.object({
@@ -134,7 +135,7 @@ function SearchMode({
     <div className="space-y-5">
       <div className="relative">
         <SearchIcon
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
         <Input
@@ -142,9 +143,9 @@ function SearchMode({
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Search notes, slides, readings and assignments…"
+          placeholder="Notes, slides, readings, assignments…"
           aria-label="Search your course material"
-          className="h-11 pl-9 text-base"
+          className="h-12 rounded-xl bg-card pr-10 pl-11 text-base"
         />
         {results.isFetching ? (
           <LoaderCircle
@@ -180,10 +181,8 @@ function SearchMode({
           {data.titles.length ? <TitleMatches titles={data.titles} /> : null}
           {data.hits.length ? (
             <section aria-labelledby="hits-heading" className="space-y-3">
-              <h2 id="hits-heading" className="text-sm font-medium text-muted-foreground">
-                In your material
-              </h2>
-              <ul className="space-y-3">
+              <SectionLabel id="hits-heading">In your material</SectionLabel>
+              <ul className="divide-y overflow-hidden rounded-xl border bg-card">
                 {data.hits.map((h) => (
                   <HitRow key={h.chunkId} hit={h} />
                 ))}
@@ -199,21 +198,19 @@ function SearchMode({
 function TitleMatches({ titles }: { titles: TitleMatch[] }) {
   const icon = { course: BookOpen, document: FileText, assignment: ClipboardList } as const;
   return (
-    <section aria-labelledby="titles-heading" className="space-y-2">
-      <h2 id="titles-heading" className="text-sm font-medium text-muted-foreground">
-        Jump to
-      </h2>
+    <section aria-labelledby="titles-heading" className="space-y-3">
+      <SectionLabel id="titles-heading">Jump to</SectionLabel>
       <ul className="flex flex-wrap gap-2">
         {titles.map((t) => {
           const Icon = icon[t.kind];
           const cls =
-            "inline-flex max-w-full items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50";
+            "inline-flex max-w-full items-center gap-2 rounded-full border bg-card py-1.5 pr-3.5 pl-1.5 text-sm font-medium outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-ring/50";
           const label = (
             <>
-              <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <IconTile icon={Icon} className="size-7 rounded-full [&_svg]:size-3.5" />
               <span className="truncate">{t.title}</span>
               {t.kind !== "course" && t.courseName ? (
-                <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                <span className="hidden truncate font-mono text-[11px] text-muted-foreground sm:inline">
                   {courseLabel(t.courseName)}
                 </span>
               ) : null}
@@ -255,22 +252,35 @@ function HitRow({ hit }: { hit: SearchHit }) {
         params={{ documentId: hit.documentId }}
         search={{ tab: "read" }}
         hash={slugify(hit.heading)}
-        className="block space-y-1.5 rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex gap-3 p-4 outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{hit.documentTitle}</span>
-          <Badge variant="outline">{anchorLabel(hit.anchor)}</Badge>
-          {hit.courseName ? (
-            <span className="text-xs text-muted-foreground" title={hit.courseName}>
-              {courseLabel(hit.courseName)}
-            </span>
-          ) : null}
+        <IconTile icon={FileText} />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-semibold">{hit.documentTitle}</span>
+            <SourceTag>{anchorLabel(hit.anchor)}</SourceTag>
+            {hit.courseName ? (
+              <SourceTag title={hit.courseName}>{courseLabel(hit.courseName)}</SourceTag>
+            ) : null}
+          </div>
+          <p className="text-sm leading-6 text-soft">
+            <Highlighted text={hit.snippet} />
+          </p>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">
-          <Highlighted text={hit.snippet} />
-        </p>
       </Link>
     </li>
+  );
+}
+
+/** Mono tag for where a passage is (page, slide, course). */
+function SourceTag({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <span
+      title={title}
+      className="rounded-[6px] border bg-background px-1.5 py-px font-mono text-[11px] text-soft"
+    >
+      {children}
+    </span>
   );
 }
 
@@ -336,23 +346,26 @@ function AskMode({ courseId, initial }: { courseId?: string; initial?: string })
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       {turns.length ? (
-        <ol className="space-y-4" aria-label="Conversation">
+        <ol className="space-y-6" aria-label="Conversation">
           {turns.map((t, i) =>
             t.role === "user" ? (
               <li
                 key={t.id}
-                className="ms-auto w-fit max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground"
+                className="ms-auto w-fit max-w-[85%] animate-rise rounded-2xl rounded-br-md border bg-secondary px-4 py-2.5 font-medium"
               >
                 {t.content}
               </li>
             ) : (
               <li
                 key={t.id}
-                className="space-y-3 rounded-2xl border bg-card px-4 py-3"
+                className="animate-rise space-y-3"
                 aria-busy={busy && i === turns.length - 1}
               >
+                <Eyebrow className="flex items-center gap-2 text-primary">
+                  <Sparkles className="size-3.5" aria-hidden /> Talvra
+                </Eyebrow>
                 {t.content ? (
                   <Markdown renderCite={(n) => <SourceChip n={n} sources={t.sources ?? []} />}>
                     {t.content}
@@ -382,7 +395,7 @@ function AskMode({ courseId, initial }: { courseId?: string; initial?: string })
       )}
       <div ref={endRef} />
       <form
-        className="sticky bottom-20 rounded-2xl border bg-background p-2 shadow-sm md:bottom-4"
+        className="sticky bottom-20 rounded-2xl border bg-card p-2 shadow-lg shadow-black/10 md:bottom-4"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
@@ -403,10 +416,13 @@ function AskMode({ courseId, initial }: { courseId?: string; initial?: string })
           }}
           rows={2}
           placeholder="e.g. Why is array indexing constant time?"
-          className="resize-none border-0 shadow-none focus-visible:ring-0"
+          className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
         <div className="flex items-center justify-between gap-2 px-1">
-          <span className="text-xs text-muted-foreground">Shift+Enter for a new line</span>
+          <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
+            Shift+Enter for a new line
+          </span>
+          <span className="sm:hidden" />
           {busy ? (
             <Button
               type="button"
@@ -437,7 +453,7 @@ function SourceChip({ n, sources }: { n: number; sources: AskSource[] }) {
       search={{ tab: "read" }}
       hash={slugify(s.heading)}
       aria-label={`Source ${n}: ${s.documentTitle}, ${anchorLabel(s.anchor)}`}
-      className="mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md border bg-muted px-1 align-text-top text-[11px] font-medium no-underline outline-none hover:bg-primary/10 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-primary/30 bg-primary/12 px-1 align-text-top font-mono text-[11px] font-medium text-primary no-underline outline-none transition-colors duration-150 hover:bg-primary/20 focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       {n}
     </Link>
@@ -446,20 +462,29 @@ function SourceChip({ n, sources }: { n: number; sources: AskSource[] }) {
 
 function Sources({ sources }: { sources: AskSource[] }) {
   return (
-    <details className="text-sm">
-      <summary className="cursor-pointer text-muted-foreground">Sources ({sources.length})</summary>
-      <ol className="mt-2 space-y-1">
+    <details className="group rounded-xl border bg-card text-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-3.5 py-2.5 font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase [&::-webkit-details-marker]:hidden">
+        Sources ({sources.length})
+        <ChevronDown
+          className="size-4 transition-transform duration-150 group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <ol className="grid gap-0.5 border-t p-1.5">
         {sources.map((s) => (
-          <li key={s.n} className={cn("flex gap-2")}>
-            <span className="w-5 shrink-0 text-muted-foreground tabular-nums">{s.n}.</span>
+          <li key={s.n}>
             <Link
               to="/documents/$documentId"
               params={{ documentId: s.documentId }}
               search={{ tab: "read" }}
               hash={slugify(s.heading)}
-              className="min-w-0 underline-offset-4 hover:underline"
+              className="flex items-center gap-3 rounded-lg px-2 py-1.5 outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              {s.documentTitle}, {anchorLabel(s.anchor)}
+              <span className="grid size-6 shrink-0 place-items-center rounded-md border border-primary/30 bg-primary/12 font-mono text-[11px] text-primary tabular-nums">
+                {s.n}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{s.documentTitle}</span>
+              <SourceTag>{anchorLabel(s.anchor)}</SourceTag>
             </Link>
           </li>
         ))}

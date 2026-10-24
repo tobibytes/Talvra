@@ -1,8 +1,8 @@
 "use client";
 
 import { type ReactTable, type RowData, Subscribe } from "@tanstack/react-table";
-import { Settings2 } from "lucide-react";
 import * as React from "react";
+import { Settings2 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useDirection } from "@/components/ui/direction";
 import {

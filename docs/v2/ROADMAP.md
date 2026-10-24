@@ -498,7 +498,20 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
   reduced motion), mono sidebar labels, phone tab bar with a tinted active pill.
 - Copy: every screen cut to one short line or less; no dot separators (course codes are mono
   tags); buttons are verbs.
-- **Next (part 2):** per-screen layouts in the family patterns: Today stat tiles, list rows with
-  icon tiles, empty states with a faint sketch, the document/aid panels, maybe Hugeicons instead
-  of lucide. Check every screen at 1440 and 390, both themes.
+
+## UI refresh, part 2: screens (2026-10-24)
+
+- Shared blocks in `components/blocks.tsx`; `PageHeader` takes an `eyebrow`; empty states have a
+  faint sketch; tabs are the family's segmented style; icons are Hugeicons via
+  `components/icons.tsx` (lucide removed).
+- Today: stat tiles (overdue, this week, cards, plan), eyebrow sections, calendar date leaves on
+  homework rows, dot + word status pills. Homework: course chips instead of a dropdown.
+  Courses: code-first cards. Assignment page: course eyebrow, one primary action.
+- Signed-out pages: hero with the accent glow and a rising headline; onboarding: numbered stepper.
+- Review: flashcard flip (off under reduced motion), rating pills with keys, session summary.
+  Document page: segmented tabs, ~68ch reading column. Quiz: letter tiles, score ring.
+- Settings: grouped section cards, facts grids, danger zone. Search/Ask: reading column,
+  citation chips. Reminders: facts summary.
+- ErrorState no longer prints raw schema-validation JSON.
+- Ideas left: dashboard charts (study streak), a per-course accent tint, page transitions.
 

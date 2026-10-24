@@ -1,29 +1,35 @@
 import type { Anchor, DocSection, DocumentDetail } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
-import {
-  CircleAlert,
-  Download,
-  ExternalLink,
-  FileQuestion,
-  FileText,
-  LoaderCircle,
-  RefreshCw,
-  ScanText,
-  SearchX,
-  Trash2,
-} from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { kindOf } from "@/components/course/files-table";
 import { Markdown, slugify } from "@/components/document/markdown";
 import { DocumentStatusBadge, isProcessing } from "@/components/document/status";
+import {
+  BookOpen,
+  CircleAlert,
+  Clapperboard,
+  Download,
+  ExternalLink,
+  FileQuestion,
+  FileText,
+  Layers,
+  ListChecks,
+  LoaderCircle,
+  NotebookText,
+  RefreshCw,
+  ScanText,
+  SearchX,
+  Trash2,
+} from "@/components/icons";
 import { EmptyState, ErrorState, PageHeader } from "@/components/page";
 import { AidPanel } from "@/components/study/aid-panel";
 import { DeckView } from "@/components/study/deck-view";
 import { NotesView } from "@/components/study/notes-view";
 import { QuizRunner } from "@/components/study/quiz-runner";
+import { segmentedList, segmentedTrigger } from "@/components/study/segmented";
 import { VideoPanel } from "@/components/study/video-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -124,7 +130,12 @@ function DocumentPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <PageHeader title={d.title} description={<Meta doc={d} />} actions={<Actions doc={d} />} />
+      <PageHeader
+        eyebrow={d.source === "upload" ? "Your upload" : kindOf(d)}
+        title={d.title}
+        description={<Meta doc={d} />}
+        actions={<Actions doc={d} />}
+      />
 
       {d.warnings.includes("little_text") && ready ? (
         <Alert className="mb-6">
@@ -190,21 +201,30 @@ function Study({
 
   return (
     <Tabs value={tab} onValueChange={(v) => navigate({ search: { tab: v as Tab }, replace: true })}>
-      <TabsList className="mb-4">
-        <TabsTrigger value="read">Read</TabsTrigger>
-        <TabsTrigger value="notes">Notes</TabsTrigger>
-        <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
-        <TabsTrigger value="quiz">Quiz</TabsTrigger>
-        <TabsTrigger value="video">Video</TabsTrigger>
+      <TabsList className={cn("mb-5", segmentedList)}>
+        {(
+          [
+            ["read", "Read", BookOpen],
+            ["notes", "Notes", NotebookText],
+            ["flashcards", "Flashcards", Layers],
+            ["quiz", "Quiz", ListChecks],
+            ["video", "Video", Clapperboard],
+          ] as const
+        ).map(([value, label, Icon]) => (
+          <TabsTrigger key={value} value={value} className={segmentedTrigger}>
+            <Icon aria-hidden />
+            {label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="read">
+      <TabsContent value="read" className="animate-rise">
         <Reader markdown={markdown} sections={sections} />
       </TabsContent>
-      <TabsContent value="video">
+      <TabsContent value="video" className="animate-rise">
         <VideoPanel documentId={doc.id} />
       </TabsContent>
       {(["notes", "flashcards", "quiz"] as const).map((kind) => (
-        <TabsContent key={kind} value={kind}>
+        <TabsContent key={kind} value={kind} className="animate-rise">
           {aids.isPending ? (
             <ReaderSkeleton />
           ) : aids.isError ? (
@@ -230,15 +250,16 @@ function Study({
 
 function Meta({ doc }: { doc: DocumentDetail }) {
   const parts = [
-    doc.source === "upload" ? "Your upload" : kindOf(doc),
     doc.sizeBytes ? fileSize(doc.sizeBytes) : null,
     doc.pageCount ? plural(doc.pageCount, kindOf(doc) === "Slides" ? "slide" : "page") : null,
   ].filter(Boolean);
   return (
-    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
       <DocumentStatusBadge status={doc.status} />
       {parts.map((p) => (
-        <span key={p}>{p}</span>
+        <span key={p} data-numeric>
+          {p}
+        </span>
       ))}
     </span>
   );
@@ -334,21 +355,22 @@ const steps = [
 function Processing({ doc }: { doc: DocumentDetail }) {
   const current = steps.findIndex((s) => s.key === doc.status);
   return (
-    <Card className="mx-auto max-w-lg gap-5 p-6">
+    <Card className="mx-auto max-w-lg animate-rise gap-5 p-6">
       <div className="space-y-1">
-        <h2 className="font-semibold">Getting this ready</h2>
+        <h2 className="text-lg font-bold">Getting this ready</h2>
         <p className="text-sm text-muted-foreground">
           Usually under a minute. This page updates on its own.
         </p>
       </div>
-      <ol className="space-y-3" aria-live="polite">
+      <ol className="relative space-y-4" aria-live="polite">
+        <span aria-hidden className="absolute top-3 bottom-3 left-3 w-px bg-border" />
         {steps.map((s, i) => (
-          <li key={s.key} className="flex items-center gap-3 text-sm">
+          <li key={s.key} className="relative flex items-center gap-3 text-sm">
             <span
               className={cn(
-                "flex size-6 items-center justify-center rounded-full border text-xs",
-                i < current && "border-success bg-success text-white",
-                i === current && "border-primary text-primary",
+                "flex size-6 items-center justify-center rounded-full border bg-card font-mono text-[11px]",
+                i < current && "border-success/40 bg-success/12 text-success",
+                i === current && "border-primary/40 bg-primary/14 text-primary",
               )}
             >
               {i === current ? (
@@ -416,22 +438,25 @@ function Reader({ markdown, sections }: { markdown: string; sections: DocSection
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]">
       <article
-        className="min-w-0 rounded-xl border bg-card px-5 py-2 sm:px-8 lg:order-1"
+        className="min-w-0 rounded-2xl border bg-card px-5 py-4 sm:px-10 sm:py-6 lg:order-1"
         aria-label="Document text"
       >
-        <Markdown>{markdown}</Markdown>
+        {/* A comfortable reading measure. */}
+        <Markdown className="mx-auto max-w-[68ch]">{markdown}</Markdown>
       </article>
       {outline.length > 1 ? (
         <nav aria-label="Outline" className="hidden lg:order-2 lg:block">
-          <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-1 overflow-y-auto text-sm">
-            <p className="mb-2 font-medium">Outline</p>
+          <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-0.5 overflow-y-auto border-l ps-3 text-sm">
+            <p className="mb-2 font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
+              Outline
+            </p>
             {outline.map((s, i) => (
               <a
                 // biome-ignore lint/suspicious/noArrayIndexKey: headings can repeat
                 key={i}
                 href={`#${slugify(s.heading)}`}
                 className={cn(
-                  "block truncate rounded-md px-2 py-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  "block truncate rounded-lg px-2 py-1 text-muted-foreground outline-none transition-colors duration-150 hover:bg-secondary hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   s.level >= 3 && "ps-5",
                 )}
               >
@@ -459,7 +484,7 @@ function HeaderSkeleton() {
 function ReaderSkeleton() {
   return (
     <div
-      className="space-y-3 rounded-xl border bg-card p-8"
+      className="space-y-3 rounded-2xl border bg-card p-8"
       role="status"
       aria-busy="true"
       aria-label="Loading"

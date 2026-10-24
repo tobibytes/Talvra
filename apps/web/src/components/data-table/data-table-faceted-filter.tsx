@@ -1,8 +1,8 @@
 "use client";
 
 import { type Column, type RowData, Subscribe } from "@tanstack/react-table";
-import { PlusCircle, XCircle } from "lucide-react";
 import type * as React from "react";
+import { PlusCircle, XCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useDirection } from "@/components/ui/direction";
 import {

@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { z } from "zod";
 import { AuthCard } from "@/components/auth/auth-card";
+import { LoaderCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,7 @@ function ForgotPassword() {
       }
     >
       {sent ? (
-        <p role="status" className="text-center text-sm">
+        <p role="status" className="text-sm">
           If an account exists for <strong>{email}</strong>, a reset link is on its way.
         </p>
       ) : (

@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { toast } from "sonner";
+import { IconTile, StatusPill } from "@/components/blocks";
+import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
+import { CoursePicker } from "@/components/canvas/course-picker";
 import {
   BellRing,
   ChevronRight,
@@ -10,16 +15,12 @@ import {
   RefreshCw,
   Smartphone,
   Trash2,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
-import { CoursePicker } from "@/components/canvas/course-picker";
+} from "@/components/icons";
 import { PageHeader } from "@/components/page";
 import { AiCard } from "@/components/settings/ai-card";
 import { ApiKeysCard } from "@/components/settings/api-keys-card";
+import { Facts, SettingsGroup, TileRow } from "@/components/settings/section";
 import { SyncStatusCard } from "@/components/sync/sync-status-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -46,23 +47,31 @@ function Settings() {
   return (
     <>
       <PageHeader title="Settings" />
-      <div className="space-y-6">
-        <ProfileCard />
-        <CanvasCard />
-        {me.data?.canvas ? <SyncStatusCard /> : null}
-        <AiCard />
-        <ApiKeysCard />
-        <SessionsCard />
-        <DataCard />
+      <div className="max-w-3xl space-y-8">
+        <SettingsGroup id="settings-account" label="Account" index={0}>
+          <ProfileCard />
+          <SessionsCard />
+        </SettingsGroup>
+        <SettingsGroup id="settings-canvas" label="Canvas" index={1}>
+          <CanvasCard />
+          {me.data?.canvas ? <SyncStatusCard /> : null}
+        </SettingsGroup>
+        <SettingsGroup id="settings-ai" label="AI" index={2}>
+          <AiCard />
+          <ApiKeysCard />
+        </SettingsGroup>
         {/* Reminders isn't in the mobile tab bar, so link it here. */}
-        <div className="space-y-3">
+        <SettingsGroup id="settings-notifications" label="Notifications" index={3}>
           <SettingsLink
             to="/reminders"
             icon={BellRing}
             title="Reminders"
-            description="Notification rules and digest"
+            description="Rules and daily digest"
           />
-        </div>
+        </SettingsGroup>
+        <SettingsGroup id="settings-data" label="Your data" index={4}>
+          <DataCard />
+        </SettingsGroup>
       </div>
     </>
   );
@@ -155,30 +164,34 @@ function CanvasCard() {
       <CardContent className="space-y-4">
         {canvas ? (
           <>
-            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                {canvas.status === "active" ? (
-                  <Badge variant="success">Connected</Badge>
-                ) : (
-                  <Badge variant="destructive">Token not working, replace it</Badge>
-                )}
-              </dd>
-              <dt className="text-muted-foreground">Canvas</dt>
-              <dd>{new URL(canvas.baseUrl).host}</dd>
-              <dt className="text-muted-foreground">Token</dt>
-              <dd className="font-mono">••••{canvas.tokenLast4}</dd>
-              <dt className="text-muted-foreground">Last checked</dt>
-              <dd>
-                {canvas.lastVerifiedAt ? (
-                  <span title={dateTime(canvas.lastVerifiedAt)}>
-                    {relativeTime(canvas.lastVerifiedAt)}
-                  </span>
-                ) : (
-                  "Never"
-                )}
-              </dd>
-            </dl>
+            <Facts
+              items={[
+                {
+                  label: "Status",
+                  value:
+                    canvas.status === "active" ? (
+                      <StatusPill tone="ok">Connected</StatusPill>
+                    ) : (
+                      <StatusPill tone="stop">Token not working, replace it</StatusPill>
+                    ),
+                },
+                { label: "School", value: new URL(canvas.baseUrl).host },
+                {
+                  label: "Token",
+                  value: <span className="font-mono">••••{canvas.tokenLast4}</span>,
+                },
+                {
+                  label: "Last checked",
+                  value: canvas.lastVerifiedAt ? (
+                    <span title={dateTime(canvas.lastVerifiedAt)}>
+                      {relativeTime(canvas.lastVerifiedAt)}
+                    </span>
+                  ) : (
+                    "Never"
+                  ),
+                },
+              ]}
+            />
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => verify.mutate()} disabled={verify.isPending}>
                 {verify.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
@@ -190,11 +203,7 @@ function CanvasCard() {
               <Button variant="outline" onClick={() => setDialog("token")}>
                 Replace token
               </Button>
-              <Button
-                variant="ghost"
-                className="text-destructive"
-                onClick={() => setDialog("disconnect")}
-              >
+              <Button variant="destructive" onClick={() => setDialog("disconnect")}>
                 Disconnect
               </Button>
             </div>
@@ -293,7 +302,7 @@ function SessionsCard() {
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2>Where you're signed in</h2>
+          <h2>Devices</h2>
         </CardTitle>
         <CardDescription>Idle sessions end after 14 days.</CardDescription>
       </CardHeader>
@@ -301,21 +310,18 @@ function SessionsCard() {
         {sessions.isPending ? (
           <Skeleton className="h-16 w-full" />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="-mx-2 grid gap-0.5">
             {(sessions.data?.items ?? []).map((s) => {
               const mobile = /mobile|iphone|android/i.test(s.userAgent ?? "");
-              const Icon = mobile ? Smartphone : Monitor;
               const current = s.token === sessions.data?.currentToken;
               return (
-                <li key={s.id} className="flex items-center gap-3 p-4 text-sm">
-                  <Icon className="size-4 text-muted-foreground" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{describeAgent(s.userAgent)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Signed in {new Date(s.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {current ? <Badge variant="secondary">This device</Badge> : null}
+                <li key={s.id}>
+                  <TileRow
+                    tile={<IconTile icon={mobile ? Smartphone : Monitor} />}
+                    title={describeAgent(s.userAgent)}
+                    meta={`Signed in ${new Date(s.createdAt).toLocaleDateString()}`}
+                    trailing={current ? <StatusPill tone="accent">This device</StatusPill> : null}
+                  />
                 </li>
               );
             })}
@@ -377,14 +383,17 @@ function SettingsLink({
   return (
     <Link
       to={to}
-      className="flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="group flex items-center gap-3 rounded-xl border bg-card p-3.5 transition-colors duration-150 outline-none hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
-      <Icon className="size-5 text-muted-foreground" aria-hidden />
-      <div className="flex-1">
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <IconTile icon={Icon} />
+      <div className="grid min-w-0 flex-1 gap-0.5">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+      <ChevronRight
+        className="size-4 text-muted-foreground transition-colors duration-150 group-hover:text-primary"
+        aria-hidden
+      />
     </Link>
   );
 }
@@ -403,20 +412,33 @@ function DataCard() {
   });
   const email = me.data?.user.email ?? "";
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <h2>Your data</h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        <Button variant="outline" render={<a href={api.exportUrl} download />}>
-          <Download /> Download my data
-        </Button>
-        <Button variant="ghost" className="text-destructive" onClick={() => setOpen(true)}>
-          <Trash2 /> Delete account
-        </Button>
-      </CardContent>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h3>Export</h3>
+          </CardTitle>
+          <CardDescription>Everything Talvra stores about you, as a file.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" render={<a href={api.exportUrl} download />}>
+            <Download /> Download my data
+          </Button>
+        </CardContent>
+      </Card>
+      <Card className="ring-destructive/30">
+        <CardHeader>
+          <CardTitle>
+            <h3 className="text-destructive">Danger zone</h3>
+          </CardTitle>
+          <CardDescription>Deleting your account can't be undone.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="destructive" onClick={() => setOpen(true)}>
+            <Trash2 /> Delete account
+          </Button>
+        </CardContent>
+      </Card>
       <Dialog
         open={open}
         onOpenChange={(o) => {
@@ -462,6 +484,6 @@ function DataCard() {
           </form>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }

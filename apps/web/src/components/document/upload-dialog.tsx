@@ -1,9 +1,9 @@
 import { MAX_UPLOAD_BYTES, SUPPORTED_EXTENSIONS } from "@talvra/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FileUp, LoaderCircle, Upload } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { FileUp, LoaderCircle, Upload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

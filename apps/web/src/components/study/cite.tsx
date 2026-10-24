@@ -30,7 +30,7 @@ export function Cites({
             search={{ tab: "read" }}
             hash={slug ?? undefined}
             aria-label={`Source: ${label(a)}`}
-            className="rounded-md border bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground no-underline outline-none hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="rounded-[6px] border bg-background px-1.5 py-px font-mono text-[11px] text-muted-foreground no-underline outline-none transition-colors duration-150 hover:border-primary/40 hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {label(a)}
           </Link>

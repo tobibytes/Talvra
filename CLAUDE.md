@@ -92,6 +92,12 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   and remove any `cn` dependency it added. `src/components/ui/**` is vendored: formatted,
   not linted. Mark local edits there with a `Talvra` comment.
 - Keep `@import "shadcn/tailwind.css"` in `app.css` (defines `data-open`, `data-horizontal`, ...).
+- **Look**: the owner's family theme (`tobi-ui-theme` skill), light and dark. Tokens live in
+  `styles/app.css` (one accent: `--primary`). Reuse `components/blocks.tsx` (Eyebrow,
+  SectionLabel, StatTile, IconTile, StatusPill) and `PageHeader`'s `eyebrow`. Status colors only
+  for status, always dot + word. Copy is short: one line per description, no "·" separators.
+- **Icons** come from `@/components/icons` (Hugeicons, 1.5 stroke, lucide-style names). After a
+  shadcn `add`, point its `lucide-react` import there and add any missing name to `icons.tsx`.
 - Every screen needs designed loading (`ListSkeleton`/`Skeleton`), empty (`EmptyState`) and
   error (`ErrorState`, shows the request id) states. See `src/components/page.tsx`.
 - Real titles everywhere, never ids. Courses show `courseLabel()` ("COSC 332") in lists and

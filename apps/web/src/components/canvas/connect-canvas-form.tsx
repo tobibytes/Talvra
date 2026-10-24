@@ -1,8 +1,8 @@
 import { ConnectCanvas, type ConnectCanvasResult, DEFAULT_CANVAS_URL } from "@talvra/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ExternalLink, LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { PasswordInput } from "@/components/auth/password-input";
+import { ChevronDown, ExternalLink, LoaderCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

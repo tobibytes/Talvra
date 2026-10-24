@@ -1,9 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CircleAlert, CircleCheck, LoaderCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { StatusPill } from "@/components/blocks";
+import { CircleAlert, LoaderCircle, RefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isActive, latestRunQuery, useLatestRun } from "@/hooks/use-sync-live";
 import { api } from "@/lib/api";
@@ -49,12 +57,25 @@ export function SyncStatusCard({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
   const Heading = `h${headingLevel}` as const;
   const r = run.data;
 
+  const pill = run.isPending ? null : !r ? (
+    <StatusPill>Not synced</StatusPill>
+  ) : isActive(r) ? (
+    <StatusPill tone="accent">Syncing</StatusPill>
+  ) : r.status === "succeeded" ? (
+    <StatusPill tone={r.stats.failedCourses ? "warn" : "ok"}>
+      {r.stats.failedCourses ? "Partly synced" : "Synced"}
+    </StatusPill>
+  ) : (
+    <StatusPill tone="stop">Failed</StatusPill>
+  );
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>
           <Heading>Canvas sync</Heading>
         </CardTitle>
+        {pill ? <CardAction>{pill}</CardAction> : null}
         <CardDescription>
           {run.isPending ? (
             <Skeleton className="h-4 w-40" />
@@ -87,12 +108,6 @@ export function SyncStatusCard({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
         {r?.status === "succeeded" && (r.stats.failedCourses ?? 0) > 0 ? (
           <p className="text-sm text-muted-foreground">
             {plural(r.stats.failedCourses ?? 0, "course")} didn't sync. Retrying next time.
-          </p>
-        ) : null}
-        {r?.status === "succeeded" && !r.stats.failedCourses ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheck className="size-4 text-success" aria-hidden />
-            Everything is up to date.
           </p>
         ) : null}
         <SyncNowButton />

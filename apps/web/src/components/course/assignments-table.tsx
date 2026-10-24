@@ -1,10 +1,10 @@
 import type { Assignment } from "@talvra/contracts";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ClipboardList, ExternalLink } from "lucide-react";
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import { ClipboardList, ExternalLink } from "@/components/icons";
 import { EmptyState } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { useDataTable } from "@/hooks/use-data-table";

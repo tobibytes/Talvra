@@ -1,5 +1,5 @@
-import { CircleAlert, RefreshCw } from "lucide-react";
 import type * as React from "react";
+import { CircleAlert, RefreshCw } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +7,6 @@ import {
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
-  EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,14 +17,22 @@ export function PageHeader({
   title,
   description,
   actions,
+  eyebrow,
 }: {
   title: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Small mono label above the title (a date, a course code). */
+  eyebrow?: React.ReactNode;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="space-y-1.5">
+        {eyebrow ? (
+          <p className="animate-fade font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
+            {eyebrow}
+          </p>
+        ) : null}
         <h1 className="animate-rise font-display text-[clamp(30px,4vw,40px)] leading-[1.05] font-extrabold tracking-[-0.02em]">
           {title}
         </h1>
@@ -55,9 +62,15 @@ export function EmptyState({
   return (
     <Empty className="animate-rise border bg-card py-12">
       <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Icon />
-        </EmptyMedia>
+        {/* A faint sketch of rows-to-come behind the icon (decorative). */}
+        <div aria-hidden className="relative mb-2 grid w-40 gap-1.5">
+          <span className="h-2 w-full rounded-full bg-border/70" />
+          <span className="h-2 w-3/4 rounded-full bg-border/50" />
+          <span className="h-2 w-1/2 rounded-full bg-border/30" />
+          <span className="absolute -top-3 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-[11px] border bg-card text-primary shadow-sm [&_svg]:size-5">
+            <Icon />
+          </span>
+        </div>
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
@@ -68,8 +81,11 @@ export function EmptyState({
 
 /** The designed error state. Shows the request id so users can report it. */
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  // A response that doesn't match its schema throws a ZodError whose message is raw JSON.
+  const raw =
+    error instanceof Error && (error.name === "ZodError" || /^\s*[[{]/.test(error.message));
   const message =
-    error instanceof Error ? error.message : "Something went wrong. Please try again.";
+    error instanceof Error && !raw ? error.message : "Something went wrong. Please try again.";
   const requestId = error instanceof ApiRequestError ? error.requestId : undefined;
   return (
     <Alert variant="destructive">

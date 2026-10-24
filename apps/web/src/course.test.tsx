@@ -81,7 +81,7 @@ describe("sync status", () => {
     fakeApi({ me: makeMe(), runs: [makeRun({ finishedAt: new Date().toISOString() })] });
     await renderApp("/");
     expect(await screen.findByText(/Last synced just now/)).toBeInTheDocument();
-    expect(screen.getByText("Everything is up to date.")).toBeInTheDocument();
+    expect(screen.getByText("Synced")).toBeInTheDocument();
   });
 
   it("shows live progress while running", async () => {
