@@ -8,7 +8,7 @@ Last updated at the end of session 11. Whoever picks this up: read this file, th
 | # | Session | Status |
 | --- | --- | --- |
 | 1 | Foundation: monorepo, CI, Postgres schema (user-scoped), migrations, contracts, Hono skeleton | ✅ Done |
-| 2 | Design system: shadcn on Base UI, tokens/themes, app shell, ⌘K palette, gallery | ✅ Done |
+| 2 | Design system: shadcn on Base UI, tokens/themes, app shell, ⌘K palette (the gallery was removed after launch) | ✅ Done |
 | 3 | Auth and onboarding: Better Auth, @morgan.edu only, sessions, guards, onboarding, account settings, Canvas connect | ✅ Done |
 | 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |

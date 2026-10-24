@@ -5,21 +5,12 @@ import {
   CalendarCheck,
   ClipboardList,
   Layers,
-  LayoutGrid,
   Search,
   Settings,
 } from "lucide-react";
 
 export type NavItem = {
-  to:
-    | "/"
-    | "/courses"
-    | "/review"
-    | "/homework"
-    | "/search"
-    | "/reminders"
-    | "/settings"
-    | "/gallery";
+  to: "/" | "/courses" | "/review" | "/homework" | "/search" | "/reminders" | "/settings";
   label: string;
   icon: LucideIcon;
   /** Shown in the 5-tab bottom bar on phones. */
@@ -72,12 +63,6 @@ export const secondaryNav: NavItem[] = [
     icon: Settings,
     mobileTab: true,
     keywords: ["account", "canvas", "profile"],
-  },
-  {
-    to: "/gallery",
-    label: "Component gallery",
-    icon: LayoutGrid,
-    keywords: ["design", "ui", "components"],
   },
 ];
 
