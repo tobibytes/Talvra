@@ -110,7 +110,7 @@ Learned the hard way (only visible in the real Workers runtime, now covered by t
 - **Never call `fetch` as a method** (`this.fetchImpl(...)`): workerd throws "Illegal invocation".
   Session 3's connect flow had all three bugs; they only surfaced under `wrangler dev`.
 
-Verified under `wrangler dev` against the real `morgan.instructure.com`: sign-up → live socket →
+Verified under `wrangler dev` against a real Canvas host (only the rejected-token path; note Morgan State is `morganstate.instructure.com`, and `morgan.instructure.com` is a different school): sign-up → live socket →
 start sync → real Canvas 401 → run fails with `canvas_token_invalid` within ~2s, pushed over the
 WebSocket, connection marked invalid; second start → 409; cross-origin socket refused. UI checked in
 Chrome in both themes and at 390px.

@@ -294,7 +294,9 @@ describe("documents API", () => {
       error: "bad",
       courseName: "COSC 220 Data Structures",
     });
-    expect(failed.canvasHtmlUrl).toBe("https://morgan.instructure.com/courses/101/pages/welcome");
+    expect(failed.canvasHtmlUrl).toBe(
+      "https://morganstate.instructure.com/courses/101/pages/welcome",
+    );
     expect((await h.request(`/api/v1/documents/${msg.documentId}/content`)).status).toBe(404);
 
     const retried = await h.request(`/api/v1/documents/${msg.documentId}/retry`, {

@@ -52,7 +52,7 @@ async function setup(state = defaultState()) {
 }
 
 const client = (fetch: typeof globalThis.fetch) =>
-  new CanvasClient("https://morgan.instructure.com", TOKEN, fetch, { sleep: noSleep });
+  new CanvasClient("https://morganstate.instructure.com", TOKEN, fetch, { sleep: noSleep });
 
 describe("syncCourse", () => {
   it("brings in modules, items, assignments, files and pages", async () => {
@@ -70,7 +70,7 @@ describe("syncCourse", () => {
       source: "canvas_file",
       status: "pending",
       folderPath: "course files/Lectures",
-      canvasUrl: "https://morgan.instructure.com/api/v1/files/501",
+      canvasUrl: "https://morganstate.instructure.com/api/v1/files/501",
     });
     // Linked to the module that contains it.
     expect(lecture?.moduleId).not.toBeNull();
@@ -165,7 +165,7 @@ describe("Canvas client retries", () => {
       if (calls === 2) return new Response("oops", { status: 503 });
       return Response.json({ id: 1, name: "Me" });
     });
-    const c = new CanvasClient("https://morgan.instructure.com", TOKEN, fetch, {
+    const c = new CanvasClient("https://morganstate.instructure.com", TOKEN, fetch, {
       sleep,
       random: () => 0.5,
     });
@@ -174,7 +174,7 @@ describe("Canvas client retries", () => {
     expect(sleep).toHaveBeenNthCalledWith(2, 500); // 0.5 * 500ms * 2^1
 
     const down = new CanvasClient(
-      "https://morgan.instructure.com",
+      "https://morganstate.instructure.com",
       TOKEN,
       vi.fn(async () => new Response("down", { status: 502 })),
       { sleep, maxAttempts: 3 },
@@ -184,11 +184,13 @@ describe("Canvas client retries", () => {
 
   it("does not retry 401, and maps 403/404", async () => {
     const fetch = vi.fn(async () => new Response("{}", { status: 401 }));
-    const c = new CanvasClient("https://morgan.instructure.com", TOKEN, fetch, { sleep: noSleep });
+    const c = new CanvasClient("https://morganstate.instructure.com", TOKEN, fetch, {
+      sleep: noSleep,
+    });
     await expect(c.getSelf()).rejects.toBeInstanceOf(CanvasError);
     expect(fetch).toHaveBeenCalledTimes(1);
     const f403 = new CanvasClient(
-      "https://morgan.instructure.com",
+      "https://morganstate.instructure.com",
       TOKEN,
       vi.fn(async () => new Response("no", { status: 403 })),
       { sleep: noSleep },
@@ -209,7 +211,9 @@ describe("Canvas client retries", () => {
         headers: { location: "http://169.254.169.254/latest/meta-data" },
       });
     });
-    const c = new CanvasClient("https://morgan.instructure.com", TOKEN, fetch, { sleep: noSleep });
+    const c = new CanvasClient("https://morganstate.instructure.com", TOKEN, fetch, {
+      sleep: noSleep,
+    });
     await expect(c.getSelf()).rejects.toMatchObject({ kind: "bad_response" });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
@@ -223,7 +227,9 @@ describe("Canvas client retries", () => {
         ? new Response("403 Forbidden (Rate Limit Exceeded)", { status: 403 })
         : Response.json({ id: 1, name: "Me" }),
     );
-    const c = new CanvasClient("https://morgan.instructure.com", TOKEN, fetch, { sleep: noSleep });
+    const c = new CanvasClient("https://morganstate.instructure.com", TOKEN, fetch, {
+      sleep: noSleep,
+    });
     expect((await c.getSelf()).id).toBe(1);
   });
 });

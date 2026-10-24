@@ -21,7 +21,7 @@ describe("document page", () => {
     expect(screen.getByText(/2 pages · 1,234 words/)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Canvas/ })[0]).toHaveAttribute(
       "href",
-      "https://morgan.instructure.com/courses/101/files/501",
+      "https://morganstate.instructure.com/courses/101/files/501",
     );
     expect(screen.getByRole("link", { name: /Original/ })).toHaveAttribute(
       "href",

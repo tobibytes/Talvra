@@ -46,15 +46,16 @@ import { ConnectCanvas } from "../src/index.js";
 describe("ConnectCanvas", () => {
   const token = "1234~abcdefghijklmnopqrstuvwxyz";
   it("defaults to Morgan's Canvas and normalizes to the origin", () => {
-    expect(ConnectCanvas.parse({ token }).baseUrl).toBe("https://morgan.instructure.com");
+    expect(ConnectCanvas.parse({ token }).baseUrl).toBe("https://morganstate.instructure.com");
     expect(
-      ConnectCanvas.parse({ token, baseUrl: "https://morgan.instructure.com/courses/1" }).baseUrl,
-    ).toBe("https://morgan.instructure.com");
+      ConnectCanvas.parse({ token, baseUrl: "https://morganstate.instructure.com/courses/1" })
+        .baseUrl,
+    ).toBe("https://morganstate.instructure.com");
   });
 
   it("rejects hosts that aren't Canvas, to prevent SSRF", () => {
     for (const baseUrl of [
-      "http://morgan.instructure.com",
+      "http://morganstate.instructure.com",
       "https://evil.com",
       "https://instructure.com.evil.com",
       "https://169.254.169.254",

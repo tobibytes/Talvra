@@ -188,7 +188,7 @@ describe("homework basics", () => {
       .select()
       .from(schema.courses)
       .where(eq(schema.courses.canvasId, "101"));
-    const client = new CanvasClient("https://morgan.instructure.com", TOKEN, canvas.fetch, {
+    const client = new CanvasClient("https://morganstate.instructure.com", TOKEN, canvas.fetch, {
       sleep: async () => {},
     });
     await syncCourse(db, client, { userId: user?.id ?? "", courseId: course?.id ?? "" });
