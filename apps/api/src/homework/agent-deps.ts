@@ -1,5 +1,5 @@
 import { createDb, eq, schema } from "@talvra/db";
-import { anthropicAgentApi } from "../ai/claude-homework-agent.js";
+import { anthropicAgentApi, anthropicSandboxAgent } from "../ai/claude-homework-agent.js";
 import { loadOwnKey } from "../ai/resolve.js";
 import type { Bindings } from "../env.js";
 import { attachmentDepsFor } from "../ingest/deps.js";
@@ -35,7 +35,7 @@ export async function draftJobDepsFor(env: Bindings, userId: string): Promise<Dr
   return {
     db,
     files: env.FILES,
-    agent: anthropicAgentApi(key, own?.provider === "anthropic"),
+    agent: anthropicSandboxAgent(anthropicAgentApi(key, own?.provider === "anthropic")),
     canvas,
     attachments: attachmentDepsFor(env, db),
     search: { db, ...searchDepsFor(env) },

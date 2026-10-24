@@ -455,4 +455,11 @@ reads it). The media CI job's exact-pixel check was loosened (lossy H.264 drifte
 Decided 2026-10-24: build our own sandbox (Cloudflare Container per run, no internet) so any model,
 including students' OpenAI keys, can do homework, with Java/C/R available. The Anthropic sandbox
 stays the production path until the new one matches it. Plan and phases: `docs/v2/SANDBOX.md`.
-Next session: phase 1 (interfaces around the current agent, no behaviour change).
+The sandbox gets internet and a browser (Playwright + Chromium); it never holds secrets.
+
+- **Phase 1 done (2026-10-24):** `HomeworkAgent` seam (`ai/homework-agent.ts`, shared tools and
+  rules), today's agent wrapped as `anthropicSandboxAgent`, and the provider-neutral loop
+  `ai/tool-loop-agent.ts` (`ModelDriver` + `Sandbox` interfaces) with fake-backed tests. Not
+  wired into production; no deploy needed (the refactor ships with the next deploy, unchanged
+  behaviour).
+- **Next session: phase 2**, the `apps/sandbox` image + control server with pytest and a CI job.

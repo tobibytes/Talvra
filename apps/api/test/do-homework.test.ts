@@ -3,7 +3,7 @@ import { ApiError, DraftResponse, Me } from "@talvra/contracts";
 import { eq, schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
-import type { AgentApi } from "../src/ai/claude-homework-agent.js";
+import { type AgentApi, anthropicSandboxAgent } from "../src/ai/claude-homework-agent.js";
 import { cleanFileName, runDraftJob, startDraft } from "../src/homework/draft.js";
 import { CanvasClient } from "../src/lib/canvas.js";
 import { encryptSecret } from "../src/lib/crypto.js";
@@ -141,7 +141,7 @@ async function setup() {
           {
             db,
             files: r2.store,
-            agent: agent.api,
+            agent: anthropicSandboxAgent(agent.api),
             canvas: new CanvasClient(CANVAS, "1234~good", canvas.fetch, { sleep: async () => {} }),
             attachments: { db, files: r2.store },
             search: { db },
@@ -391,7 +391,7 @@ describe("do my homework", () => {
         {
           db,
           files: r2.store,
-          agent: agent.api,
+          agent: anthropicSandboxAgent(agent.api),
           canvas: null,
           attachments: { db, files: r2.store },
           search: { db },
