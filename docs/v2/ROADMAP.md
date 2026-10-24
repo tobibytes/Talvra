@@ -444,8 +444,15 @@ and checked output 15 in the verification report. Browser checks with mocked API
 exercised follow-up → rename → verify → submit at 1280px/390px in light/dark mode. The focused
 UI suite was rerun after adding automatic scrolling to the latest conversation message.
 
-**Deploying the homework changes** (owner, not yet done): apply the migration, then deploy, as
-in ARCHITECTURE.md → Deploying. Migration first: the new Worker reads `messages`, `run_id` and
-`operation`, and the old Worker ignores them, so the migration is safe before the deploy. After the
-deploy, remove the retired allowlist secret: `wrangler secret delete DO_HOMEWORK_EMAILS --env
-production` (it was dropped from `.prod.vars`; `prod:env --check` now flags retired keys).
+**Deployed 2026-10-24** (Worker version `03365f0a`): migration 0014 applied to production, then
+the Worker deployed; `/api/health` reports the database ok and the new routes answer. The retired
+`DO_HOMEWORK_EMAILS` secret is gone from `.prod.vars`, but the owner still has to delete it from the
+Worker: `wrangler secret delete DO_HOMEWORK_EMAILS --env production` (harmless until then; nothing
+reads it). The media CI job's exact-pixel check was loosened (lossy H.264 drifted by 1 level).
+
+## Self-hosted homework sandbox (planned)
+
+Decided 2026-10-24: build our own sandbox (Cloudflare Container per run, no internet) so any model,
+including students' OpenAI keys, can do homework, with Java/C/R available. The Anthropic sandbox
+stays the production path until the new one matches it. Plan and phases: `docs/v2/SANDBOX.md`.
+Next session: phase 1 (interfaces around the current agent, no behaviour change).
