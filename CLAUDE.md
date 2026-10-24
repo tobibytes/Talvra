@@ -70,8 +70,11 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   calls. Tests fake models with `fakeImpls`; `test/live-claude.test.ts` is the opt-in real smoke
   test. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
 - **Students' AI keys** are encrypted like Canvas tokens and never returned (last 4 only).
-- **Integrity**: the AI features help students study. They must never write or submit
-  graded work. This applies to the future MCP server too.
+- **Integrity**: the AI features help students study and never write or submit graded work,
+  for every account. The one exception is the owner's private "Do my homework" feature
+  (`homework/draft.ts`), switched on only for emails in `DO_HOMEWORK_EMAILS`; the server returns
+  404 for everyone else. Never enable it by default or for other users. The future MCP server
+  follows the study-only rule.
 
 ## UI conventions
 

@@ -139,3 +139,54 @@ export const Today = z.object({
   todaySteps: z.array(PlanStep.extend({ assignmentId: Id, assignmentName: z.string() })),
 });
 export type Today = z.infer<typeof Today>;
+
+// --- "Do my homework" (owner-only feature, gated by the server) -------------------
+
+export const DraftFile = z.object({
+  name: z.string(),
+  contentType: z.string(),
+  size: z.number().int(),
+});
+export type DraftFile = z.infer<typeof DraftFile>;
+
+export const HomeworkDraft = z.object({
+  id: Id,
+  status: z.enum(["ready", "failed", "submitted"]),
+  files: z.array(DraftFile),
+  notes: z.string().nullable(),
+  instructions: z.string().nullable(),
+  error: z.string().nullable(),
+  model: z.string().nullable(),
+  submittedAt: Timestamp.nullable(),
+  updatedAt: Timestamp,
+});
+export type HomeworkDraft = z.infer<typeof HomeworkDraft>;
+
+export const DraftResponse = z.object({ draft: HomeworkDraft.nullable() });
+export type DraftResponse = z.infer<typeof DraftResponse>;
+
+export const MakeDraft = z.object({
+  /** Extra instructions for this version ("use matplotlib", "shorter report"). */
+  instructions: z.string().trim().max(2000).optional(),
+});
+export type MakeDraft = z.infer<typeof MakeDraft>;
+
+/** What the model returns: the files to hand in, and notes for the student. */
+export const DraftModelOutput = z.object({
+  files: z
+    .array(
+      z.object({
+        name: z
+          .string()
+          .describe("File name with extension, e.g. hw3.ipynb, report.md, main.py, answers.txt."),
+        content: z.string().describe("The complete file contents."),
+      }),
+    )
+    .describe("Every file to hand in, complete and ready to submit."),
+  notes: z
+    .string()
+    .describe(
+      "For the student: what each file contains, assumptions made, and anything to check or fill in (name, data paths) before submitting.",
+    ),
+});
+export type DraftModelOutput = z.infer<typeof DraftModelOutput>;

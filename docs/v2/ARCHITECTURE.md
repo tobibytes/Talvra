@@ -94,6 +94,11 @@ Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take 
 - **Study aids** (queue): notes, flashcards (FSRS review), quizzes, with page citations.
 - **Homework breakdown**: reads the assignment and the text of files it links (up to 6, read on
   the spot if unprocessed), never guesses at datasets or media it can't read.
+- **Do my homework** (owner-only, `DO_HOMEWORK_EMAILS`): one Opus call (or the owner's key) with
+  the assignment, its attachments' text, related course passages and optional instructions →
+  text files (code, notebooks, Markdown) in R2 under `u/<user>/hw/` → preview/download → a separate
+  "Submit to Canvas" (Canvas 3-step upload to an allowlisted storage host without the token, then
+  one submission; never retried, never twice). Code isn't executed yet (see ROADMAP).
 - **Video** (queue): a 3-5 minute script (≤ 750 words, one source page per slide) → narration
   (Workers AI Aura, or Azure Speech when configured) → media container renders slides with the
   real PDF page beside them → MP4 + WebVTT captions in R2, streamed with Range requests.
@@ -125,6 +130,7 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in (optional). Redirect URI: `https://hwrk.help/api/auth/callback/google` (and `http://localhost:5173/...` locally) |
 | `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` | Optional Azure voices for videos |
 | `BASIC_MODEL` (var) | Optional override for the basic-mode model |
+| `DO_HOMEWORK_EMAILS` | Accounts allowed to use the owner-only "Do my homework" feature (comma-separated). Unset: off for everyone |
 | `EXTRACT_URL` + `EXTRACT_SECRET`, `MEDIA_URL` + `MEDIA_SECRET` | Optional: run the same container images elsewhere (e.g. Azure Container Apps) instead of Cloudflare Containers. A URL without its secret refuses to start |
 
 Production secrets live in `apps/api/.prod.vars` (gitignored, written by `pnpm prod:env`, which

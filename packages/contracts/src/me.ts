@@ -20,6 +20,8 @@ export const Me = z.object({
   }),
   onboarded: z.boolean(),
   canvas: CanvasConnection.nullable(),
+  /** Features switched on for this account by the server (not user-editable). */
+  features: z.object({ doHomework: z.boolean() }).default({ doHomework: false }),
 });
 export type Me = z.infer<typeof Me>;
 

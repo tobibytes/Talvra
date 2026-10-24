@@ -23,12 +23,16 @@ up: read this file, then `CLAUDE.md`, then `ARCHITECTURE.md`; next work is under
 
 Candidates, roughly in order of value (none started):
 
-1. **Video: bullets appear in time with the narration** (the caption timings already exist).
-2. **Video: a pause-and-think question** near the end of each video.
-3. **Breakdowns: peek at datasets** (CSV column names and a few rows) instead of only naming them.
-4. **Lecture pages for PowerPoint** (needs LibreOffice in the media image to render slides).
-5. **Session 8, the MCP server**, once the owner confirms (see Open items).
-6. **Sentry** for the Worker and web, once there's a DSN.
+1. **Do my homework: a sandbox ("workbench") container.** Today it's one model call that writes
+   text files; nothing runs. Next: a Python/Jupyter container (no internet) with the assignment's
+   datasets, a bounded write-run-fix tool loop, executed notebooks with real outputs and plots,
+   and PDF/Word export. Same preview and submit flow.
+2. **Video: bullets appear in time with the narration** (the caption timings already exist).
+3. **Video: a pause-and-think question** near the end of each video.
+4. **Breakdowns: peek at datasets** (CSV column names and a few rows) instead of only naming them.
+5. **Lecture pages for PowerPoint** (needs LibreOffice in the media image to render slides).
+6. **Session 8, the MCP server**, once the owner confirms (see Open items).
+7. **Sentry** for the Worker and web, once there's a DSN.
 
 ## Decisions already made (don't revisit without asking)
 

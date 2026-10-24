@@ -591,6 +591,36 @@ export const assignmentBriefs = pgTable(
   (t) => [uniqueIndex("assignment_briefs_assignment_idx").on(t.userId, t.assignmentId)],
 );
 
+/**
+ * "Do my homework" (owner-only, behind DO_HOMEWORK_EMAILS): the latest AI-written files for an
+ * assignment, kept in R2, and whether they were submitted to Canvas.
+ */
+export const draftStatus = pgEnum("draft_status", ["ready", "failed", "submitted"]);
+
+export const homeworkDrafts = pgTable(
+  "homework_drafts",
+  {
+    id: id(),
+    userId: owner(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    status: draftStatus("status").notNull().default("ready"),
+    /** [{ name, contentType, size, key }] (key: the R2 object). */
+    files: jsonb("files").notNull().default(sql`'[]'::jsonb`),
+    /** What the model did and what to double-check. */
+    notes: text("notes"),
+    /** The student's instructions for this version, if any. */
+    instructions: text("instructions"),
+    error: text("error"),
+    model: text("model"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("homework_drafts_assignment_idx").on(t.userId, t.assignmentId)],
+);
+
 /** The student's own plan for an assignment: ordered, checkable steps. */
 export const planSteps = pgTable(
   "plan_steps",

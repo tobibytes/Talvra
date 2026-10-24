@@ -19,7 +19,9 @@ export const env: Bindings = {
 };
 
 /** A test harness: app + captured emails + a tiny cookie jar. */
-export async function harness(opts: Omit<AppOptions, "db" | "sendEmail"> & { db?: Database } = {}) {
+export async function harness(
+  opts: Omit<AppOptions, "db" | "sendEmail"> & { db?: Database; env?: Partial<Bindings> } = {},
+) {
   const db = opts.db ?? (await createTestDb());
   const emails: Email[] = [];
   const app = createApp({ ...opts, db, sendEmail: async (e) => void emails.push(e) });
@@ -34,7 +36,7 @@ export async function harness(opts: Omit<AppOptions, "db" | "sendEmail"> & { db?
       headers.set("content-type", "application/json");
       body = JSON.stringify(init.json);
     }
-    const res = await app.request(path, { ...init, headers, body }, env);
+    const res = await app.request(path, { ...init, headers, body }, { ...env, ...opts.env });
     for (const c of res.headers.getSetCookie()) {
       const [pair] = c.split(";");
       const [name, ...rest] = (pair ?? "").split("=");

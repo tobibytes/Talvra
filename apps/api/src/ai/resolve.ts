@@ -27,10 +27,18 @@ import {
 
 const { aiSettings, studyAids } = schema;
 
-export type AiTask = "notes" | "flashcards" | "quiz" | "brief" | "plan" | "ask" | "video_script";
+export type AiTask =
+  | "notes"
+  | "flashcards"
+  | "quiz"
+  | "brief"
+  | "plan"
+  | "ask"
+  | "video_script"
+  | "homework";
 
 /** Opus for the long, high-value work; Haiku for everything else. */
-const ADVANCED = new Set<AiTask>(["notes", "ask"]);
+const ADVANCED = new Set<AiTask>(["notes", "ask", "homework"]);
 
 /** Cloudflare-hosted open model for the free fallback (override with BASIC_MODEL). */
 export const BASIC_MODEL = "@cf/openai/gpt-oss-120b";
@@ -47,6 +55,7 @@ export const LIMITS: Record<AiTask, { kind: string; limit: number; message: stri
   plan: { kind: "plan_suggest", limit: 30, message: "That's a lot of plan suggestions today." },
   ask: { kind: "ask", limit: 150, message: "You've asked a lot today." },
   video_script: { kind: "video_script", limit: 10, message: "That's a lot of videos today." },
+  homework: { kind: "homework", limit: 15, message: "That's a lot of homework drafts today." },
 };
 
 /** Study-aid input tokens per student per day on Talvra's key (cost guard). */
