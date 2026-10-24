@@ -14,7 +14,7 @@ up: read this file, then `CLAUDE.md`, then `ARCHITECTURE.md`; next work is under
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live in production) |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (live in production) |
-| 8 | Talvra MCP server: personal API keys + 14 tools at `/api/mcp` | ✅ Built (2026-10-24), deploy pending |
+| 8 | Talvra MCP server: personal API keys + 14 tools at `/api/mcp` | ✅ Live (2026-10-24) |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (breakdowns read attached files) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done (videos show lecture pages) |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done. Live at https://hwrk.help (Sentry waits on a DSN) |
@@ -481,11 +481,11 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
 - Verified: 7 API tests (`test/mcp.test.ts`), the Settings flow (`api-keys.test.tsx`), real HTTP
   against `wrangler dev`, the official MCP Inspector CLI (lists and calls tools), and the Settings
   card in Chrome (light/dark, 390px).
-- **Deploy (owner):** migration 0015 first, then the Worker. Then add it to Claude with the
-  command shown when making a key.
+- Deployed 2026-10-24 (migration 0015, then the Worker). Add it to Claude with the command shown
+  when making a key.
 - Next: OAuth (so claude.ai connectors work without pasting a key), and maybe homework tools.
 
-## UI refresh, part 1: family theme + shorter copy (2026-10-24)
+## UI refresh, part 1: family theme + shorter copy (2026-10-24, live)
 
 - Feedback: "the UI is too wordy". The owner wants UI/UX best practice applied everywhere, and the
   app interesting to use on phone and desktop. Design rules come from the owner's `tobi-ui-theme`
