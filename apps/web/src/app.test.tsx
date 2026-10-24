@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { describe, expect, it } from "vitest";
 import { allNav } from "@/lib/nav";
 import {
+  ASSIGNMENT_ID,
   COURSE_ID,
   DOC_ID,
   fakeApi,
@@ -10,6 +11,7 @@ import {
   makeCard,
   makeCourse,
   makeDocument,
+  makeHomework,
   makeMe,
   makeRun,
   renderApp,
@@ -99,6 +101,9 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
     ],
     ["/review", () => fakeApi({ me: makeMe(), cards: [makeCard()] })],
     ["/homework", signedIn],
+    ["/homework (with data)", () => fakeApi({ me: makeMe(), homework: [makeHomework()] })],
+    [`/homework/${ASSIGNMENT_ID}`, () => fakeApi({ me: makeMe(), homework: [makeHomework()] })],
+    ["/ (with data)", () => fakeApi({ me: makeMe(), homework: [makeHomework()] })],
     ["/search", signedIn],
     ["/search?q=arrays", signedIn],
     ["/search?mode=ask", signedIn],

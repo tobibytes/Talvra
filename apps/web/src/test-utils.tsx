@@ -3,7 +3,9 @@ import type {
   DocumentAids,
   DocumentDetail,
   Flashcard,
+  HomeworkItem,
   Me,
+  PlanStep,
   StudyAid,
   SyncRun,
 } from "@talvra/contracts";
@@ -202,8 +204,29 @@ export function makeCard(overrides: Partial<Flashcard> = {}): Flashcard {
   };
 }
 
+export const ASSIGNMENT_ID = "66666666-6666-4666-8666-666666666666";
+
+export function makeHomework(overrides: Partial<HomeworkItem> = {}): HomeworkItem {
+  return {
+    id: ASSIGNMENT_ID,
+    courseId: COURSE_ID,
+    courseName: "COSC 220 Data Structures",
+    courseCode: "COSC 220",
+    name: "Lab 2: reverse an array",
+    dueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    pointsPossible: 10,
+    htmlUrl: "https://morgan.instructure.com/courses/101/assignments/2",
+    status: "todo",
+    late: false,
+    plan: { done: 0, total: 0 },
+    ...overrides,
+  };
+}
+
 export function fakeApi(state: {
   me: Me | null;
+  homework?: HomeworkItem[];
+  plan?: PlanStep[];
   runs?: SyncRun[];
   courses?: Course[];
   documents?: DocumentDetail[];
@@ -474,6 +497,86 @@ export function fakeApi(state: {
     if (p === "/api/v1/documents" && method === "GET") {
       const source = url.searchParams.get("source");
       return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
+    }
+    if (p === "/api/v1/homework") return json({ items: state.homework ?? [] });
+    if (p === "/api/v1/today") {
+      const items = state.homework ?? [];
+      return json({
+        overdue: items.filter((i) => i.status === "overdue"),
+        upcoming: items.filter((i) => i.status === "todo"),
+        study: { dueNow: state.cards?.length ?? 0, newCards: 0, reviewedToday: 0 },
+        recent: [],
+        todaySteps: (state.plan ?? [])
+          .filter((s) => s.plannedFor)
+          .map((s) => ({
+            ...s,
+            assignmentId: ASSIGNMENT_ID,
+            assignmentName: "Lab 2: reverse an array",
+          })),
+      });
+    }
+    const hw = p.match(
+      /^\/api\/v1\/homework\/([^/]+)(\/brief|\/resources|\/plan(?:\/suggest|\/[^/]+)?)?$/,
+    );
+    if (hw) {
+      const item = (state.homework ?? []).find((i) => i.id === hw[1]);
+      if (!item) return apiError(404, "not_found", "Assignment not found.");
+      const sub = hw[2] ?? "";
+      state.plan ??= [];
+      const planJson = () => json({ steps: state.plan });
+      if (sub === "") {
+        return json({
+          ...item,
+          descriptionMd: "## Task\n\nReverse an array **in place**.",
+          unlockAt: null,
+          lockAt: null,
+          submissionTypes: ["online_upload"],
+        });
+      }
+      if (sub === "/brief" && method === "GET") return json({ brief: null });
+      if (sub === "/brief") {
+        return json({
+          brief: {
+            status: "ready",
+            updatedAt: new Date().toISOString(),
+            error: null,
+            content: {
+              summary: "Write a function that reverses an array without a built-in.",
+              deliverables: ["reverse.py"],
+              requirements: ["No built-in reverse"],
+              rubricPoints: ["Correctness"],
+              skills: ["Indexing"],
+              questionsForInstructor: ["Is Python 3.12 OK?"],
+              searchQueries: ["arrays"],
+            },
+          },
+        });
+      }
+      if (sub === "/resources") return json({ hits: [], titles: [], mode: "keyword" });
+      if (sub === "/plan/suggest") {
+        return json({
+          steps: [
+            { title: "Re-read the arrays lecture", detail: "Pages 1-3.", estimateMinutes: 20 },
+            { title: "Outline your approach", detail: "Two pointers.", estimateMinutes: 15 },
+          ],
+        });
+      }
+      if (sub === "/plan" && method === "PUT") {
+        state.plan = body.steps.map((s: Partial<PlanStep>, i: number) => ({
+          id: s.id ?? `00000000-0000-4000-8000-0000000001${String(i).padStart(2, "0")}`,
+          title: s.title,
+          detail: s.detail ?? null,
+          estimateMinutes: s.estimateMinutes ?? null,
+          plannedFor: s.plannedFor ?? null,
+          done: s.done ?? false,
+        }));
+        return planJson();
+      }
+      if (sub.startsWith("/plan/") && method === "PATCH") {
+        state.plan = state.plan.map((s) => (s.id === sub.slice(6) ? { ...s, done: body.done } : s));
+        return planJson();
+      }
+      if (sub === "/plan") return planJson();
     }
     if (p === "/api/v1/search") {
       const q = (url.searchParams.get("q") ?? "").toLowerCase();

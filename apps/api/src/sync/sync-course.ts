@@ -172,14 +172,29 @@ export async function syncCourse(
   const existingAssignments = new Map(
     (
       await db
-        .select({ canvasId: assignments.canvasId, updated: assignments.canvasUpdatedAt })
+        .select({
+          canvasId: assignments.canvasId,
+          updated: assignments.canvasUpdatedAt,
+          submissionState: assignments.submissionState,
+          submittedAt: assignments.submittedAt,
+          missing: assignments.missing,
+          late: assignments.late,
+        })
         .from(assignments)
         .where(and(eq(assignments.userId, userId), eq(assignments.courseId, courseId)))
-    ).map((r) => [r.canvasId, r.updated]),
+    ).map((r) => [r.canvasId, r]),
   );
+  // A new submission doesn't change the assignment's updated_at, so compare it too.
   const changedAssignments = rawAssignments.filter((a) => {
-    const id = String(a.id);
-    return !existingAssignments.has(id) || !same(existingAssignments.get(id), date(a.updated_at));
+    const prev = existingAssignments.get(String(a.id));
+    if (!prev || !same(prev.updated, date(a.updated_at))) return true;
+    const sub = a.submission;
+    return (
+      prev.submissionState !== (sub?.workflow_state ?? null) ||
+      !same(prev.submittedAt, date(sub?.submitted_at)) ||
+      prev.missing !== (sub?.missing ?? false) ||
+      prev.late !== (sub?.late ?? false)
+    );
   });
   for (const batch of chunks(changedAssignments)) {
     await db
@@ -198,6 +213,10 @@ export async function syncCourse(
           submissionTypes: a.submission_types ?? [],
           published: a.published ?? true,
           htmlUrl: a.html_url ?? null,
+          submissionState: a.submission?.workflow_state ?? null,
+          submittedAt: date(a.submission?.submitted_at),
+          missing: a.submission?.missing ?? false,
+          late: a.submission?.late ?? false,
           canvasUpdatedAt: date(a.updated_at),
         })),
       )
@@ -213,6 +232,10 @@ export async function syncCourse(
           submissionTypes: sql`excluded.submission_types`,
           published: sql`excluded.published`,
           htmlUrl: sql`excluded.html_url`,
+          submissionState: sql`excluded.submission_state`,
+          submittedAt: sql`excluded.submitted_at`,
+          missing: sql`excluded.missing`,
+          late: sql`excluded.late`,
           canvasUpdatedAt: sql`excluded.canvas_updated_at`,
         },
       });

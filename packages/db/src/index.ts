@@ -9,6 +9,7 @@ export {
   gte,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   lt,
   lte,

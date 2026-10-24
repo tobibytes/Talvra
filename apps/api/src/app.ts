@@ -14,6 +14,7 @@ import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
 import { type DocumentsOptions, documentsRoutes } from "./routes/documents.js";
 import { health } from "./routes/health.js";
+import { type HomeworkOptions, homeworkRoutes } from "./routes/homework.js";
 import { meRoutes } from "./routes/me.js";
 import { type SearchOptions, searchRoutes } from "./routes/search.js";
 import { type StudyOptions, studyRoutes } from "./routes/study.js";
@@ -36,6 +37,8 @@ export type AppOptions = {
   study?: StudyOptions;
   /** Tests use a fake embedder, vector store and model. */
   search?: SearchOptions;
+  /** Tests use a fake model for briefs and plans. */
+  homework?: HomeworkOptions;
 };
 
 /**
@@ -108,6 +111,7 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", documentsRoutes(opts.documents));
   app.route("/v1", studyRoutes(opts.study));
   app.route("/v1", searchRoutes(opts.search));
+  app.route("/v1", homeworkRoutes(opts.homework));
   app.route("/v1", coursesRoutes);
   app.route("/v1", canvasRoutes(opts.canvasFetch));
 

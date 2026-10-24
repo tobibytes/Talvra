@@ -28,6 +28,79 @@ export type GenerateOutput = {
   outputTokens: number;
 };
 
+/** Maps SDK errors to retryable / final GenerationErrors with student-safe messages. */
+export function toGenerationError(err: unknown): unknown {
+  if (
+    err instanceof Anthropic.AuthenticationError ||
+    err instanceof Anthropic.PermissionDeniedError
+  ) {
+    // Operator problem (bad/missing key), not the student's: log it, say little.
+    console.error(JSON.stringify({ msg: "anthropic auth failed", status: err.status }));
+    return new GenerationError(false, "Study tools are temporarily unavailable.");
+  }
+  if (err instanceof Anthropic.BadRequestError) {
+    return new GenerationError(false, `The request was rejected: ${err.message}`);
+  }
+  if (
+    err instanceof Anthropic.RateLimitError ||
+    err instanceof Anthropic.InternalServerError ||
+    err instanceof Anthropic.APIConnectionError
+  ) {
+    return new GenerationError(true, "Claude is busy right now. Try again in a minute.");
+  }
+  if (err instanceof Anthropic.APIError) {
+    return new GenerationError(err.status !== undefined && err.status >= 500, err.message);
+  }
+  return err;
+}
+
+/** A structured (JSON-schema) call. Tests swap this for a fake. */
+export type Structured = <T>(req: {
+  schema: z.ZodType<T>;
+  system: string;
+  user: string;
+  maxTokens?: number;
+  effort?: "low" | "medium" | "high";
+}) => Promise<{ data: T; model: string }>;
+
+export function claudeStructured(apiKey: string): Structured {
+  const client = new Anthropic({ apiKey, maxRetries: 2 });
+  return async ({ schema, system, user, maxTokens = 8000, effort = "low" }) => {
+    let message: Anthropic.Beta.BetaMessage;
+    try {
+      message = await client.beta.messages
+        .stream({
+          model: MODEL,
+          max_tokens: maxTokens,
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          output_config: { effort, format: zodOutputFormat(schema) },
+          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+          messages: [{ role: "user", content: user }],
+        })
+        .finalMessage();
+    } catch (err) {
+      throw toGenerationError(err);
+    }
+    if (message.stop_reason === "refusal") {
+      throw new GenerationError(false, "Claude declined to help with this one.");
+    }
+    const text = message.content
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    let json: unknown = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      // handled below
+    }
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) throw new GenerationError(true, "Claude returned an unexpected format.");
+    return { data: parsed.data, model: message.model };
+  };
+}
+
 /** Calls the model. Tests swap this for a fake. */
 export type Generator = (input: GenerateInput) => Promise<GenerateOutput>;
 
@@ -60,28 +133,7 @@ export function claudeGenerator(apiKey: string): Generator {
       });
       message = await stream.finalMessage();
     } catch (err) {
-      if (
-        err instanceof Anthropic.AuthenticationError ||
-        err instanceof Anthropic.PermissionDeniedError
-      ) {
-        // Operator problem (bad/missing key), not the student's: log it, say little.
-        console.error(JSON.stringify({ msg: "anthropic auth failed", status: err.status }));
-        throw new GenerationError(false, "Study tools are temporarily unavailable.");
-      }
-      if (err instanceof Anthropic.BadRequestError) {
-        throw new GenerationError(false, `The request was rejected: ${err.message}`);
-      }
-      if (
-        err instanceof Anthropic.RateLimitError ||
-        err instanceof Anthropic.InternalServerError ||
-        err instanceof Anthropic.APIConnectionError
-      ) {
-        throw new GenerationError(true, `Claude is busy right now (${err.message}).`);
-      }
-      if (err instanceof Anthropic.APIError) {
-        throw new GenerationError(err.status !== undefined && err.status >= 500, err.message);
-      }
-      throw err;
+      throw toGenerationError(err);
     }
     if (message.stop_reason === "refusal") {
       throw new GenerationError(false, "Claude declined to make this from this material.");

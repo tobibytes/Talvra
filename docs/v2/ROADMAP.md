@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 7. Whoever picks this up: read this file, then
+Last updated at the end of session 9. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -15,8 +15,8 @@ Last updated at the end of session 7. Whoever picks this up: read this file, the
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
-| 9 | Homework workspace + real Today dashboard | ⏭ **Next up** (8 awaits the owner's go-ahead) |
-| 10 | Reminders + video (media container: script → Azure TTS → MP4 in R2) | Planned |
+| 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
+| 10 | Reminders + video (media container: script → Azure TTS → MP4 in R2) | ⏭ **Next up** |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | Planned |
 
 Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
@@ -220,18 +220,41 @@ then metadata indexes for filtering: `npx wrangler vectorize create-metadata-ind
 
 ---
 
-## Next up: session 9, Homework workspace + real Today
+## Session 9 notes (Homework + Today)
 
-(Session 8, the MCP server, waits for the owner's go-ahead.)
+- **Submissions** are synced with assignments (`include[]=submission`: state, submitted_at, missing,
+  late). They're compared on every sync because a new submission doesn't change the assignment's
+  `updated_at`. Status (`homework/service.ts`): todo / submitted / graded / overdue / offline.
+- **Homework API**: `GET /homework?courseId&scope=open|all` (open = not submitted, plus anything due in
+  the last week), `GET /homework/:id` (description as safe Markdown via `lib/html-to-md.ts`; only
+  http(s)/mailto links survive, scripts dropped, and the web renders it without raw HTML).
+- **Brief** (`POST /homework/:id/brief {regenerate?}`): synchronous Claude structured call (effort
+  low), cached by sha256(prompt version + assignment), never replaces a good brief with a failure.
+  Its `searchQueries` seed **related material** (`GET /homework/:id/resources`, hybrid search, `any`).
+- **Plan**: `GET/PUT /homework/:id/plan` (ordered replace; ids must belong to this plan),
+  `PATCH /homework/:id/plan/:stepId {done}`, `POST /homework/:id/plan/suggest` (not saved; estimates
+  clamped 5–600 min). Steps have a `plannedFor` local date.
+- **Today** (`GET /today?date=YYYY-MM-DD`, the client's local date): today's (and carried-over)
+  plan steps, overdue, the next 14 days, study summary, recent material.
+- **Web**: `/homework` grouped Overdue / next 7 days / Later / No due date / Submitted with course
+  filter; `/homework/$assignmentId` workspace (integrity note, brief, instructions, related
+  material, plan with suggest dialog, dates, reorder, delete with undo); Today rebuilt around the
+  agenda (steps checkable in place, due items grouped by day).
 
-1. **Homework list** `/homework`: every assignment across selected courses, grouped Overdue / This
-   week / Later / No date, filters by course and status; submission state from Canvas
-   (`/courses/:id/assignments?include[]=submission` → `submitted_at`, `workflow_state`, `score`
-   hidden by default) synced in session 4's sync.
-2. **Workspace** `/homework/$assignmentId`: the assignment description (sanitized HTML), a Claude
-   "brief" (what's being asked, deliverables, constraints, rubric points, due) that never does the
-   work, related material (hybrid search seeded with the assignment text, with citations), and a
-   step plan (Kibo kanban or checklist) saved server-side with effort estimates and dates.
-3. **Today**: real due list (next 7 days + overdue, grouped by day), cards due, recently processed
-   material, sync status. Each item one tap to its workspace.
-4. Integrity copy everywhere in the workspace.
+Verified: 12 API tests (HTML conversion safety, status, submission sync, list/detail, brief cache +
+failure handling, resources, plan editing + foreign ids, suggestions, Today, scoping) + web tests
+incl. axe; in Chrome under `wrangler dev`: Today with real data, the workspace, adding and
+scheduling a step that then shows on Today.
+
+---
+
+## Next up: session 10, Reminders + video
+
+1. **Reminders**: per-user rules (`reminder_rules`: offsets like 3 days / 1 day / 3 hours before due,
+   quiet hours, channels email + later push), a daily digest email (Resend, plain + HTML) with
+   overdue, due soon and cards due. Cron every 15 min computes due notifications into
+   `notifications` (idempotent by (user, assignment, offset)), sends, records. Unsubscribe link
+   (signed token) in every email.
+2. **Reminders page** (`/reminders`): rules editor, digest time, preview, send test, history.
+3. **Video** (stretch): `apps/media` Python container (ffmpeg + Azure TTS) turns notes into a short
+   narrated slideshow MP4 in R2. Only if time allows; reminders first.

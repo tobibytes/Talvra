@@ -51,6 +51,13 @@ export type CanvasAssignmentRaw = {
   published?: boolean;
   html_url?: string;
   updated_at?: string;
+  /** Present with include[]=submission: the current student's submission. */
+  submission?: {
+    workflow_state?: string;
+    submitted_at?: string | null;
+    missing?: boolean;
+    late?: boolean;
+  } | null;
 };
 
 export type CanvasFileRaw = {
@@ -270,7 +277,7 @@ export class CanvasClient {
 
   assignments(courseId: string) {
     return this.list<CanvasAssignmentRaw>(
-      `/courses/${encodeURIComponent(courseId)}/assignments?order_by=due_at`,
+      `/courses/${encodeURIComponent(courseId)}/assignments?order_by=due_at&include[]=submission`,
     );
   }
 
