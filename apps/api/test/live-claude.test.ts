@@ -1,8 +1,9 @@
 import type { DocSection } from "@talvra/contracts";
 import { describe, expect, it } from "vitest";
-import { claudeGenerator } from "../src/ai/claude.js";
+import { claudeGenerator, claudeStructured, HAIKU, OPUS } from "../src/ai/claude.js";
 import { cleanContent } from "../src/ai/generate.js";
 import { documentXml } from "../src/ai/prompts.js";
+import { notesForScript, tidyScript, VIDEO_SCRIPT_SYSTEM, VideoScript } from "../src/ai/video.js";
 
 /**
  * Opt-in smoke test against the real Claude API (costs a few cents):
@@ -26,10 +27,12 @@ const sections: DocSection[] = [
 ];
 
 describe.skipIf(!live)("live Claude", () => {
-  const generate = claudeGenerator(process.env.ANTHROPIC_API_KEY ?? "");
+  const key = process.env.ANTHROPIC_API_KEY ?? "";
   const xml = documentXml("Stacks and queues", sections);
+  // Same routing as production: Opus for notes, Haiku for flashcards and quizzes.
   for (const kind of ["notes", "flashcards", "quiz"] as const) {
     it(`makes valid ${kind}`, { timeout: 240_000 }, async () => {
+      const generate = claudeGenerator(key, { model: kind === "notes" ? OPUS : HAIKU });
       const out = await generate({ kind, documentXml: xml });
       const content = cleanContent(kind, out.content, sections);
       console.log(
@@ -41,4 +44,33 @@ describe.skipIf(!live)("live Claude", () => {
       expect(out.outputTokens).toBeGreaterThan(0);
     });
   }
+
+  it("writes a short video script with Haiku", { timeout: 120_000 }, async () => {
+    const notes = {
+      title: "Stacks and queues",
+      summary: "Two ordered collections: stacks are LIFO, queues are FIFO.",
+      sections: [
+        {
+          heading: "Stacks",
+          bullets: [{ text: "LIFO; push and pop at the top in O(1).", cite: [] }],
+        },
+        {
+          heading: "Queues",
+          bullets: [{ text: "FIFO; enqueue at the back, dequeue at the front.", cite: [] }],
+        },
+      ],
+      keyTerms: [{ term: "LIFO", definition: "Last in, first out.", cite: [] }],
+    };
+    const out = await claudeStructured(key, { model: HAIKU })({
+      schema: VideoScript,
+      system: VIDEO_SCRIPT_SYSTEM,
+      user: notesForScript(notes),
+      maxTokens: 4000,
+    });
+    const slides = tidyScript(out.data.slides);
+    const words = slides.map((s) => s.narration.split(/\s+/).length).reduce((a, b) => a + b, 0);
+    console.log("video", out.model, `${slides.length} slides, ${words} words`);
+    expect(out.model).toMatch(/haiku/);
+    expect(slides.length).toBeGreaterThanOrEqual(3);
+  });
 });

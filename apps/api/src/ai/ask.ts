@@ -4,7 +4,7 @@ import type { Database } from "@talvra/db";
 import { and, eq, inArray, schema } from "@talvra/db";
 import { meter } from "../lib/usage.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
-import { MODEL } from "./claude.js";
+import { type ClaudeOptions, claudeParams, toGenerationError } from "./claude.js";
 
 const { chunks } = schema;
 
@@ -19,7 +19,7 @@ export type AnswerInput = {
 /** Streams answer text. Tests swap this for a fake. */
 export type Answerer = (input: AnswerInput) => AsyncIterable<string>;
 
-const SYSTEM = `You are a tutor helping a university student understand their own course material.
+export const ASK_SYSTEM = `You are a tutor helping a university student understand their own course material.
 
 - Answer from the numbered <source> passages provided. Cite them inline like [1] or [2][3] right after the claim they support.
 - If the sources don't contain the answer, say so plainly and suggest what to look for or ask the instructor. Do not make things up.
@@ -30,36 +30,42 @@ const SYSTEM = `You are a tutor helping a university student understand their ow
 const escapeXml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function claudeAnswerer(apiKey: string): Answerer {
+/** The user turn for Ask: numbered sources, then the question. Shared by every provider. */
+export function askUserTurn({ question, sources }: Pick<AnswerInput, "question" | "sources">) {
+  const sourceXml = sources.length
+    ? sources
+        .map(
+          (s) =>
+            `<source n="${s.n}" document="${escapeXml(s.documentTitle)}" location="${s.location}">\n${escapeXml(s.text)}\n</source>`,
+        )
+        .join("\n")
+    : "<no_sources/>";
+  return `<sources>\n${sourceXml}\n</sources>\n\nQuestion: ${question}`;
+}
+
+export function claudeAnswerer(apiKey: string, opts: ClaudeOptions = {}): Answerer {
   const client = new Anthropic({ apiKey, maxRetries: 2 });
   return async function* ({ question, history, sources }) {
-    const sourceXml = sources.length
-      ? sources
-          .map(
-            (s) =>
-              `<source n="${s.n}" document="${escapeXml(s.documentTitle)}" location="${s.location}">\n${escapeXml(s.text)}\n</source>`,
-          )
-          .join("\n")
-      : "<no_sources/>";
+    const p = claudeParams(opts, "low");
     const stream = client.beta.messages.stream({
-      model: MODEL,
+      model: p.model,
       max_tokens: 4000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "low" },
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+      ...(p.betas ? { betas: p.betas, fallbacks: p.fallbacks } : {}),
+      ...(p.effort.effort ? { output_config: p.effort } : {}),
+      system: [{ type: "text", text: ASK_SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [
         ...history.map((t) => ({ role: t.role, content: t.content })),
-        {
-          role: "user" as const,
-          content: `<sources>\n${sourceXml}\n</sources>\n\nQuestion: ${question}`,
-        },
+        { role: "user" as const, content: askUserTurn({ question, sources }) },
       ],
     });
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        yield event.delta.text;
+    try {
+      for await (const event of stream) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          yield event.delta.text;
+        }
       }
+    } catch (err) {
+      throw toGenerationError(err, opts.ownKey);
     }
     const final = await stream.finalMessage();
     if (final.stop_reason === "refusal") {

@@ -71,6 +71,13 @@
       "when": 1792788572350,
       "tag": "0009_videos",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792813657608,
+      "tag": "0010_ai_settings",
+      "breakpoints": true
     }
   ]
 }

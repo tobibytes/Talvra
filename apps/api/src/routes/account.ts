@@ -32,6 +32,16 @@ export async function exportAccount(db: Database, userId: string) {
     })
     .from(s.canvasConnections)
     .where(by(s.canvasConnections));
+  // The student's own AI key: which provider and model, never the key itself.
+  const [ai] = await db
+    .select({
+      provider: s.aiSettings.provider,
+      model: s.aiSettings.model,
+      keyLast4: s.aiSettings.keyLast4,
+      status: s.aiSettings.status,
+    })
+    .from(s.aiSettings)
+    .where(by(s.aiSettings));
   const [
     courses,
     modules,
@@ -78,6 +88,7 @@ export async function exportAccount(db: Database, userId: string) {
     note: "Your Talvra data. Original files can be downloaded from each document page.",
     user,
     canvas: canvas ?? null,
+    aiKey: ai ?? null,
     courses,
     modules,
     assignments,

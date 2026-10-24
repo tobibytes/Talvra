@@ -16,6 +16,7 @@ export {
   ne,
   not,
   notInArray,
+  notLike,
   or,
   sql,
 } from "drizzle-orm";

@@ -17,13 +17,14 @@ import {
 } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
 import { and, eq, inArray, notInArray, schema } from "@talvra/db";
-import { claudeStructured, GenerationError, type Structured } from "../ai/claude.js";
+import { GenerationError, type Structured } from "../ai/claude.js";
 import {
   assignmentPrompt,
   BRIEF_SYSTEM,
   HOMEWORK_PROMPT_VERSION,
   PLAN_SYSTEM,
 } from "../ai/homework-prompts.js";
+import { aiEnvOf, fakeImpls, pickAi } from "../ai/resolve.js";
 import { studySummary } from "../ai/review.js";
 import type { AppEnv, Bindings } from "../env.js";
 import { type AttachmentDeps, loadAttachments } from "../homework/attachments.js";
@@ -38,7 +39,6 @@ import { ingestDepsFor } from "../ingest/deps.js";
 import { type FileStore, type IngestMessage, processDocument } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
 import { sha256Hex } from "../lib/files.js";
-import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
 import { toCourseDocument } from "./documents.js";
@@ -73,11 +73,22 @@ function attachmentDeps(env: Bindings, db: Database, opts: HomeworkOptions): Att
   return { db, files: opts.files ?? env.FILES, ingestNow };
 }
 
-function structuredFor(env: Bindings, opts: HomeworkOptions) {
-  if (opts.structured) return opts.structured;
-  if (!env.ANTHROPIC_API_KEY)
-    throw new AppError("internal", "Study tools are temporarily unavailable.");
-  return claudeStructured(env.ANTHROPIC_API_KEY);
+/** The model for this student and task (own key, Talvra's, or basic), counted. Tests fake it. */
+function structuredFor(
+  c: { env: Bindings; var: { db: Database } },
+  opts: HomeworkOptions,
+  userId: string,
+  task: "brief" | "plan",
+) {
+  return pickAi(
+    {
+      db: c.var.db,
+      env: aiEnvOf(c.env),
+      impls: opts.structured ? fakeImpls({ structured: opts.structured }) : undefined,
+    },
+    userId,
+    task,
+  ).then((ai) => ai.structured);
 }
 
 function toBrief(r: typeof assignmentBriefs.$inferSelect): Brief {
@@ -260,15 +271,9 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
           .returning();
         return row;
       };
-      await meter(c.var.db, userId, "brief", {
-        limit: 30,
-        message: "That's a lot of assignment breakdowns today. Try again tomorrow.",
-      });
+      const structured = await structuredFor(c, opts, userId, "brief");
       try {
-        const out = await structuredFor(
-          c.env,
-          opts,
-        )({
+        const out = await structured({
           schema: BriefModelContent,
           system: BRIEF_SYSTEM,
           user: prompt,
@@ -276,7 +281,8 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         });
         const trim = (xs: string[], n: number) =>
           xs
-            .map((x) => x.trim())
+            // Some models start list items with their own bullet characters.
+            .map((x) => x.replace(/^\s*[•\-*]\s+/, "").trim())
             .filter(Boolean)
             .slice(0, n);
         const content = {
@@ -398,19 +404,13 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
       const { assignmentId } = c.req.valid("param");
       const a = await assignmentDetail(c.var.db, userId, assignmentId);
       const brief = await loadBrief(c.var.db, userId, assignmentId);
-      await meter(c.var.db, userId, "plan_suggest", {
-        limit: 30,
-        message: "That's a lot of plan suggestions today. Try again tomorrow.",
-      });
+      const structured = await structuredFor(c, opts, userId, "plan");
       // JSON can't contain a raw "<" here, so it can't close the <brief> tag.
       const context = brief?.content
         ? `\n\n<brief>${JSON.stringify(brief.content).replace(/</g, "\\u003c")}</brief>`
         : "";
       try {
-        const out = await structuredFor(
-          c.env,
-          opts,
-        )({
+        const out = await structured({
           schema: PlanSuggestion,
           system: PLAN_SYSTEM,
           user: `${assignmentPrompt(a)}${context}\n\nToday is ${new Date().toISOString().slice(0, 10)}.`,

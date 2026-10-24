@@ -14,6 +14,7 @@ import {
 import { and, eq, schema } from "@talvra/db";
 import { z } from "zod";
 import { type AidMessage, latestAids, requestAid, toStudyAid } from "../ai/generate.js";
+import { aiEnvOf, assertCanUse } from "../ai/resolve.js";
 import { dueCards, reviewCard, studySummary } from "../ai/review.js";
 import type { AppEnv, Bindings } from "../env.js";
 import { AppError } from "../lib/errors.js";
@@ -115,6 +116,7 @@ export function studyRoutes(opts: StudyOptions = {}) {
         c.var.db,
         { userId, documentId: c.req.valid("param").documentId, kind, regenerate },
         enqueuer(c.env, opts),
+        () => assertCanUse({ db: c.var.db, env: aiEnvOf(c.env) }, userId, kind),
       );
       // Re-read: an inline (test) generation may have finished already.
       const [fresh] = await c.var.db

@@ -57,6 +57,8 @@ export type Bindings = {
   RL_API?: RateLimit;
   /** Claude, for study aids. */
   ANTHROPIC_API_KEY?: string;
+  /** Workers AI model for the free fallback ("basic" mode). */
+  BASIC_MODEL?: string;
 };
 
 export type SessionUser = {

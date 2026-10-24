@@ -137,6 +137,31 @@ export const canvasConnections = pgTable(
   (t) => [uniqueIndex("canvas_connections_user_idx").on(t.userId)],
 );
 
+/** A student's own AI provider key (bring your own key). Encrypted like Canvas tokens. */
+export const aiProvider = pgEnum("ai_provider", ["anthropic", "openai"]);
+export const aiKeyStatus = pgEnum("ai_key_status", ["active", "invalid"]);
+
+export const aiSettings = pgTable(
+  "ai_settings",
+  {
+    id: id(),
+    userId: owner(),
+    provider: aiProvider("provider").notNull(),
+    model: text("model").notNull(),
+    keyCiphertext: bytea("key_ciphertext").notNull(),
+    keyIv: bytea("key_iv").notNull(),
+    keyLast4: text("key_last4").notNull(),
+    /** Model capabilities read at save time (e.g. whether `effort` is accepted). */
+    supportsEffort: boolean("supports_effort").notNull().default(false),
+    status: aiKeyStatus("status").notNull().default("active"),
+    /** Why the key stopped working (shown in Settings). */
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("ai_settings_user_idx").on(t.userId)],
+);
+
 export const courses = pgTable(
   "courses",
   {

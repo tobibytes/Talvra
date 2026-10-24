@@ -14,6 +14,8 @@ export const env: Bindings = {
   EMAIL_FROM: "Talvra <test@talvra.app>",
   BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret-0123456789",
   CANVAS_TOKEN_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
+  // Never called: tests fake the model. Present so "Talvra's key" is an available source.
+  ANTHROPIC_API_KEY: "sk-ant-test",
 };
 
 /** A test harness: app + captured emails + a tiny cookie jar. */

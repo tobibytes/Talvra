@@ -1,4 +1,6 @@
 import {
+  AiModelList,
+  AiSettings,
   ApiError,
   type AskEvent,
   AskEvent as AskEventSchema,
@@ -21,12 +23,14 @@ import {
   FlashcardList,
   Health,
   HomeworkList,
+  type ListAiModels,
   Me,
   Plan,
   PlanSuggestion,
   PublicConfig,
   RemindersOverview,
   ReviewResult,
+  type SaveAiKey,
   type SavePlan,
   SearchResult,
   StudyAid,
@@ -107,6 +111,11 @@ export const api = {
   verifyCanvas: () =>
     request("/v1/canvas/connection/verify", ConnectCanvasResult, { method: "POST" }),
   disconnectCanvas: () => request("/v1/canvas/connection", z.undefined(), { method: "DELETE" }),
+  aiSettings: () => request("/v1/me/ai", AiSettings),
+  aiModels: (body: ListAiModels) =>
+    request("/v1/me/ai/models", AiModelList, { method: "POST", json: body }),
+  saveAiKey: (body: SaveAiKey) => request("/v1/me/ai", AiSettings, { method: "PUT", json: body }),
+  removeAiKey: () => request("/v1/me/ai", AiSettings, { method: "DELETE" }),
   canvasCourses: () => request("/v1/canvas/courses", CanvasCourseList),
   selectCourses: (canvasIds: string[]) =>
     request("/v1/courses/selection", CourseList, { method: "PUT", json: { canvasIds } }),
