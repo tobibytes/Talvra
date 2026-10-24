@@ -42,7 +42,9 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
 
 ## Rules (these are enforced by tests; keep them true)
 
-- **Every row belongs to a user.** Every table except `users` and `verifications` has
+- **Every row belongs to a user.** Every table except `users`, `verifications` and the OAuth
+  server's app-level tables (`jwks`, `oauth_clients`, `oauth_resources`, `oauth_client_resources`,
+  `oauth_client_assertions`; their per-person rows cascade on user delete) has
   `user_id NOT NULL ... ON DELETE CASCADE`. Children of a course reference
   `courses(id, user_id)` with a composite FK. Every query filters by `userId`.
   Dedupe is per user, never across users.
@@ -76,8 +78,10 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   calls. Tests fake models with `fakeImpls`; `test/live-claude.test.ts` is the opt-in real smoke
   test. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
 - **Students' AI keys** are encrypted like Canvas tokens and never returned (last 4 only).
-- **MCP** (`/api/mcp`, `src/mcp/server.ts`): personal API keys only (hashed, never the session
-  cookie). New tools call existing `/api/v1` routes through the in-process `call`, never the
+- **MCP** (`/api/mcp`, `src/mcp/server.ts`): OAuth 2.1 access tokens (Better Auth
+  `oauth-provider` + `jwt`, dynamic client registration, PKCE; verified locally in `mcp/auth.ts`)
+  for ChatGPT/claude.ai connectors, or personal API keys (Bearer or `X-API-Key`). Never the session
+  cookie. New tools call existing `/api/v1` routes through the in-process `call`, never the
   database directly, so scoping and limits stay in one place.
 - **Homework**: "Do my homework" is available to every signed-in account. It completes
   assignments in Anthropic's sandbox and lets the account holder download or submit the files.

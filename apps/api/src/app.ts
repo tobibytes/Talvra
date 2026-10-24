@@ -1,3 +1,7 @@
+import {
+  oauthProviderAuthServerMetadata,
+  oauthProviderOpenIdConfigMetadata,
+} from "@better-auth/oauth-provider";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Database } from "@talvra/db";
 import { createDb } from "@talvra/db";
@@ -5,10 +9,10 @@ import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "./auth.js";
 import { type AppEnv, allowedDomains, isAllowedEmail } from "./env.js";
-import { userForApiKey } from "./lib/api-keys.js";
 import type { Fetch } from "./lib/canvas.js";
 import { emailSender, type SendEmail } from "./lib/email.js";
 import { AppError, fromZod, sendError } from "./lib/errors.js";
+import { mcpUser, protectedResourceMetadata, wwwAuthenticate } from "./mcp/auth.js";
 import { type ApiCall, handleMcp } from "./mcp/server.js";
 import { sameOrigin } from "./middleware/csrf.js";
 import { type Limiters, rateLimit } from "./middleware/rate-limit.js";
@@ -177,17 +181,30 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", coursesRoutes);
   app.route("/v1", apiKeyRoutes);
 
-  // MCP server: a personal API key (Bearer) only, never the session cookie, so another site
-  // can't use a signed-in browser to call it.
+  // OAuth discovery for MCP connectors (front.ts maps the root /.well-known paths here).
+  app.get("/.well-known/oauth-protected-resource", (c) => c.json(protectedResourceMetadata(c.env)));
+  app.get("/.well-known/oauth-protected-resource/api/mcp", (c) =>
+    c.json(protectedResourceMetadata(c.env)),
+  );
+  app.get("/.well-known/oauth-authorization-server", (c) =>
+    oauthProviderAuthServerMetadata(authFor(c))(c.req.raw),
+  );
+  app.get("/.well-known/oauth-authorization-server/api/auth", (c) =>
+    oauthProviderAuthServerMetadata(authFor(c))(c.req.raw),
+  );
+  app.get("/.well-known/openid-configuration", (c) =>
+    oauthProviderOpenIdConfigMetadata(authFor(c))(c.req.raw),
+  );
+
+  // MCP server: an OAuth access token (connectors) or a personal API key, never the session
+  // cookie, so another site can't use a signed-in browser to call it.
   app.use("/mcp", async (c, next) => {
-    const auth = c.req.header("authorization") ?? "";
-    const key = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-    const userId = key && c.var.db ? await userForApiKey(c.var.db, key) : null;
+    const userId = c.var.db ? await mcpUser(c.req, c.var.db, () => authFor(c), c.env) : null;
     if (!userId) {
-      c.header("WWW-Authenticate", 'Bearer realm="talvra"');
+      c.header("WWW-Authenticate", wwwAuthenticate(c.env));
       throw new AppError(
         "unauthorized",
-        "Use a Talvra API key (Settings → AI assistants) as a Bearer token.",
+        "Connect with OAuth, or send a Talvra API key (Settings → AI assistants) as a Bearer token or X-API-Key.",
       );
     }
     c.set("userId", userId);

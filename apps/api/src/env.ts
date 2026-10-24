@@ -105,6 +105,10 @@ export function isAllowedEmail(email: string, domains: string[]) {
  * Origins allowed to make credentialed, state-changing requests: the app itself,
  * plus (in development only) the Worker's own port, which serves the built SPA.
  */
+/** The MCP endpoint's URL: the OAuth resource (and token audience) for connectors. */
+export const mcpResource = (env: Pick<Bindings, "APP_URL">) =>
+  `${new URL(env.APP_URL).origin}/api/mcp`;
+
 export function appOrigins(env: Pick<Bindings, "APP_URL" | "APP_ENV">) {
   const origins = [new URL(env.APP_URL).origin];
   if (env.APP_ENV === "development") origins.push("http://localhost:8787", "http://127.0.0.1:8787");

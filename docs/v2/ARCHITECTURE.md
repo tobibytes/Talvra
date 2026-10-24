@@ -155,9 +155,11 @@ also checks them against the database, Anthropic and Resend).
 
 ## MCP server
 
-`/api/mcp` serves MCP (Streamable HTTP, stateless) for Claude and other clients. Personal API
-keys (Settings) are the only auth, sent as `Authorization: Bearer tlv_…`; only their SHA-256
-hash is stored. Each tool calls an `/api/v1` route in-process as the key's owner, so per-user
+`/api/mcp` serves MCP (Streamable HTTP, stateless) for ChatGPT, Claude and other clients.
+Connectors sign in with OAuth 2.1 (Better Auth oauth-provider: discovery at the site root,
+dynamic registration, PKCE, our consent page, 15-minute JWT access tokens with refresh). Apps
+without OAuth use a personal API key (Settings) as `Authorization: Bearer tlv_…` or
+`X-API-Key: tlv_…`; only its SHA-256 hash is stored. Each tool calls an `/api/v1` route in-process as the key's owner, so per-user
 scoping and rate limits are the app's own. Course material in tool results is data from Canvas,
 which the server's instructions say. Code: `apps/api/src/mcp/server.ts`, keys in
 `lib/api-keys.ts` and `routes/api-keys.ts`.

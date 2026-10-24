@@ -1,9 +1,9 @@
-import type { ApiKey, CreatedApiKey } from "@talvra/contracts";
+import type { ApiKey, ConnectedApp, CreatedApiKey } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { toast } from "sonner";
 import { IconTile } from "@/components/blocks";
-import { Check, Copy, KeyRound, Plus, Trash2 } from "@/components/icons";
+import { Check, Copy, KeyRound, Link2, Plus, Trash2, Unplug } from "@/components/icons";
 import { ErrorState } from "@/components/page";
 import { TileRow } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,71 @@ function CopyField({
   );
 }
 
+/** Apps connected over OAuth, each with Disconnect. */
+function ConnectedApps() {
+  const queryClient = useQueryClient();
+  const apps = useQuery({ queryKey: ["me", "connected-apps"], queryFn: api.connectedApps });
+  const [leaving, setLeaving] = React.useState<ConnectedApp | null>(null);
+  const disconnect = useMutation({
+    mutationFn: (clientId: string) => api.disconnectApp(clientId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me", "connected-apps"] });
+      setLeaving(null);
+      toast("Disconnected");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  if (apps.isPending) return <Skeleton className="h-12 w-full" />;
+  if (apps.isError) return <ErrorState error={apps.error} onRetry={() => apps.refetch()} />;
+  if (!apps.data.apps.length) return null;
+  return (
+    <>
+      <ul className="-mx-2 grid gap-0.5" aria-label="Connected apps">
+        {apps.data.apps.map((a) => (
+          <li key={a.clientId}>
+            <TileRow
+              tile={<IconTile icon={Link2} />}
+              title={a.name}
+              meta={
+                <span title={dateTime(a.connectedAt)}>Connected {relativeTime(a.connectedAt)}</span>
+              }
+              trailing={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Disconnect ${a.name}`}
+                  onClick={() => setLeaving(a)}
+                >
+                  <Unplug />
+                  <span className="hidden sm:inline">Disconnect</span>
+                </Button>
+              }
+            />
+          </li>
+        ))}
+      </ul>
+      <Dialog open={!!leaving} onOpenChange={(o) => (o ? null : setLeaving(null))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disconnect {leaving?.name}?</DialogTitle>
+            <DialogDescription>It loses access within 15 minutes.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button
+              variant="destructive"
+              disabled={disconnect.isPending}
+              onClick={() => leaving && disconnect.mutate(leaving.clientId)}
+            >
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function ApiKeysCard() {
   const queryClient = useQueryClient();
   const keys = useQuery({ queryKey: keysQueryKey, queryFn: api.apiKeys });
@@ -96,12 +161,17 @@ export function ApiKeysCard() {
           <h2>AI assistants (MCP)</h2>
         </CardTitle>
         <CardDescription>
-          Connect Claude or another MCP app. Keys can read your material and make study aids, but
-          can't change your account or Canvas.
+          Use Talvra from ChatGPT, Claude or another MCP app. It can read your material and make
+          study aids, but can't change your account or Canvas.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <CopyField label="Server URL" value={mcpUrl()} />
+        <p className="text-sm text-muted-foreground">
+          ChatGPT and claude.ai: add the URL as a connector and sign in. Apps without sign-in: use a
+          key below.
+        </p>
+        <ConnectedApps />
         {keys.isPending ? (
           <Skeleton className="h-16 w-full" />
         ) : keys.isError ? (

@@ -240,6 +240,7 @@ export function fakeApi(state: {
   cards?: Flashcard[];
   ai?: Record<string, unknown>;
   draft?: Record<string, unknown>;
+  connectedApps?: { clientId: string; name: string; uri: string | null; connectedAt: string }[];
   apiKeys?: {
     id: string;
     name: string;
@@ -339,6 +340,25 @@ export function fakeApi(state: {
     const me = state.me;
 
     if (p === "/api/v1/me" && method === "GET") return json(me);
+    if (p === "/api/auth/oauth2/public-client")
+      return json({
+        client_id: "chatgpt-1",
+        client_name: "ChatGPT",
+        client_uri: "https://chatgpt.com",
+      });
+    if (p === "/api/auth/oauth2/consent" && method === "POST")
+      return json({
+        redirect: true,
+        url: body?.accept
+          ? "https://chatgpt.com/cb?code=abc&state=s"
+          : "https://chatgpt.com/cb?error=access_denied&state=s",
+      });
+    if (p === "/api/v1/me/connected-apps" && method === "GET")
+      return json({ apps: state.connectedApps ?? [] });
+    if (p.startsWith("/api/v1/me/connected-apps/") && method === "DELETE") {
+      state.connectedApps = [];
+      return new Response(null, { status: 204 });
+    }
     if (p === "/api/v1/me/api-keys" && method === "GET") return json({ keys: state.apiKeys });
     if (p === "/api/v1/me/api-keys" && method === "POST") {
       const secret = `tlv_${"x".repeat(39)}abcd`;

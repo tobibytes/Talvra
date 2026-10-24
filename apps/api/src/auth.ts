@@ -1,9 +1,11 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import type { Database } from "@talvra/db";
 import { schema } from "@talvra/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
-import { allowedDomains, appOrigins, type Bindings, isAllowedEmail } from "./env.js";
+import { jwt } from "better-auth/plugins";
+import { allowedDomains, appOrigins, type Bindings, isAllowedEmail, mcpResource } from "./env.js";
 import { actionEmail, type SendEmail } from "./lib/email.js";
 
 const DAY = 60 * 60 * 24;
@@ -36,8 +38,39 @@ export function createAuth(env: Bindings, db: Database, sendEmail: SendEmail) {
         session: schema.sessions,
         account: schema.accounts,
         verification: schema.verifications,
+        jwks: schema.jwks,
+        oauthClient: schema.oauthClients,
+        oauthResource: schema.oauthResources,
+        oauthClientResource: schema.oauthClientResources,
+        oauthRefreshToken: schema.oauthRefreshTokens,
+        oauthAccessToken: schema.oauthAccessTokens,
+        oauthConsent: schema.oauthConsents,
+        oauthClientAssertion: schema.oauthClientAssertions,
       },
     }),
+    // The jwt plugin's own /token endpoint isn't used (OAuth uses /oauth2/token).
+    disabledPaths: ["/token"],
+    plugins: [
+      jwt(),
+      // OAuth 2.1 for the MCP server: ChatGPT and claude.ai connectors register themselves
+      // (dynamic client registration), the student signs in and approves on our consent page, and
+      // the connector gets a short-lived JWT for /api/mcp (PKCE required, refresh tokens rotate).
+      oauthProvider({
+        loginPage: "/sign-in",
+        consentPage: "/oauth/consent",
+        scopes: ["openid", "profile", "email", "offline_access"],
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        // Claude Code registers loopback redirects without an application type.
+        clientRegistrationDefaultApplicationType: "infer",
+        // Access tokens are JWTs (can't be revoked), so keep them short; refresh tokens can.
+        resources: [{ identifier: mcpResource(env), name: "Talvra MCP", accessTokenTtl: 15 * 60 }],
+        clientRegistrationDefaultResources: [mcpResource(env)],
+        clientRegistrationAllowedResources: [mcpResource(env)],
+        // Lets the consent page show the app's name before it asks.
+        allowPublicClientPrelogin: true,
+      }),
+    ],
     advanced: {
       database: { generateId: "uuid" },
       useSecureCookies: env.APP_ENV !== "development",
