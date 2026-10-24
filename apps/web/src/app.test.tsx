@@ -73,6 +73,17 @@ describe("app shell", () => {
 describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
   const pages: [string, () => void][] = [
     ["/", signedIn],
+    [
+      "/ (get started)",
+      () =>
+        fakeApi({
+          me: makeMe(),
+          gettingStarted: {
+            steps: { canvas: true, studyAid: true, review: false, ask: false, assistant: false },
+            dismissed: false,
+          },
+        }),
+    ],
     ["/courses", signedIn],
     ["/courses (with data)", withData],
     [`/courses/${COURSE_ID}`, withData],

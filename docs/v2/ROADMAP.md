@@ -537,3 +537,15 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
 - Migration 0016 (`jwks`, `oauth_*`). Not done: CIMD (client ID metadata documents) and DPoP;
   connectors use DCR and bearer tokens today.
 
+
+## Get started checklist (2026-10-24)
+
+- Instead of a slide tour, Today shows a "Get started" card with five steps that tick themselves
+  from real data (`GET /v1/me/getting-started`, `routes/getting-started.ts`): Canvas connected
+  (canvas_connections), a study aid made (study_aids), a flashcard reviewed (flashcard_reviews),
+  a question asked (usage_events `ask`/`basic_ask`; Ask on a student's own key isn't metered, so
+  that step stays open for them), an assistant connected (api_keys or oauth_consents).
+- `POST /v1/me/getting-started/dismiss` sets `users.getting_started_dismissed_at` (migration
+  0017). When every step is done the card says "You're all set" once and dismisses itself.
+- No loading skeleton on purpose: most returning students have it dismissed, so a skeleton would
+  flash on every visit. On error the card just doesn't show.

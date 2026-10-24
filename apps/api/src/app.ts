@@ -24,6 +24,7 @@ import { canvasRoutes } from "./routes/canvas.js";
 import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
 import { type DocumentsOptions, documentsRoutes } from "./routes/documents.js";
+import { gettingStartedRoutes } from "./routes/getting-started.js";
 import { health } from "./routes/health.js";
 import { type HomeworkOptions, homeworkRoutes } from "./routes/homework.js";
 import { meRoutes } from "./routes/me.js";
@@ -180,6 +181,7 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/", unsubscribeRoutes);
   app.route("/v1", coursesRoutes);
   app.route("/v1", apiKeyRoutes);
+  app.route("/v1", gettingStartedRoutes);
 
   // OAuth discovery for MCP connectors (front.ts maps the root /.well-known paths here).
   app.get("/.well-known/oauth-protected-resource", (c) => c.json(protectedResourceMetadata(c.env)));

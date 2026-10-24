@@ -48,6 +48,8 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     /** Set when the onboarding wizard finishes; null sends the user back to it. */
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+    /** Set when the student hides the Today "Get started" checklist. */
+    gettingStartedDismissedAt: timestamp("getting_started_dismissed_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
