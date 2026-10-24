@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
+import { courseLabel } from "@/lib/course-label";
 
 export const Route = createFileRoute("/_app/homework/")({
   validateSearch: z.object({
@@ -91,7 +92,7 @@ function Homework() {
               <SelectItem value={ALL}>All courses</SelectItem>
               {selected.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+                  {courseLabel(c.courseCode, c.name)}
                 </SelectItem>
               ))}
             </SelectContent>

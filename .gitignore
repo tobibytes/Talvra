@@ -1,93 +1,21 @@
-# Dependencies
+# Dependencies and build output
 node_modules/
-.pnpm-debug.log*
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Build outputs
 dist/
-build/
-.next/
-out/
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-deploy
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-push.sh
-version.txt
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons
-build/Release
-
-# Dependency directories
-jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Local development
-.env.development.local
-
-# Ignore reference frontend from Lovable (kept outside workspace)
-lovable-frontend/
-
-# K8s local secrets (never commit real secrets)
-deploy/secrets.local.yaml
-
-# v2
 .turbo/
-.wrangler/
-.dev.vars
+*.tsbuildinfo
+coverage/
 
-# Python (apps/extract)
+# Secrets: never commit these
+.env
+.env.*
+!.env.example
+.dev.vars
+.prod.vars
+
+# Cloudflare local state
+.wrangler/
+
+# Python (apps/extract, apps/media)
 .venv/
 __pycache__/
 .pytest_cache/
@@ -96,5 +24,10 @@ __pycache__/
 # Playwright
 e2e/test-results/
 e2e/playwright-report/
-# Production secrets handed to the deploy (never committed)
-.prod.vars
+
+# Logs, editors, OS
+*.log
+.vscode/
+.idea/
+*.swp
+.DS_Store

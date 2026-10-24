@@ -8,7 +8,6 @@ import { ModulesTab } from "@/components/course/modules-tab";
 import { UploadButton } from "@/components/document/upload-dialog";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
-import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -29,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
 import { meQuery } from "@/lib/auth";
+import { courseLabel } from "@/lib/course-label";
 import { dateTime, plural, relativeTime } from "@/lib/time";
 
 const tabs = ["modules", "files", "assignments", "study"] as const;
@@ -103,7 +103,7 @@ function CoursePage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{c?.courseCode ?? c?.name ?? "Course"}</BreadcrumbPage>
+            <BreadcrumbPage>{c ? courseLabel(c.courseCode, c.name) : "Course"}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -119,11 +119,11 @@ function CoursePage() {
         </div>
       ) : c ? (
         <PageHeader
-          title={c.name}
+          title={courseLabel(c.courseCode, c.name)}
           description={
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {c.courseCode ? <Badge variant="secondary">{c.courseCode}</Badge> : null}
-              {c.term ? <span>{c.term}</span> : null}
+              <span>{c.name}</span>
+              {c.term && !c.name.includes(c.term) ? <span>{c.term}</span> : null}
               <span aria-hidden>·</span>
               {c.lastSyncedAt ? (
                 <span title={dateTime(c.lastSyncedAt)}>Synced {relativeTime(c.lastSyncedAt)}</span>

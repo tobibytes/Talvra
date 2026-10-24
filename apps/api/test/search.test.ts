@@ -4,7 +4,7 @@ import { schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { Answerer } from "../src/ai/ask.js";
-import { DAILY_ASK_LIMIT } from "../src/ai/ask.js";
+import { LIMITS } from "../src/ai/resolve.js";
 import { chunkSections } from "../src/search/chunk.js";
 import {
   type Embedder,
@@ -280,7 +280,7 @@ describe("ask", () => {
     ).toBe(422);
     await db
       .insert(schema.usageEvents)
-      .values(Array.from({ length: DAILY_ASK_LIMIT }, () => ({ userId, kind: "ask" })));
+      .values(Array.from({ length: LIMITS.ask.limit }, () => ({ userId, kind: "ask" })));
     expect(
       (await h.request("/api/v1/ask", { method: "POST", json: { question: "arrays?" } })).status,
     ).toBe(429);

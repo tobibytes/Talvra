@@ -20,8 +20,6 @@ export type AidDeps = {
   notify?: (userId: string, event: AidEvent) => Promise<void>;
 };
 
-/** Generations per user per rolling 24 hours on Talvra's key (then basic mode). */
-export const DAILY_AID_LIMIT = 40;
 /** ~200k tokens of input; beyond that we'd rather say so than truncate. */
 export const MAX_INPUT_CHARS = 800_000;
 export const MAX_ATTEMPTS = 3;

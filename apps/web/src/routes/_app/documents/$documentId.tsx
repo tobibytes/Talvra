@@ -48,6 +48,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
+import { courseLabel } from "@/lib/course-label";
 import { fileSize, plural, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +112,7 @@ function DocumentPage() {
                     />
                   }
                 >
-                  {d.courseName}
+                  {courseLabel(d.courseName)}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />

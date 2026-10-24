@@ -2,6 +2,7 @@ import type { HomeworkItem, HomeworkStatus } from "@talvra/contracts";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { courseLabel } from "@/lib/course-label";
 import { dateTime, relativeTime } from "@/lib/time";
 
 const STATUS: Record<
@@ -44,7 +45,9 @@ export function HomeworkRow({
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate font-medium">{item.name}</p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {showCourse ? <span>{item.courseCode ?? item.courseName}</span> : null}
+          {showCourse ? (
+            <span title={item.courseName}>{courseLabel(item.courseCode, item.courseName)}</span>
+          ) : null}
           {showCourse ? <span aria-hidden>·</span> : null}
           <span title={item.dueAt ? dateTime(item.dueAt) : undefined}>{dueText(item)}</span>
           {item.pointsPossible ? (

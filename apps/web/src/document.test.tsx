@@ -28,7 +28,7 @@ describe("document page", () => {
       `/api/v1/documents/${DOC_ID}/original`,
     );
     // Breadcrumb goes back to the course's files.
-    expect(screen.getByRole("link", { name: "COSC 220 Data Structures" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "COSC 220" })).toHaveAttribute(
       "href",
       expect.stringContaining("tab=files"),
     );

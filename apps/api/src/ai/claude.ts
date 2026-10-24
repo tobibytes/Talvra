@@ -7,7 +7,6 @@ import { kindInstruction, SYSTEM_PROMPT } from "./prompts.js";
 /** Talvra's models: Opus for long, high-value work; Haiku for the rest. */
 export const OPUS = "claude-opus-5-5";
 export const HAIKU = "claude-haiku-4-5";
-export const MODEL = OPUS;
 
 /** Which model to call, and how. `ownKey`: the student's key (errors are theirs to fix). */
 export type ClaudeOptions = { model?: string; supportsEffort?: boolean; ownKey?: boolean };

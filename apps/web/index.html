@@ -4,12 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Talvra turns your Canvas courses into notes, flashcards, quizzes and plans. Built for Morgan State students."
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Talvra</title>
     <script src="/theme-init.js"></script>
+    <style>
+      /* Shown until the app starts (React replaces #root's contents). Matches the theme tokens. */
+      html { background: oklch(0.99 0.002 255); }
+      html.dark { background: oklch(0.16 0.012 258); }
+      .boot { min-height: 100vh; display: grid; place-items: center; font: 500 14px system-ui, sans-serif; color: oklch(0.5 0.02 258); }
+      .boot-mark { width: 40px; height: 40px; border-radius: 10px; background: oklch(0.45 0.16 258); margin: 0 auto 12px; animation: boot 1.2s ease-in-out infinite alternate; }
+      html.dark .boot-mark { background: oklch(0.72 0.13 255); }
+      @keyframes boot { from { opacity: 0.45; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { .boot-mark { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status">
+        <div><div class="boot-mark" aria-hidden="true"></div>Loading Talvra…</div>
+      </div>
+    </div>
+    <noscript>Talvra needs JavaScript to run.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

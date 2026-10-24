@@ -20,9 +20,9 @@ describe("courses", () => {
   it("shows modules, files and assignments in tabs", async () => {
     fakeApi({ me: makeMe(), courses: [makeCourse()] });
     const { router } = await renderApp(`/courses/${COURSE_ID}`);
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "COSC 220 Data Structures" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "COSC 220" })).toBeInTheDocument();
+    // The full Canvas name is still shown under the short label.
+    expect(screen.getByText("COSC 220 Data Structures")).toBeInTheDocument();
 
     // Modules (default tab): items link to Canvas; sub-headers are labels.
     const week = await screen.findByRole("region", { name: "Week 1: Arrays" });

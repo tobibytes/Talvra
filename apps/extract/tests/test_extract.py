@@ -100,3 +100,10 @@ def test_requires_secret_when_configured(monkeypatch, pdf_bytes):
         headers={"x-filename": "a.pdf", "authorization": "Bearer s3cret"},
     )
     assert ok.status_code == 200
+
+
+def test_symbol_font_bullets_become_list_items():
+    from talvra_extract.pdf import _clean
+
+    text = "Our goal:  Understand reliable transfer  Explain flow control"
+    assert _clean(text) == "Our goal:\n- Understand reliable transfer\n- Explain flow control"
