@@ -12,7 +12,7 @@ function countsLine(c: SyncCourseProgress) {
     [pages, "page"],
   ] as const;
   const shown = parts.filter(([n]) => n > 0).map(([n, w]) => `${n} ${w}${n === 1 ? "" : "s"}`);
-  return shown.length ? shown.join(" · ") : "Nothing yet";
+  return shown.length ? shown.join(", ") : "Nothing yet";
 }
 
 const stateIcon = {

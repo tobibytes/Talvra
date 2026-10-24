@@ -107,7 +107,7 @@ function Reminders() {
     <>
       <PageHeader
         title="Reminders"
-        description="Email nudges before things are due, and a short daily digest."
+        description="Email nudges and a daily digest."
         actions={
           <Button variant="outline" onClick={() => test.mutate()} disabled={test.isPending}>
             {test.isPending ? <LoaderCircle className="animate-spin" /> : <Send />} Send a test
@@ -122,7 +122,7 @@ function Reminders() {
                 <CardTitle>
                   <h2 id="email-heading">Email reminders</h2>
                 </CardTitle>
-                <CardDescription>Only for work you haven't submitted yet.</CardDescription>
+                <CardDescription>Only for unsubmitted work.</CardDescription>
               </div>
               <Switch
                 aria-labelledby="email-heading"
@@ -158,15 +158,13 @@ function Reminders() {
                   })}
                 </div>
                 {!prefs.offsets.length && !off ? (
-                  <p className="text-sm text-muted-foreground">
-                    No due-date reminders; you'll still get the digest if it's on.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No due-date reminders.</p>
                 ) : null}
               </fieldset>
               <fieldset className="space-y-2" disabled={off}>
                 <legend className="text-sm font-medium">Quiet hours</legend>
                 <p className="text-sm text-muted-foreground">
-                  Reminders wait until morning, unless something is due before then.
+                  Held until morning unless something is due sooner.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <HourSelect
@@ -187,19 +185,16 @@ function Reminders() {
               </fieldset>
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Time zone</p>
-                <p className="text-sm text-muted-foreground">
-                  {prefs.timezone.replace(/_/g, " ")}
+                <p className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
+                  <span>{prefs.timezone.replace(/_/g, " ")}</span>
                   {detected && detected !== prefs.timezone ? (
-                    <>
-                      {" · "}
-                      <button
-                        type="button"
-                        className="font-medium text-primary underline-offset-4 hover:underline"
-                        onClick={() => set({ timezone: detected })}
-                      >
-                        Use {detected.replace(/_/g, " ")} (this device)
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                      onClick={() => set({ timezone: detected })}
+                    >
+                      Use {detected.replace(/_/g, " ")} (this device)
+                    </button>
                   ) : null}
                 </p>
               </div>
@@ -213,8 +208,7 @@ function Reminders() {
                   <h2 id="digest-heading">Daily digest</h2>
                 </CardTitle>
                 <CardDescription>
-                  What's overdue, what's due in the next two days, and cards to review. Skipped on
-                  empty days.
+                  Overdue work, the next two days and cards due. Skipped on quiet days.
                 </CardDescription>
               </div>
               <Switch
@@ -259,9 +253,9 @@ function Reminders() {
                     >
                       {u.assignmentName}
                     </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {dateTime(u.remindAt)} · {relativeTime(u.remindAt)} ·{" "}
-                      {offsetLabel(u.offsetMinutes)}
+                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span title={dateTime(u.remindAt)}>{relativeTime(u.remindAt)}</span>
+                      <span>{offsetLabel(u.offsetMinutes)}</span>
                     </p>
                   </li>
                 ))}
@@ -287,7 +281,7 @@ function Reminders() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {relativeTime(n.sentAt ?? n.scheduledFor)}
-                        {n.error ? ` · ${n.error}` : ""}
+                        {n.error ? <span className="block">{n.error}</span> : null}
                       </p>
                     </div>
                     <Badge

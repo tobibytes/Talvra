@@ -59,8 +59,7 @@ function Onboarding() {
             {step === 0 ? (
               <>
                 <StepHeading ref={headingRef} title={`Welcome, ${me.user.name.split(" ")[0]}`}>
-                  Connect your Canvas account so Talvra can bring in your courses, files and due
-                  dates.
+                  Connect Canvas to bring in your courses.
                 </StepHeading>
                 <ConnectCanvasForm
                   onConnected={(r) => {
@@ -72,8 +71,8 @@ function Onboarding() {
             ) : step === 1 ? (
               <>
                 <StepHeading ref={headingRef} title="Pick your courses">
-                  {canvasName ? `Connected as ${canvasName}. ` : ""}Choose the classes you want help
-                  with this term. You can change this later in Settings.
+                  {canvasName ? `Connected as ${canvasName}. ` : ""}Choose this term's classes. You
+                  can change them later.
                 </StepHeading>
                 <CoursePicker
                   submitLabel="Continue"
@@ -179,10 +178,10 @@ const Finish = React.forwardRef<HTMLHeadingElement, { courseCount: number }>(
           </span>
           <StepHeading ref={ref} title="You're all set">
             {syncing
-              ? `Bringing in ${courseCount === 1 ? "your course" : `your ${courseCount} courses`} from Canvas. You can leave this page; it keeps going.`
+              ? "Syncing from Canvas. It keeps going if you leave."
               : r?.status === "succeeded"
-                ? "Your courses are synced. Your due dates and material are ready."
-                : `Talvra will keep ${courseCount === 1 ? "your course" : `your ${courseCount} courses`} in sync with Canvas.`}
+                ? "Your courses are ready."
+                : `${courseCount === 1 ? "Your course stays" : "Your courses stay"} in sync with Canvas.`}
           </StepHeading>
         </div>
         {finish.isPending ? (

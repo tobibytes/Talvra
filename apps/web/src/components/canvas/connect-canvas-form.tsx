@@ -79,7 +79,7 @@ export function ConnectCanvasForm({
           Under “Approved Integrations”, choose{" "}
           <strong className="text-foreground">+ New Access Token</strong>.
         </li>
-        <li>Name it “Talvra”, leave the expiry blank or pick a date, then copy the token.</li>
+        <li>Name it “Talvra” and copy the token.</li>
       </ol>
 
       <Field data-invalid={errors.token ? true : undefined}>
@@ -95,7 +95,7 @@ export function ConnectCanvasForm({
           aria-describedby="canvas-token-help"
         />
         <FieldDescription id="canvas-token-help">
-          We check it with Canvas, then store it encrypted. Talvra only reads your courses.
+          Stored encrypted. Talvra only reads your courses.
         </FieldDescription>
         <FieldError errors={[{ message: errors.token }]} />
       </Field>

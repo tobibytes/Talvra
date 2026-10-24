@@ -78,7 +78,7 @@ export function UploadButton({
           <DialogHeader>
             <DialogTitle>Upload study material</DialogTitle>
             <DialogDescription>
-              Notes, slides or readings that aren't in Canvas. Only you can see them.
+              Material that isn't in Canvas. Only you can see it.
             </DialogDescription>
           </DialogHeader>
           <label
@@ -108,7 +108,7 @@ export function UploadButton({
               {upload.isPending ? "Uploading…" : "Drop a file here, or click to choose"}
             </span>
             <span className="text-sm text-muted-foreground">
-              PDF, Word, PowerPoint, Markdown, text or HTML · up to 40 MB
+              PDF, Word, PowerPoint, Markdown, text or HTML, up to 40 MB
             </span>
             <input
               ref={inputRef}

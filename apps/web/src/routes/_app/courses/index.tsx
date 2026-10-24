@@ -26,7 +26,6 @@ function Courses() {
     <>
       <PageHeader
         title="Courses"
-        description="Everything synced from Canvas, by course."
         actions={
           <>
             <UploadButton />
@@ -55,7 +54,7 @@ function Courses() {
                   <p className="truncate text-xs text-muted-foreground">
                     {[c.name, c.term && !c.name.includes(c.term) ? c.term : null]
                       .filter(Boolean)
-                      .join(" · ")}
+                      .join(", ")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {c.lastSyncedAt ? (
@@ -63,7 +62,7 @@ function Courses() {
                         Synced {relativeTime(c.lastSyncedAt)}
                       </span>
                     ) : (
-                      "Waiting for the first sync"
+                      "Not synced yet"
                     )}
                   </p>
                 </div>
@@ -79,7 +78,7 @@ function Courses() {
         <EmptyState
           icon={BookOpen}
           title="No courses picked"
-          description="Choose which Canvas courses Talvra should follow, and they'll sync here."
+          description="Choose the Canvas courses to sync."
           action={<Button render={<Link to="/settings" />}>Pick courses</Button>}
         />
       )}

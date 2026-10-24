@@ -56,9 +56,7 @@ export function AiCard() {
         <CardTitle>
           <h2>AI model</h2>
         </CardTitle>
-        <CardDescription>
-          What makes your notes, flashcards, quizzes, breakdowns, answers and videos.
-        </CardDescription>
+        <CardDescription>Powers your study aids and answers.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {ai.isPending ? (
@@ -81,8 +79,7 @@ export function AiCard() {
           <DialogHeader>
             <DialogTitle>Use your own API key</DialogTitle>
             <DialogDescription>
-              Talvra uses your key only for your own requests. It's stored encrypted and never shown
-              again. Your provider bills you for what you use.
+              Stored encrypted and used only for you. Your provider bills you.
             </DialogDescription>
           </DialogHeader>
           <KeyForm
@@ -100,10 +97,7 @@ export function AiCard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Stop using your key?</DialogTitle>
-            <DialogDescription>
-              Talvra forgets your key and goes back to its own AI, with daily limits. You can add a
-              key again any time.
-            </DialogDescription>
+            <DialogDescription>You'll go back to Talvra's AI, with daily limits.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>
@@ -132,8 +126,8 @@ function TalvraAi({ s, onUseOwn }: { s: AiSettings; onUseOwn: () => void }) {
         <div className="space-y-1 text-sm">
           <p className="font-medium">Talvra's AI, free with daily limits</p>
           <p className="text-muted-foreground">
-            {s.defaults.standard} for most things, {s.defaults.advanced} for notes and Ask. After
-            today's limit, a basic model takes over until tomorrow (simpler results).
+            {s.defaults.standard}, and {s.defaults.advanced} for notes and Ask. A basic model takes
+            over after the daily limit.
           </p>
         </div>
       </div>
@@ -298,9 +292,7 @@ function KeyForm({
               </option>
             ))}
           </select>
-          <FieldDescription>
-            We picked a good default. Bigger models give better results and cost you more.
-          </FieldDescription>
+          <FieldDescription>Bigger models do better and cost more.</FieldDescription>
         </Field>
       ) : null}
 

@@ -125,7 +125,7 @@ describe("onboarding", () => {
 
     await screen.findByRole("heading", { name: "You're all set" });
     // Finishing setup starts the first sync; its progress shows here live.
-    expect(await screen.findByText(/Bringing in your course from Canvas/)).toBeInTheDocument();
+    expect(await screen.findByText(/Syncing from Canvas/)).toBeInTheDocument();
     expect(screen.getByText("COSC 220 Data Structures")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Sync progress" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Go to Today" }));

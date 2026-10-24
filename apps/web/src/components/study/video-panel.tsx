@@ -37,7 +37,7 @@ export function VideoPanel({ documentId }: { documentId: string }) {
       <EmptyState
         icon={NotebookPen}
         title="Make notes first"
-        description="Videos are narrated from your study notes, so they say what your notes say."
+        description="Videos are narrated from your notes."
         action={
           <Button
             render={
@@ -83,9 +83,9 @@ export function VideoPanel({ documentId }: { documentId: string }) {
           />
         </video>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>
-            Narrated from your notes · {video.durationSeconds ? clock(video.durationSeconds) : ""} ·
-            made {relativeTime(video.updatedAt)}
+          <span className="flex flex-wrap gap-x-3">
+            {video.durationSeconds ? <span>{clock(video.durationSeconds)}</span> : null}
+            <span>Made {relativeTime(video.updatedAt)}</span>
           </span>
           <Button variant="ghost" size="sm" onClick={() => make.mutate()}>
             <RefreshCw /> Make a new one

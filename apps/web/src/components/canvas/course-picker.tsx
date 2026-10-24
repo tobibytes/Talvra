@@ -52,7 +52,7 @@ export function CoursePicker({
       <EmptyState
         icon={BookOpen}
         title="No active courses"
-        description="Canvas didn't return any active courses for this account. If that's wrong, check your token in Canvas."
+        description="Canvas has none for this account. If that's wrong, check your token."
       />
     );
   }
@@ -99,7 +99,7 @@ export function CoursePicker({
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">{c.name}</span>
                 <span className="block text-sm text-muted-foreground">
-                  {[c.courseCode, c.term].filter(Boolean).join(" · ")}
+                  {[c.courseCode, c.term].filter(Boolean).join(", ")}
                 </span>
               </span>
             </label>

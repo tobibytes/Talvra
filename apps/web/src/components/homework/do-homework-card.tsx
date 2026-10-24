@@ -116,10 +116,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
         <CardTitle>
           <h2>Do my homework</h2>
         </CardTitle>
-        <CardDescription>
-          Create the files, ask for changes, and verify the work. Submit the finished version to
-          Canvas when you're ready.
-        </CardDescription>
+        <CardDescription>Make the files, refine them, then submit to Canvas.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {draft.isPending ? (
@@ -195,8 +192,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                   ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">
-                  Checked {relativeTime(d.verification.checkedAt)}. This report applies to the
-                  current files.
+                  Checked {relativeTime(d.verification.checkedAt)}, for these files.
                 </p>
               </section>
             ) : null}
@@ -214,9 +210,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                   …
                 </p>
                 {d?.status === "working" ? (
-                  <p className="text-xs text-muted-foreground">
-                    You can leave this page; it keeps going.
-                  </p>
+                  <p className="text-xs text-muted-foreground">It keeps going if you leave.</p>
                 ) : null}
               </div>
             ) : null}
@@ -244,11 +238,9 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                       : "e.g. Use Python, keep the report short"
                   }
                 />
-                <FieldDescription>
-                  {hasFiles
-                    ? "Follow-ups use your current files and conversation. Changes replace the draft when finished."
-                    : "Optional. The AI follows these over its defaults."}
-                </FieldDescription>
+                {hasFiles ? (
+                  <FieldDescription>Changes replace the draft when done.</FieldDescription>
+                ) : null}
               </Field>
               <Button
                 type="submit"
@@ -281,8 +273,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                   </Button>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    This assignment isn't submitted online. Download the files and hand them in the
-                    way your instructor asks.
+                    Not submitted online. Download the files instead.
                   </p>
                 )}
               </div>
@@ -325,9 +316,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename file</DialogTitle>
-            <DialogDescription>
-              Keep the file extension. This changes its download and submission name.
-            </DialogDescription>
+            <DialogDescription>Keep the extension.</DialogDescription>
           </DialogHeader>
           <form
             className="space-y-4"
@@ -418,7 +407,9 @@ function DraftView({
       </ul>
       <p className="text-xs text-muted-foreground">
         Updated {relativeTime(draft.updatedAt)}
-        {draft.instructions ? ` · with your note: “${draft.instructions}”` : ""}
+        {draft.instructions ? (
+          <span className="block">Your note: “{draft.instructions}”</span>
+        ) : null}
       </p>
     </div>
   );
