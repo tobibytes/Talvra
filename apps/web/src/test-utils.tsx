@@ -630,6 +630,7 @@ export function fakeApi(state: {
           state.draft = {
             id: "55555555-5555-4555-8555-555555555555",
             status: "ready",
+            progress: null,
             files: [{ name: "lab2.py", contentType: "text/x-python", size: 2048 }],
             notes: "Put your name at the top.",
             instructions: body?.instructions ?? null,

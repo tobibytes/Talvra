@@ -129,12 +129,17 @@ export const canvasConnections = pgTable(
     tokenCiphertext: bytea("token_ciphertext").notNull(),
     tokenIv: bytea("token_iv").notNull(),
     tokenLast4: text("token_last4").notNull(),
+    /** Canvas's id for the person the token belongs to: one Talvra account per Canvas user. */
+    canvasUserId: text("canvas_user_id"),
     status: canvasConnectionStatus("status").notNull().default("active"),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("canvas_connections_user_idx").on(t.userId)],
+  (t) => [
+    uniqueIndex("canvas_connections_user_idx").on(t.userId),
+    uniqueIndex("canvas_connections_canvas_user_idx").on(t.baseUrl, t.canvasUserId),
+  ],
 );
 
 /** A student's own AI provider key (bring your own key). Encrypted like Canvas tokens. */
@@ -595,7 +600,7 @@ export const assignmentBriefs = pgTable(
  * "Do my homework" (owner-only, behind DO_HOMEWORK_EMAILS): the latest AI-written files for an
  * assignment, kept in R2, and whether they were submitted to Canvas.
  */
-export const draftStatus = pgEnum("draft_status", ["ready", "failed", "submitted"]);
+export const draftStatus = pgEnum("draft_status", ["working", "ready", "failed", "submitted"]);
 
 export const homeworkDrafts = pgTable(
   "homework_drafts",
@@ -612,6 +617,8 @@ export const homeworkDrafts = pgTable(
     notes: text("notes"),
     /** The student's instructions for this version, if any. */
     instructions: text("instructions"),
+    /** While working: what the agent is doing now ("Running the notebook"). */
+    progress: text("progress"),
     error: text("error"),
     model: text("model"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),

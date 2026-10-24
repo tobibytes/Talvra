@@ -94,11 +94,22 @@ Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take 
 - **Study aids** (queue): notes, flashcards (FSRS review), quizzes, with page citations.
 - **Homework breakdown**: reads the assignment and the text of files it links (up to 6, read on
   the spot if unprocessed), never guesses at datasets or media it can't read.
-- **Do my homework** (owner-only, `DO_HOMEWORK_EMAILS`): one Opus call (or the owner's key) with
-  the assignment, its attachments' text, related course passages and optional instructions →
-  text files (code, notebooks, Markdown) in R2 under `u/<user>/hw/` → preview/download → a separate
-  "Submit to Canvas" (Canvas 3-step upload to an allowlisted storage host without the token, then
-  one submission; never retried, never twice). Code isn't executed yet (see ROADMAP).
+- **Do my homework** (owner-only, `DO_HOMEWORK_EMAILS`), an agent on the AI queue:
+  - Gathers the assignment, its attachments' text, related course passages and the student's
+    instructions; copies the assignment's files (PDFs from R2, datasets downloaded from Canvas)
+    into **Anthropic's code-execution sandbox** (a fresh, isolated container per run; no
+    internet; Python data stack, Node, sqlite3, pandoc, LibreOffice; no Java/C/R).
+  - Claude Opus (or the student's own Anthropic key) works in turns with code execution, web
+    search (≤ 8) and web fetch (≤ 10), builds executed notebooks with `nbbuild.py` (uploaded
+    each run; `scripts/gen-nbbuild.mjs` keeps `nbbuild-source.ts` in sync), and calls
+    `hand_in` with the files in `$OUTPUT_DIR`. ≤ 30 turns, 12-minute deadline; progress is
+    written to the draft row and the page polls it. Uploaded and output files are deleted from
+    Anthropic afterwards. Never retried (it spends tokens).
+  - Files go to R2 under `u/<user>/hw/` → preview (text, rendered notebooks) / download → a
+    separate "Submit to Canvas" (3-step upload to an allowlisted storage host without the token,
+    then one submission; never twice).
+- **Canvas accounts**: one Talvra account per Canvas user per school (`canvas_user_id`, unique
+  with `base_url`; filled in on connect and on "Check connection").
 - **Video** (queue): a 3-5 minute script (≤ 750 words, one source page per slide) → narration
   (Workers AI Aura, or Azure Speech when configured) → media container renders slides with the
   real PDF page beside them → MP4 + WebVTT captions in R2, streamed with Range requests.

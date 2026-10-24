@@ -85,6 +85,20 @@
       "when": 1792847353893,
       "tag": "0011_homework_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792848799870,
+      "tag": "0012_homework_agent",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792849060100,
+      "tag": "0013_canvas_user",
+      "breakpoints": true
     }
   ]
 }

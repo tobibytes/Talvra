@@ -2,6 +2,7 @@ import type { Database } from "@talvra/db";
 import type { AidMessage } from "./ai/generate.js";
 import type { VideoMessage } from "./ai/video.js";
 import type { ExtractContainer } from "./extract-container.js";
+import type { HomeworkMessage } from "./homework/draft.js";
 import type { IngestMessage } from "./ingest/process.js";
 import type { MediaContainer } from "./media-container.js";
 import type { UserHub } from "./realtime/user-hub.js";
@@ -27,7 +28,7 @@ export type Bindings = {
   /** Documents to download and extract. */
   INGEST_QUEUE?: Queue<IngestMessage>;
   /** Study-aid generation and video jobs. */
-  AI_QUEUE?: Queue<AidMessage | VideoMessage>;
+  AI_QUEUE?: Queue<AidMessage | VideoMessage | HomeworkMessage>;
   /** Workers AI (embeddings for semantic search). */
   AI?: Ai;
   /** Vectorize index of chunk embeddings (metadata: userId, courseId, documentId). */

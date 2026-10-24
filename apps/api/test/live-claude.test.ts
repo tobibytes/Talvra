@@ -74,3 +74,50 @@ describe.skipIf(!live)("live Claude", () => {
     expect(slides.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe.skipIf(!live)("live homework agent", () => {
+  it("does a small data assignment in the sandbox and hands in an executed notebook", {
+    timeout: 900_000,
+  }, async () => {
+    const { anthropicAgentApi, runHomeworkAgent } = await import(
+      "../src/ai/claude-homework-agent.js"
+    );
+    const { DO_HOMEWORK_SYSTEM } = await import("../src/ai/homework-prompts.js");
+    const rows = ["size,bedrooms,price"];
+    for (let i = 0; i < 60; i++) {
+      const size = 800 + i * 35;
+      rows.push(`${size},${1 + (i % 4)},${Math.round(50_000 + size * 140 + (i % 7) * 4_000)}`);
+    }
+    const steps: string[] = [];
+    const out = await runHomeworkAgent(anthropicAgentApi(process.env.ANTHROPIC_API_KEY ?? ""), {
+      system: DO_HOMEWORK_SYSTEM,
+      prompt:
+        '<assignment course="TEST 101" due="not set" points="10" submit_as="online_upload">\n<title>Mini HW</title>\n<description>\nUsing houses.csv: (1) report summary statistics of price; (2) plot price against size; (3) fit a linear regression of price on size and bedrooms and interpret the size coefficient. Submit a Jupyter notebook. Also say, in the notes, which of gcc, javac and node are available in your environment (check with a command).\n</description>\n</assignment>',
+      inputs: [
+        {
+          name: "houses.csv",
+          data: new TextEncoder().encode(rows.join("\n")),
+          contentType: "text/csv",
+        },
+      ],
+      onProgress: (t) => {
+        steps.push(t);
+      },
+    });
+    console.log("agent usage", JSON.stringify(out.usage), "model", out.model);
+    console.log("steps", [...new Set(steps)].join(" | "));
+    console.log("notes", out.notes.slice(0, 600));
+    const nb = out.files.find((f) => f.name.endsWith(".ipynb"));
+    expect(nb).toBeTruthy();
+    const json = JSON.parse(new TextDecoder().decode(nb?.data)) as {
+      cells: {
+        cell_type: string;
+        outputs?: { output_type: string; data?: Record<string, unknown> }[];
+      }[];
+    };
+    const outputs = json.cells.flatMap((c) => c.outputs ?? []);
+    console.log("cells", json.cells.length, "outputs", outputs.map((o) => o.output_type).join(","));
+    expect(outputs.some((o) => o.data && "image/png" in o.data)).toBe(true);
+    expect(outputs.some((o) => o.output_type === "error")).toBe(false);
+  });
+});

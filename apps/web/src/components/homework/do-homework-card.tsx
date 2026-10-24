@@ -38,7 +38,12 @@ const ONLINE = ["online_upload", "online_text_entry"];
 export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail }) {
   const queryClient = useQueryClient();
   const key = ["homework", assignment.id, "draft"];
-  const draft = useQuery({ queryKey: key, queryFn: () => api.draft(assignment.id) });
+  const draft = useQuery({
+    queryKey: key,
+    queryFn: () => api.draft(assignment.id),
+    // While the agent works (in the background), check in every few seconds.
+    refetchInterval: (q) => (q.state.data?.draft?.status === "working" ? 4000 : false),
+  });
   const [instructions, setInstructions] = React.useState("");
   const [confirm, setConfirm] = React.useState(false);
   const instructionsId = React.useId();
@@ -64,6 +69,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
   });
 
   const d = draft.data?.draft;
+  const working = d?.status === "working";
   const canSubmit = assignment.submissionTypes.some((t) => ONLINE.includes(t));
 
   return (
@@ -73,8 +79,8 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
           <h2>Do my homework</h2>
         </CardTitle>
         <CardDescription>
-          Writes the files to hand in from the assignment, its attached files and your course
-          material. Read them before you submit.
+          An AI works through the assignment like you would: it reads the files, runs the code,
+          checks the results and looks things up on the web. Read its work before you submit.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -82,16 +88,31 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
           <ListSkeleton rows={2} />
         ) : draft.isError ? (
           <ErrorState error={draft.error} onRetry={() => draft.refetch()} />
-        ) : write.isPending ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Writing your files. This
-            can take a minute or two.
-          </p>
+        ) : write.isPending || working ? (
+          <div className="space-y-1" role="status" aria-live="polite">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+              {d?.progress ?? "Starting"}…
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This usually takes a few minutes. You can leave this page; it keeps going.
+            </p>
+          </div>
         ) : d ? (
-          <DraftView assignmentId={assignment.id} draft={d} htmlUrl={assignment.htmlUrl} />
+          <>
+            {d.status === "failed" ? (
+              <Alert variant="destructive">
+                <AlertTitle>That run didn't finish</AlertTitle>
+                <AlertDescription>{d.error ?? "Something went wrong. Try again."}</AlertDescription>
+              </Alert>
+            ) : null}
+            {d.files.length ? (
+              <DraftView assignmentId={assignment.id} draft={d} htmlUrl={assignment.htmlUrl} />
+            ) : null}
+          </>
         ) : null}
 
-        {!write.isPending && !draft.isPending && !draft.isError ? (
+        {!write.isPending && !working && !draft.isPending && !draft.isError ? (
           <form
             className="space-y-3"
             onSubmit={(e) => {
@@ -101,7 +122,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
           >
             <Field>
               <FieldLabel htmlFor={instructionsId}>
-                {d ? "What should change?" : "Anything to know first? (optional)"}
+                {d?.files.length ? "What should change?" : "Anything to know first? (optional)"}
               </FieldLabel>
               <Textarea
                 id={instructionsId}
@@ -110,15 +131,17 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                 maxLength={2000}
                 rows={2}
                 placeholder={
-                  d ? "e.g. Use seaborn for the plots" : "e.g. Use Python, keep the report short"
+                  d?.files.length
+                    ? "e.g. Use seaborn for the plots"
+                    : "e.g. Use Python, keep the report short"
                 }
               />
               <FieldDescription>Optional. The AI follows these over its defaults.</FieldDescription>
             </Field>
             <div className="flex flex-wrap gap-2">
               <Button type="submit" variant={d ? "outline" : "default"}>
-                {d ? <RefreshCw /> : <Sparkles />}
-                {d ? "Write again" : "Write it"}
+                {d?.files.length ? <RefreshCw /> : <Sparkles />}
+                {d?.files.length ? "Do it again" : "Do my homework"}
               </Button>
               {d && d.status === "ready" && canSubmit ? (
                 <Button type="button" onClick={() => setConfirm(true)}>
@@ -126,7 +149,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                 </Button>
               ) : null}
             </div>
-            {d && !canSubmit ? (
+            {d?.files.length && !canSubmit ? (
               <p className="text-xs text-muted-foreground">
                 This assignment isn't submitted online. Download the files and hand them in the way
                 your instructor asks.
@@ -218,9 +241,83 @@ function DraftView({
   );
 }
 
+/** How a file can be previewed in the page. */
+function previewKind(f: DraftFile): "text" | "notebook" | null {
+  if (f.name.toLowerCase().endsWith(".ipynb")) return "notebook";
+  if (/^(text\/|application\/json)/.test(f.contentType)) return "text";
+  return null;
+}
+
+type NotebookCell = {
+  cell_type: string;
+  source: string | string[];
+  outputs?: {
+    output_type: string;
+    text?: string | string[];
+    data?: Record<string, string | string[]>;
+    ename?: string;
+    evalue?: string;
+  }[];
+};
+
+const joined = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join("") : (v ?? ""));
+
+/** A read-only notebook view: markdown and code cells with their text, tables and plots. */
+function NotebookPreview({ json }: { json: string }) {
+  let cells: NotebookCell[] = [];
+  try {
+    cells = (JSON.parse(json) as { cells?: NotebookCell[] }).cells ?? [];
+  } catch {
+    return <p className="text-xs text-destructive">This notebook couldn't be read.</p>;
+  }
+  return (
+    <div className="mt-2 max-h-[32rem] space-y-3 overflow-auto rounded-md border p-3">
+      {cells.map((c, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: cells have no stable id here
+        <div key={i} className="space-y-1">
+          {c.cell_type === "markdown" ? (
+            <pre className="whitespace-pre-wrap font-sans text-sm">{joined(c.source)}</pre>
+          ) : (
+            <>
+              <pre className="overflow-auto rounded bg-muted p-2 text-xs leading-5">
+                {joined(c.source)}
+              </pre>
+              {(c.outputs ?? []).map((o, j) => {
+                const png = o.data?.["image/png"];
+                const text = o.text ?? o.data?.["text/plain"];
+                return (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: outputs have no id
+                  <div key={j} className="text-xs">
+                    {png ? (
+                      <img
+                        src={`data:image/png;base64,${joined(png).replace(/\s/g, "")}`}
+                        alt={`Output of cell ${i + 1}`}
+                        className="max-w-full rounded border bg-white"
+                      />
+                    ) : o.output_type === "error" ? (
+                      <pre className="whitespace-pre-wrap text-destructive">
+                        {o.ename}: {o.evalue}
+                      </pre>
+                    ) : text ? (
+                      <pre className="overflow-auto whitespace-pre text-muted-foreground">
+                        {joined(text)}
+                      </pre>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FileRow({ assignmentId, file }: { assignmentId: string; file: DraftFile }) {
   const [open, setOpen] = React.useState(false);
   const url = api.draftFileUrl(assignmentId, file.name);
+  const kind = previewKind(file);
   const text = useQuery({
     queryKey: ["homework", assignmentId, "draft-file", file.name, file.size],
     queryFn: async () => {
@@ -228,7 +325,7 @@ function FileRow({ assignmentId, file }: { assignmentId: string; file: DraftFile
       if (!res.ok) throw new Error("Couldn't load this file.");
       return res.text();
     },
-    enabled: open,
+    enabled: open && kind !== null,
   });
   return (
     <li className="p-3">
@@ -238,16 +335,18 @@ function FileRow({ assignmentId, file }: { assignmentId: string; file: DraftFile
           <p className="truncate text-sm font-medium">{file.name}</p>
           <p className="text-xs text-muted-foreground">{fileSize(file.size)}</p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-label={`${open ? "Hide" : "Preview"} ${file.name}`}
-          onClick={() => setOpen((o) => !o)}
-        >
-          {open ? <EyeOff /> : <Eye />}
-          <span className="hidden sm:inline">{open ? "Hide" : "Preview"}</span>
-        </Button>
+        {kind ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-label={`${open ? "Hide" : "Preview"} ${file.name}`}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {open ? <EyeOff /> : <Eye />}
+            <span className="hidden sm:inline">{open ? "Hide" : "Preview"}</span>
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"
@@ -262,6 +361,8 @@ function FileRow({ assignmentId, file }: { assignmentId: string; file: DraftFile
           <p className="mt-2 text-xs text-muted-foreground">Loading…</p>
         ) : text.isError ? (
           <p className="mt-2 text-xs text-destructive">{text.error.message}</p>
+        ) : kind === "notebook" ? (
+          <NotebookPreview json={text.data} />
         ) : (
           <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs leading-5">
             {text.data}

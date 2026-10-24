@@ -17,6 +17,8 @@ import {
 import { createApp } from "./app.js";
 import type { Bindings } from "./env.js";
 import { frontDoor } from "./front.js";
+import { draftJobDepsFor } from "./homework/agent-deps.js";
+import { type HomeworkMessage, runDraftJob } from "./homework/draft.js";
 import { ingestDepsFor } from "./ingest/deps.js";
 import {
   enqueueAll,
@@ -96,7 +98,7 @@ export default {
   /** Two queues: ingest (download → extract) and ai (study aids with Claude). */
   async queue(batch, env) {
     if (batch.queue.startsWith("talvra-ai")) {
-      await consumeAi(batch as MessageBatch<AidMessage | VideoMessage>, env);
+      await consumeAi(batch as MessageBatch<AidMessage | VideoMessage | HomeworkMessage>, env);
       return;
     }
     const deps = ingestDepsFor(env);
@@ -117,10 +119,23 @@ export default {
       }
     }
   },
-} satisfies ExportedHandler<Bindings, IngestMessage | AidMessage | VideoMessage>;
+} satisfies ExportedHandler<Bindings, IngestMessage | AidMessage | VideoMessage | HomeworkMessage>;
 
-/** The AI queue carries study aids and videos. */
-async function consumeAi(batch: MessageBatch<AidMessage | VideoMessage>, env: Bindings) {
+/** The AI queue carries study aids, videos and "Do my homework" jobs. */
+async function consumeAi(
+  batch: MessageBatch<AidMessage | VideoMessage | HomeworkMessage>,
+  env: Bindings,
+) {
+  for (const msg of batch.messages) {
+    if (!("type" in msg.body) || msg.body.type !== "homework") continue;
+    // runDraftJob records its own failures on the draft; never retried (it may have spent tokens).
+    try {
+      await runDraftJob(await draftJobDepsFor(env, msg.body.userId), msg.body);
+    } catch (err) {
+      console.error(JSON.stringify({ msg: "homework job crashed", error: String(err) }));
+    }
+    msg.ack();
+  }
   const aids = batch.messages.filter((m): m is Message<AidMessage> => !("type" in m.body));
   const vids = batch.messages.filter(
     (m): m is Message<VideoMessage> => "type" in m.body && m.body.type === "video",

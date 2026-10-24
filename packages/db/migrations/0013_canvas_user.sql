@@ -1,0 +1,2 @@
+ALTER TABLE "canvas_connections" ADD COLUMN "canvas_user_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "canvas_connections_canvas_user_idx" ON "canvas_connections" USING btree ("base_url","canvas_user_id");

@@ -68,6 +68,28 @@ describe("canvas connection", () => {
     expect(JSON.stringify(await (await h.request("/api/v1/me")).json())).not.toContain(TOKEN);
   });
 
+  it("connects one Canvas user to one Talvra account only", async () => {
+    const canvasFetch = fakeCanvas();
+    const h = await harness({ canvasFetch });
+    const connect = () =>
+      h.request("/api/v1/canvas/connection", { method: "PUT", json: { token: TOKEN } });
+    await signedInUser(h, "first@morgan.edu");
+    expect((await connect()).status).toBe(200);
+    // Reconnecting the same account (e.g. a new token) is fine.
+    expect((await connect()).status).toBe(200);
+    const [first] = await h.db.select().from(schema.canvasConnections);
+    expect(first?.canvasUserId).toBeTruthy();
+
+    h.clearCookies();
+    await signedInUser(h, "second@morgan.edu");
+    const res = await connect();
+    expect(res.status).toBe(409);
+    const msg = ApiError.parse(await res.json()).error.message;
+    expect(msg).toMatch(/already connected to another Talvra account/);
+    expect(msg).not.toContain("first@morgan.edu");
+    expect(await h.db.select().from(schema.canvasConnections)).toHaveLength(1);
+  });
+
   it("rejects a token Canvas doesn't accept, and stores nothing", async () => {
     const h = await harness({ canvasFetch: fakeCanvas() });
     await signedInUser(h);
