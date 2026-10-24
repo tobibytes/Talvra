@@ -13,8 +13,10 @@ import {
   MakeDraft,
   Plan,
   PlanSuggestion,
+  RenameDraftFile,
   SavePlan,
   SearchResult,
+  SubmitDraft,
   Today,
 } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
@@ -35,6 +37,7 @@ import {
   draftFile,
   type HomeworkMessage,
   loadDraft,
+  renameDraftFile,
   startDraft,
   submitDraft,
   toDraft,
@@ -50,7 +53,6 @@ import { ingestDepsFor } from "../ingest/deps.js";
 import { type FileStore, type IngestMessage, processDocument } from "../ingest/process.js";
 import type { Fetch } from "../lib/canvas.js";
 import { AppError } from "../lib/errors.js";
-import { doHomeworkEnabled } from "../lib/features.js";
 import { contentDisposition, sha256Hex } from "../lib/files.js";
 import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
@@ -237,7 +239,7 @@ const todayRoute = createRoute({
   responses: { 200: { description: "Today", content: json(Today) }, ...notFound },
 });
 
-// --- "Do my homework" (owner-only: DO_HOMEWORK_EMAILS) -----------------------------
+// --- "Do my homework" (all signed-in accounts) -----------------------------
 
 const draftErrors = {
   ...notFound,
@@ -248,7 +250,7 @@ const getDraft = createRoute({
   method: "get",
   path: "/homework/{assignmentId}/draft",
   tags: ["homework"],
-  summary: "The latest AI-written files for this assignment (owner-only feature)",
+  summary: "The latest AI-written files for this assignment",
   middleware: [requireUser] as const,
   request: { params: AssignmentParams },
   responses: { 200: { description: "Draft", content: json(DraftResponse) }, ...draftErrors },
@@ -258,7 +260,7 @@ const makeDraftRoute = createRoute({
   method: "post",
   path: "/homework/{assignmentId}/draft",
   tags: ["homework"],
-  summary: "Write the files to hand in (owner-only feature)",
+  summary: "Write the files to hand in",
   middleware: [requireUser] as const,
   request: { params: AssignmentParams, body: { content: json(MakeDraft), required: false } },
   responses: { 200: { description: "Draft", content: json(DraftResponse) }, ...draftErrors },
@@ -268,25 +270,21 @@ const submitDraftRoute = createRoute({
   method: "post",
   path: "/homework/{assignmentId}/draft/submit",
   tags: ["homework"],
-  summary: "Submit the files to the assignment in Canvas, as the student (owner-only feature)",
+  summary: "Submit the files to the assignment in Canvas, as the student",
   middleware: [requireUser] as const,
-  request: { params: AssignmentParams },
+  request: { params: AssignmentParams, body: { content: json(SubmitDraft), required: false } },
   responses: { 200: { description: "Submitted", content: json(DraftResponse) }, ...draftErrors },
 });
 
-/** The gate: only accounts listed in DO_HOMEWORK_EMAILS. Others get a plain 404. */
-async function requireDoHomework(c: {
-  env: Bindings;
-  var: { db: Database };
-  get: (k: "userId") => string | undefined;
-}) {
-  const [u] = await c.var.db
-    .select({ email: schema.users.email })
-    .from(schema.users)
-    .where(eq(schema.users.id, c.get("userId") as string))
-    .limit(1);
-  if (!u || !doHomeworkEnabled(c.env, u.email)) throw new AppError("not_found", "Not found.");
-}
+const renameDraftRoute = createRoute({
+  method: "patch",
+  path: "/homework/{assignmentId}/draft/files",
+  tags: ["homework"],
+  summary: "Rename a draft file before submitting",
+  middleware: [requireUser] as const,
+  request: { params: AssignmentParams, body: { content: json(RenameDraftFile), required: true } },
+  responses: { 200: { description: "Renamed", content: json(DraftResponse) }, ...draftErrors },
+});
 
 export function homeworkRoutes(opts: HomeworkOptions = {}) {
   return (
@@ -506,7 +504,6 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         }
       })
       .openapi(getDraft, async (c) => {
-        await requireDoHomework(c);
         const userId = c.get("userId") as string;
         const { assignmentId } = c.req.valid("param");
         await ownedAssignment(c.var.db, userId, assignmentId);
@@ -514,11 +511,11 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         return c.json({ draft: row ? toDraft(row) : null }, 200);
       })
       .openapi(makeDraftRoute, async (c) => {
-        await requireDoHomework(c);
         const userId = c.get("userId") as string;
         const { assignmentId } = c.req.valid("param");
         await ownedAssignment(c.var.db, userId, assignmentId);
         const instructions = c.req.valid("json")?.instructions || undefined;
+        const operation = c.req.valid("json")?.operation ?? "generate";
         // Daily cap on Talvra's key; a student's own Anthropic key has none.
         if (!(await hasOwnKey(c.var.db, userId))) {
           await meter(c.var.db, userId, LIMITS.homework.kind, {
@@ -532,20 +529,32 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
             if (!c.env.AI_QUEUE) throw new AppError("internal", "This isn't available right now.");
             await c.env.AI_QUEUE.send(m);
           });
-        await startDraft(c.var.db, { userId, assignmentId, instructions }, enqueue);
+        await startDraft(c.var.db, { userId, assignmentId, instructions, operation }, enqueue);
         // Re-read: a test runs the job inline, so it may be finished already.
         const row = await loadDraft(c.var.db, userId, assignmentId);
         return c.json({ draft: row ? toDraft(row) : null }, 200);
       })
       .openapi(submitDraftRoute, async (c) => {
-        await requireDoHomework(c);
         const userId = c.get("userId") as string;
         const { assignmentId } = c.req.valid("param");
         await ownedAssignment(c.var.db, userId, assignmentId);
         const files = opts.files ?? c.env.FILES;
         if (!files) throw new AppError("internal", "File storage isn't available.");
         const { client } = await canvasClientFor(c, opts.canvasFetch ?? fetch);
-        const row = await submitDraft({ db: c.var.db, files, client }, userId, assignmentId);
+        const row = await submitDraft(
+          { db: c.var.db, files, client },
+          userId,
+          assignmentId,
+          c.req.valid("json")?.updatedAt,
+        );
+        return c.json({ draft: toDraft(row) }, 200);
+      })
+      .openapi(renameDraftRoute, async (c) => {
+        const userId = c.get("userId") as string;
+        const { assignmentId } = c.req.valid("param");
+        await ownedAssignment(c.var.db, userId, assignmentId);
+        const { name, newName } = c.req.valid("json");
+        const row = await renameDraftFile(c.var.db, userId, assignmentId, name, newName);
         return c.json({ draft: toDraft(row) }, 200);
       })
       .openapi(todayRoute, async (c) => {
@@ -559,7 +568,6 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
       })
       // A file download, not JSON (so not in OpenAPI; last because .get() leaves the typed chain).
       .get("/homework/:assignmentId/draft/files/:name", requireUser, async (c) => {
-        await requireDoHomework(c);
         const userId = c.get("userId") as string;
         const files = opts.files ?? c.env.FILES;
         if (!files) throw new AppError("internal", "File storage isn't available.");

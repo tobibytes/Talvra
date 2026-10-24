@@ -1,10 +1,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { ApiError, DraftResponse, Me } from "@talvra/contracts";
-import { schema } from "@talvra/db";
+import { eq, schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentApi } from "../src/ai/claude-homework-agent.js";
-import { cleanFileName, runDraftJob } from "../src/homework/draft.js";
+import { cleanFileName, runDraftJob, startDraft } from "../src/homework/draft.js";
 import { CanvasClient } from "../src/lib/canvas.js";
 import { encryptSecret } from "../src/lib/crypto.js";
 import { fileKeys } from "../src/lib/files.js";
@@ -95,7 +95,7 @@ function fakeAgent() {
       return next;
     },
   };
-  return { api, uploads, removed, turns };
+  return { api, uploads, removed, turns, msg };
 }
 
 /** A fake Canvas that accepts a 3-step file upload and a submission, and records calls. */
@@ -125,7 +125,7 @@ function fakeCanvasSubmissions() {
   return { fetch, calls };
 }
 
-async function setup(enabled = true) {
+async function setup() {
   const db = await createTestDb();
   const r2 = fakeR2();
   const canvas = fakeCanvasSubmissions();
@@ -150,7 +150,6 @@ async function setup(enabled = true) {
         );
       },
     },
-    env: { DO_HOMEWORK_EMAILS: enabled ? ` ${OWNER.toUpperCase()} , someone@morgan.edu` : "" },
   });
   await signedInUser(h, OWNER);
   const [user] = await db.select().from(schema.users);
@@ -211,18 +210,245 @@ async function setup(enabled = true) {
 }
 
 describe("do my homework", () => {
-  it("is invisible to accounts that aren't switched on", async () => {
-    const { h, assignmentId } = await setup(false);
-    const me = Me.parse(await (await h.request("/api/v1/me")).json());
-    expect(me.features.doHomework).toBe(false);
-    expect((await h.request(`/api/v1/homework/${assignmentId}/draft`)).status).toBe(404);
+  it("saves revised files, clears verification, and preserves files when a later revision fails", async () => {
+    const { h, db, agent, assignmentId } = await setup();
+    const path = `/api/v1/homework/${assignmentId}/draft`;
+    await h.request(path, { method: "POST", json: {} });
+    const [row] = await db.select().from(schema.homeworkDrafts);
+    if (!row) throw new Error("missing draft");
+    await db
+      .update(schema.homeworkDrafts)
+      .set({
+        verification: {
+          summary: "Missing explanation",
+          checkedAt: new Date().toISOString(),
+          checks: [{ name: "Explanation", status: "issue", detail: "Explain the result" }],
+        },
+      })
+      .where(eq(schema.homeworkDrafts.id, row.id));
+    const turn = vi.spyOn(agent.api, "turn").mockImplementation(async (params) => {
+      expect(JSON.stringify(params.messages)).toContain("Explain the result");
+      return agent.msg("tool_use", [
+        {
+          type: "bash_code_execution_tool_result",
+          tool_use_id: "exec",
+          content: {
+            type: "bash_code_execution_result",
+            content: [{ type: "bash_code_execution_output", file_id: "revised" }],
+          },
+        },
+        {
+          type: "tool_use",
+          id: "hand",
+          name: "hand_in",
+          input: { files: ["final.md"], notes: "Added an explanation." },
+        },
+      ]);
+    });
+    vi.spyOn(agent.api, "filename").mockResolvedValue("final.md");
+    vi.spyOn(agent.api, "download").mockResolvedValue(
+      new TextEncoder().encode("The result is explained here."),
+    );
+    const res = await h.request(path, {
+      method: "POST",
+      json: { operation: "revise", instructions: "Fix the verification issues." },
+    });
+    const draft = DraftResponse.parse(await res.json()).draft;
+    expect(draft?.verification).toBeNull();
+    expect(draft?.files.map((f) => f.name)).toEqual(["final.md"]);
+    expect(await (await h.request(`${path}/files/final.md`)).text()).toContain("explained here");
+    turn.mockRejectedValue(new Error("model unavailable"));
+    const failed = DraftResponse.parse(
+      await (
+        await h.request(path, {
+          method: "POST",
+          json: { operation: "revise", instructions: "Add more" },
+        })
+      ).json(),
+    ).draft;
+    expect(failed?.status).toBe("ready");
+    expect(failed?.error).toBeTruthy();
+    expect(failed?.files).toEqual(draft?.files);
+  });
+
+  it("allows only one concurrent Canvas submission", async () => {
+    const { h, canvas, assignmentId } = await setup();
+    const path = `/api/v1/homework/${assignmentId}/draft`;
+    await h.request(path, { method: "POST", json: {} });
+    const responses = await Promise.all([
+      h.request(`${path}/submit`, { method: "POST" }),
+      h.request(`${path}/submit`, { method: "POST" }),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(canvas.calls.filter((c) => c.url.endsWith("/submissions"))).toHaveLength(1);
+  });
+  it("verifies existing bytes, renames without an AI call, and continues from the latest files", async () => {
+    const { h, db, agent, assignmentId } = await setup();
+    const path = `/api/v1/homework/${assignmentId}/draft`;
+    await h.request(path, { method: "POST", json: { instructions: "Use seaborn." } });
+    const [before] = await db.select().from(schema.homeworkDrafts);
+    const turn = vi.spyOn(agent.api, "turn").mockImplementation(async (params) => {
+      agent.turns.push(structuredClone(params));
+      return agent.msg("tool_use", [
+        {
+          type: "tool_use",
+          id: "v",
+          name: "verification_result",
+          input: {
+            summary: "Check question 2",
+            checks: [
+              { name: "Completeness", status: "issue", detail: "Question 2 needs an explanation." },
+            ],
+          },
+        },
+      ]);
+    });
+    let res = await h.request(path, { method: "POST", json: { operation: "verify" } });
+    expect(res.status).toBe(200);
+    let draft = DraftResponse.parse(await res.json()).draft;
+    expect(draft?.verification?.checks[0]?.status).toBe("issue");
+    const [verified] = await db.select().from(schema.homeworkDrafts);
+    expect(verified?.files).toEqual(before?.files);
     expect(
-      (await h.request(`/api/v1/homework/${assignmentId}/draft`, { method: "POST", json: {} }))
+      agent.uploads.some((f) => f.name === "current_2_report.md" && f.text.includes("Answers")),
+    ).toBe(true);
+    const calls = turn.mock.calls.length;
+    res = await h.request(`${path}/files`, {
+      method: "PATCH",
+      json: { name: "report.md", newName: "Final report.md" },
+    });
+    expect(res.status).toBe(200);
+    draft = DraftResponse.parse(await res.json()).draft;
+    expect(draft?.verification).toBeNull();
+    expect(turn).toHaveBeenCalledTimes(calls);
+    expect(await (await h.request(`${path}/files/Final%20report.md`)).text()).toContain("Answers");
+    expect((await h.request(`${path}/files/report.md`)).status).toBe(404);
+    turn.mockImplementation(async (params) => {
+      agent.turns.push(structuredClone(params));
+      return agent.msg("tool_use", [
+        {
+          type: "tool_use",
+          id: "reply",
+          name: "hand_in",
+          input: { files: [], notes: "Here is how question 2 works." },
+        },
+      ]);
+    });
+    res = await h.request(path, {
+      method: "POST",
+      json: { operation: "revise", instructions: "Explain question 2." },
+    });
+    draft = DraftResponse.parse(await res.json()).draft;
+    expect(draft?.status).toBe("ready");
+    expect(draft?.files.some((f) => f.name === "Final report.md")).toBe(true);
+    expect(draft?.messages.at(-1)?.text).toContain("question 2 works");
+    expect(JSON.stringify(agent.turns.at(-1)?.messages)).toContain("Use seaborn.");
+    expect(JSON.stringify(agent.turns.at(-1)?.messages)).toContain("Explain question 2.");
+    expect(agent.uploads.some((f) => f.name === "current_2_Final report.md")).toBe(true);
+    const persisted = DraftResponse.parse(await (await h.request(path)).json()).draft;
+    expect(persisted?.messages).toEqual(draft?.messages);
+  });
+
+  it("rejects invalid renames and actions while working, and ignores stale queued runs", async () => {
+    const { h, db, r2, agent, assignmentId } = await setup();
+    const path = `/api/v1/homework/${assignmentId}/draft`;
+    expect(
+      (await h.request(path, { method: "POST", json: { operation: "revise", instructions: "" } }))
         .status,
-    ).toBe(404);
+    ).toBe(422);
+    expect((await h.request(path, { method: "POST", json: { operation: "verify" } })).status).toBe(
+      409,
+    );
+    await h.request(path, { method: "POST", json: {} });
+    for (const newName of ["../bad.md", "report.pdf", "hw3.ipynb"]) {
+      expect(
+        (
+          await h.request(`${path}/files`, {
+            method: "PATCH",
+            json: { name: "report.md", newName },
+          })
+        ).status,
+      ).toBe(400);
+    }
+    const [row] = await db.select().from(schema.homeworkDrafts);
+    if (!row) throw new Error("missing draft");
+    await startDraft(
+      db,
+      { userId: row.userId, assignmentId, operation: "revise", instructions: "Add detail" },
+      async () => {},
+    );
+    expect((await h.request(`${path}/submit`, { method: "POST" })).status).toBe(409);
     expect(
-      (await h.request(`/api/v1/homework/${assignmentId}/draft/submit`, { method: "POST" })).status,
-    ).toBe(404);
+      (
+        await h.request(`${path}/files`, {
+          method: "PATCH",
+          json: { name: "report.md", newName: "final.md" },
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      await runDraftJob(
+        {
+          db,
+          files: r2.store,
+          agent: agent.api,
+          canvas: null,
+          attachments: { db, files: r2.store },
+          search: { db },
+        },
+        { type: "homework", userId: row.userId, assignmentId, runId: row.runId ?? undefined },
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps the last files usable if a follow-up fails to queue", async () => {
+    const { h, db, assignmentId } = await setup();
+    await h.request(`/api/v1/homework/${assignmentId}/draft`, { method: "POST", json: {} });
+    const [row] = await db.select().from(schema.homeworkDrafts);
+    if (!row) throw new Error("missing draft");
+    await expect(
+      startDraft(
+        db,
+        { userId: row.userId, assignmentId, operation: "revise", instructions: "Edit" },
+        async () => {
+          throw new Error("queue unavailable");
+        },
+      ),
+    ).rejects.toThrow("queue unavailable");
+    const [after] = await db
+      .select()
+      .from(schema.homeworkDrafts)
+      .where(eq(schema.homeworkDrafts.id, row.id));
+    expect(after?.status).toBe("ready");
+    expect(after?.files).toEqual(row.files);
+  });
+  it("is available to signed-in accounts without an email allowlist", async () => {
+    const { h, assignmentId } = await setup();
+    const me = Me.parse(await (await h.request("/api/v1/me")).json());
+    expect(me.features.doHomework).toBe(true);
+    expect((await h.request(`/api/v1/homework/${assignmentId}/draft`)).status).toBe(200);
+  });
+
+  it("requires sign-in and keeps other accounts' homework private", async () => {
+    const { h, assignmentId } = await setup();
+    await h.request(`/api/v1/homework/${assignmentId}/draft`, { method: "POST", json: {} });
+    h.clearCookies();
+    const paths = [
+      [`/api/v1/homework/${assignmentId}/draft`, "GET"],
+      [`/api/v1/homework/${assignmentId}/draft`, "POST"],
+      [`/api/v1/homework/${assignmentId}/draft/submit`, "POST"],
+      [`/api/v1/homework/${assignmentId}/draft/files/report.md`, "GET"],
+    ] as const;
+    for (const [path, method] of paths)
+      expect(
+        (await h.request(path, { method, ...(method === "POST" ? { json: {} } : {}) })).status,
+      ).toBe(401);
+    await signedInUser(h, "another@morgan.edu");
+    expect(Me.parse(await (await h.request("/api/v1/me")).json()).features.doHomework).toBe(true);
+    for (const [path, method] of paths)
+      expect(
+        (await h.request(path, { method, ...(method === "POST" ? { json: {} } : {}) })).status,
+      ).toBe(404);
   });
 
   it("writes the files, keeps only safe text files, and serves them as downloads", async () => {

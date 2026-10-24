@@ -2,9 +2,8 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { ApiError, Me, UpdateMe } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
 import { eq, schema } from "@talvra/db";
-import type { AppEnv, Bindings } from "../env.js";
+import type { AppEnv } from "../env.js";
 import { AppError } from "../lib/errors.js";
-import { doHomeworkEnabled } from "../lib/features.js";
 import { requireUser } from "../middleware/auth.js";
 import { startSync } from "../sync/run.js";
 import type { LaunchSync } from "./sync.js";
@@ -13,11 +12,7 @@ const { users, canvasConnections } = schema;
 const json = <T>(s: T) => ({ "application/json": { schema: s } });
 const unauthorized = { 401: { description: "Not signed in", content: json(ApiError) } };
 
-export async function loadMe(
-  db: Database,
-  userId: string,
-  env: Pick<Bindings, "DO_HOMEWORK_EMAILS"> = {},
-): Promise<Me> {
+export async function loadMe(db: Database, userId: string): Promise<Me> {
   const [row] = await db
     .select({ user: users, canvas: canvasConnections })
     .from(users)
@@ -35,7 +30,7 @@ export async function loadMe(
       emailVerified: user.emailVerified,
     },
     onboarded: user.onboardedAt !== null,
-    features: { doHomework: doHomeworkEnabled(env, user.email) },
+    features: { doHomework: true },
     canvas: canvas
       ? {
           baseUrl: canvas.baseUrl,
@@ -81,17 +76,15 @@ const completeOnboarding = createRoute({
 
 export const meRoutes = (launch: LaunchSync) =>
   new OpenAPIHono<AppEnv>()
-    .openapi(getMe, async (c) =>
-      c.json(await loadMe(c.var.db, c.get("userId") as string, c.env), 200),
-    )
+    .openapi(getMe, async (c) => c.json(await loadMe(c.var.db, c.get("userId") as string), 200))
     .openapi(patchMe, async (c) => {
       const userId = c.get("userId") as string;
       await c.var.db.update(users).set(c.req.valid("json")).where(eq(users.id, userId));
-      return c.json(await loadMe(c.var.db, userId, c.env), 200);
+      return c.json(await loadMe(c.var.db, userId), 200);
     })
     .openapi(completeOnboarding, async (c) => {
       const userId = c.get("userId") as string;
-      const me = await loadMe(c.var.db, userId, c.env);
+      const me = await loadMe(c.var.db, userId);
       if (!me.canvas) throw new AppError("conflict", "Connect Canvas before finishing setup.");
       if (me.onboarded) return c.json(me, 200);
       await c.var.db.update(users).set({ onboardedAt: new Date() }).where(eq(users.id, userId));

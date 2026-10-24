@@ -34,7 +34,7 @@ describe("homework", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Lab 2: reverse an array" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Your work, your words")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Do my homework" })).toBeInTheDocument();
     expect(screen.getByText("in place").tagName).toBe("STRONG");
 
     fireEvent.click(await screen.findByRole("button", { name: /Break it down/ }));

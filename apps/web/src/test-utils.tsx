@@ -59,7 +59,7 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
       tokenLast4: "good",
       lastVerifiedAt: "2026-10-23T12:00:00.000Z",
     },
-    features: { doHomework: false },
+    features: { doHomework: true },
     ...overrides,
   } as Me;
 }
@@ -596,7 +596,7 @@ export function fakeApi(state: {
       });
     }
     const hw = p.match(
-      /^\/api\/v1\/homework\/([^/]+)(\/brief|\/resources|\/plan(?:\/suggest|\/[^/]+)?|\/draft(?:\/submit|\/files\/.+)?)?$/,
+      /^\/api\/v1\/homework\/([^/]+)(\/brief|\/resources|\/plan(?:\/suggest|\/[^/]+)?|\/draft(?:\/submit|\/files(?:\/.+)?)?)?$/,
     );
     if (hw) {
       const item = (state.homework ?? []).find((i) => i.id === hw[1]);
@@ -614,7 +614,6 @@ export function fakeApi(state: {
         });
       }
       if (sub.startsWith("/draft")) {
-        if (!me.features?.doHomework) return apiError(404, "not_found", "Not found.");
         const file = sub.match(/^\/draft\/files\/(.+)$/);
         if (file) return new Response(`print("answer")  # ${decodeURIComponent(file[1] ?? "")}`);
         if (sub === "/draft/submit") {
@@ -623,6 +622,55 @@ export function fakeApi(state: {
             ...state.draft,
             status: "submitted",
             submittedAt: new Date().toISOString(),
+          };
+          return json({ draft: state.draft });
+        }
+        if (sub === "/draft/files" && method === "PATCH" && state.draft) {
+          state.draft = {
+            ...state.draft,
+            verification: null,
+            updatedAt: new Date().toISOString(),
+            files: (state.draft.files as { name: string }[]).map((f) =>
+              f.name === body?.name ? { ...f, name: body.newName } : f,
+            ),
+          };
+          return json({ draft: state.draft });
+        }
+        if (method === "POST" && body?.operation === "verify" && state.draft) {
+          state.draft = {
+            ...state.draft,
+            verification: {
+              summary: "One issue needs attention.",
+              checkedAt: new Date().toISOString(),
+              checks: [
+                { name: "Execution", status: "passed", detail: "The code ran successfully." },
+                { name: "Rubric", status: "issue", detail: "Add an explanation of the result." },
+              ],
+            },
+          };
+          return json({ draft: state.draft });
+        }
+        if (method === "POST" && body?.operation === "revise" && state.draft) {
+          state.draft = {
+            ...state.draft,
+            verification: null,
+            instructions: body.instructions,
+            updatedAt: new Date().toISOString(),
+            messages: [
+              ...((state.draft.messages as unknown[]) ?? []),
+              {
+                id: crypto.randomUUID(),
+                role: "user",
+                text: body.instructions,
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                text: "Added the explanation to your current files.",
+                createdAt: new Date().toISOString(),
+              },
+            ],
           };
           return json({ draft: state.draft });
         }

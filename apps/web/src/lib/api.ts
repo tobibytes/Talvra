@@ -185,15 +185,33 @@ export const api = {
   },
   assignment: (id: string) => request(`/v1/homework/${id}`, AssignmentDetail),
   brief: (id: string) => request(`/v1/homework/${id}/brief`, BriefResponse),
-  // "Do my homework" (only for accounts the server switches on).
+  // "Do my homework": generate, follow up, verify, rename and submit.
   draft: (id: string) => request(`/v1/homework/${id}/draft`, DraftResponse),
   makeDraft: (id: string, instructions?: string) =>
     request(`/v1/homework/${id}/draft`, DraftResponse, {
       method: "POST",
       json: instructions ? { instructions } : {},
     }),
-  submitDraft: (id: string) =>
-    request(`/v1/homework/${id}/draft/submit`, DraftResponse, { method: "POST" }),
+  followUpDraft: (id: string, message: string) =>
+    request(`/v1/homework/${id}/draft`, DraftResponse, {
+      method: "POST",
+      json: { operation: "revise", instructions: message },
+    }),
+  verifyDraft: (id: string) =>
+    request(`/v1/homework/${id}/draft`, DraftResponse, {
+      method: "POST",
+      json: { operation: "verify" },
+    }),
+  renameDraftFile: (id: string, name: string, newName: string) =>
+    request(`/v1/homework/${id}/draft/files`, DraftResponse, {
+      method: "PATCH",
+      json: { name, newName },
+    }),
+  submitDraft: (id: string, updatedAt?: string) =>
+    request(`/v1/homework/${id}/draft/submit`, DraftResponse, {
+      method: "POST",
+      json: { updatedAt },
+    }),
   draftFileUrl: (id: string, name: string) =>
     `${API_BASE}/v1/homework/${id}/draft/files/${encodeURIComponent(name)}`,
   makeBrief: (id: string, regenerate = false) =>

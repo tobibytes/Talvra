@@ -107,15 +107,6 @@ const FIELDS = [
     secret: true,
   },
   {
-    key: "DO_HOMEWORK_EMAILS",
-    label: "Do my homework: allowed accounts (optional)",
-    help: 'Comma-separated emails that see the owner-only "Do my homework" feature. Skip to keep it off.',
-    validate: (v) =>
-      v.split(",").every((e) => /^[^@\s]+@[^@\s]+$/.test(e.trim()))
-        ? null
-        : "Use emails separated by commas.",
-  },
-  {
     key: "AZURE_SPEECH_KEY",
     label: "Azure Speech key (optional)",
     help: "Only if you prefer Azure voices for videos. Skip to use Workers AI (default).",
@@ -261,6 +252,14 @@ async function main() {
         `${err ? red("✗") : green("✓")} ${f.key}: ${mask(f, v)}${err ? ` ${red(err)}` : ""}`,
       );
       if (err || !(await runVerify(f, v, values))) ok = false;
+    }
+    // The deploy uploads every line as a secret, so a retired key would linger on the Worker.
+    const known = new Set(FIELDS.map((f) => f.key));
+    for (const key of Object.keys(values).filter((k) => !known.has(k))) {
+      ok = false;
+      console.log(
+        `${red("✗")} ${key}: ${red("no longer used. Remove it from apps/api/.prod.vars, then")} wrangler secret delete ${key} --env production`,
+      );
     }
     process.exit(ok ? 0 : 1);
   }

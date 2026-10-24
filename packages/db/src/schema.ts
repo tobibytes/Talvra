@@ -597,10 +597,16 @@ export const assignmentBriefs = pgTable(
 );
 
 /**
- * "Do my homework" (owner-only, behind DO_HOMEWORK_EMAILS): the latest AI-written files for an
+ * "Do my homework" (all signed-in accounts): the latest AI-written files for an
  * assignment, kept in R2, and whether they were submitted to Canvas.
  */
-export const draftStatus = pgEnum("draft_status", ["working", "ready", "failed", "submitted"]);
+export const draftStatus = pgEnum("draft_status", [
+  "working",
+  "ready",
+  "failed",
+  "submitting",
+  "submitted",
+]);
 
 export const homeworkDrafts = pgTable(
   "homework_drafts",
@@ -619,6 +625,11 @@ export const homeworkDrafts = pgTable(
     instructions: text("instructions"),
     /** While working: what the agent is doing now ("Running the notebook"). */
     progress: text("progress"),
+    messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
+    verification: jsonb("verification"),
+    /** Identifies the queued operation; stale deliveries cannot overwrite newer work. */
+    runId: uuid("run_id"),
+    operation: text("operation").notNull().default("generate"),
     error: text("error"),
     model: text("model"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
