@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronRight, FileText } from "lucide-react";
+import { DocumentStatusBadge } from "@/components/document/status";
+import { UploadButton } from "@/components/document/upload-dialog";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +13,10 @@ import { dateTime, relativeTime } from "@/lib/time";
 export const Route = createFileRoute("/_app/courses/")({ component: Courses });
 
 function Courses() {
+  const uploads = useQuery({
+    queryKey: ["documents", "upload"],
+    queryFn: () => api.documents("upload"),
+  });
   const courses = useQuery({ queryKey: ["courses"], queryFn: () => api.courses({ limit: 100 }) });
   const selected = (courses.data?.items ?? [])
     .filter((c) => c.selected)
@@ -21,7 +27,12 @@ function Courses() {
       <PageHeader
         title="Courses"
         description="Everything synced from Canvas, by course."
-        actions={selected.length ? <SyncNowButton label="Sync all" /> : null}
+        actions={
+          <>
+            <UploadButton />
+            {selected.length ? <SyncNowButton label="Sync all" /> : null}
+          </>
+        }
       />
       {courses.isPending ? (
         <ListSkeleton rows={4} />
@@ -71,6 +82,31 @@ function Courses() {
           action={<Button render={<Link to="/settings" />}>Pick courses</Button>}
         />
       )}
+      {uploads.data?.items.length ? (
+        <section aria-labelledby="uploads-heading" className="mt-10 space-y-3">
+          <h2 id="uploads-heading" className="font-semibold">
+            Your uploads
+          </h2>
+          <ul className="divide-y rounded-xl border bg-card">
+            {uploads.data.items.map((d) => (
+              <li key={d.id}>
+                <Link
+                  to="/documents/$documentId"
+                  params={{ documentId: d.id }}
+                  className="flex items-center gap-3 p-4 text-sm outline-none transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
+                >
+                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate font-medium">{d.title}</span>
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
+                    {relativeTime(d.updatedAt)}
+                  </span>
+                  <DocumentStatusBadge status={d.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

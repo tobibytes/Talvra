@@ -12,8 +12,8 @@ apps/api  Cloudflare Worker, Hono + zod-openapi
    ├── Queues + Workflows              (sync → extract → embed → generate)  session 4
    └── Cron Triggers                   (incremental sync, reminders)        sessions 4, 9
           │
-services/extract  Python container (Docling/PyMuPDF)                        session 5
-services/media    Python container (ffmpeg + Azure TTS)                     session 9
+apps/extract      Python container (FastAPI + pypdfium2/python-docx/pptx)     session 5
+apps/media        Python container (ffmpeg + Azure TTS)                     session 10
 ```
 
 ## Layout
@@ -24,6 +24,7 @@ services/media    Python container (ffmpeg + Azure TTS)                     sess
 | `apps/api` | Hono API. `src/app.ts` builds the app; `src/index.ts` is the Worker entry |
 | `packages/contracts` | zod schemas shared by API and web: errors, pagination, resources |
 | `packages/db` | Drizzle schema, client, SQL migrations in `migrations/` |
+| `apps/extract` | Python extract service; Cloudflare Container (`ExtractContainer`, no internet) |
 | `infra/compose.dev.yml` | Local Postgres 16 |
 
 Legacy v1 code (`frontend/`, `services/`, `deploy/`, `migrations/`, old docs)
@@ -99,4 +100,13 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 2. `cd apps/api && npx wrangler hyperdrive create talvra-db --connection-string="<neon url>"`
 3. Put the returned id in `apps/api/wrangler.jsonc` (`hyperdrive[0].id`).
 4. `DATABASE_URL=<neon url> pnpm db:migrate`
-5. `pnpm --filter @talvra/api deploy`
+5. R2 and Queues (names match `wrangler.jsonc`, `-dev` for local is simulated by Wrangler):
+   `npx wrangler r2 bucket create talvra-files`,
+   `npx wrangler queues create talvra-ingest`, `npx wrangler queues create talvra-ingest-dlq`.
+6. Containers need the Workers Paid plan and Docker on the machine that deploys
+   (`wrangler deploy` builds `apps/extract/Dockerfile` and pushes it).
+7. `pnpm --filter @talvra/api deploy`
+
+Azure fallback for extraction: run the same image on Azure Container Apps with
+`EXTRACT_SECRET` set, then set `EXTRACT_URL` + `EXTRACT_SECRET` as Worker secrets. When
+`EXTRACT_URL` is set the Worker uses it instead of the container.

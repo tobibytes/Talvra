@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { SyncRun } from "@talvra/contracts";
+import type { DocumentEvent, SyncRun } from "@talvra/contracts";
 import type { Bindings } from "../env.js";
 
 /**
@@ -32,6 +32,18 @@ export class UserHub extends DurableObject<Bindings> {
         ws.send(message);
       } catch {
         // Socket already closing; the runtime cleans it up.
+      }
+    }
+  }
+
+  /** RPC from the ingest consumer. Not stored: pages refetch when they connect. */
+  async publishDocument(document: DocumentEvent) {
+    const message = JSON.stringify({ type: "document", document });
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.send(message);
+      } catch {
+        // Socket already closing.
       }
     }
   }

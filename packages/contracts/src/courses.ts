@@ -80,7 +80,14 @@ export type Assignment = z.infer<typeof Assignment>;
 export const AssignmentList = z.object({ items: z.array(Assignment) });
 export type AssignmentList = z.infer<typeof AssignmentList>;
 
-export const DocumentStatus = z.enum(["pending", "downloading", "extracting", "ready", "failed"]);
+export const DocumentStatus = z.enum([
+  "pending",
+  "downloading",
+  "extracting",
+  "ready",
+  "failed",
+  "unsupported",
+]);
 export type DocumentStatus = z.infer<typeof DocumentStatus>;
 
 export const CourseDocument = z.object({

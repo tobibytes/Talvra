@@ -1,4 +1,5 @@
 import type { CourseModule, ModuleItem, ModuleItemKind } from "@talvra/contracts";
+import { Link } from "@tanstack/react-router";
 import {
   ClipboardList,
   ExternalLink,
@@ -58,6 +59,28 @@ function Item({ item }: { item: ModuleItem }) {
       "outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50",
   );
   const style = { paddingInlineStart: `${1 + item.indent * 1.25}rem` };
+  // Files and pages open in Talvra's reader; everything else opens in Canvas.
+  if (item.documentId) {
+    return (
+      <li>
+        <Link
+          to="/documents/$documentId"
+          params={{ documentId: item.documentId }}
+          className={cn(
+            cls,
+            "outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50",
+          )}
+          style={style}
+        >
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">{item.title}</span>
+          <Badge variant="outline" className="hidden sm:inline-flex">
+            {label}
+          </Badge>
+        </Link>
+      </li>
+    );
+  }
   return (
     <li>
       {href ? (

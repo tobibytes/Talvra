@@ -406,6 +406,7 @@ async function upsertDocuments(
           bodyHtml: sql`coalesce(excluded.body_html, ${documents.bodyHtml})`,
           // Content changed in Canvas: the pipeline must process it again.
           status: sql`case when ${documents.canvasUpdatedAt} is distinct from excluded.canvas_updated_at then 'pending'::document_status else ${documents.status} end`,
+          attempts: sql`case when ${documents.canvasUpdatedAt} is distinct from excluded.canvas_updated_at then 0 else ${documents.attempts} end`,
           canvasUpdatedAt: sql`excluded.canvas_updated_at`,
         },
       });

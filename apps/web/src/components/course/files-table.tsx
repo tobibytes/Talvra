@@ -1,10 +1,12 @@
 import type { CourseDocument } from "@talvra/contracts";
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileText, FolderOpen, NotebookText } from "lucide-react";
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import { DocumentStatusBadge } from "@/components/document/status";
 import { EmptyState } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -28,14 +30,6 @@ export function kindOf(d: Pick<CourseDocument, "mimeType" | "source" | "title">)
   return "Other";
 }
 
-const statusLabel: Record<CourseDocument["status"], string> = {
-  pending: "Not processed",
-  downloading: "Processing",
-  extracting: "Processing",
-  ready: "Ready",
-  failed: "Failed",
-};
-
 export function FilesTable({ documents }: { documents: CourseDocument[] }) {
   const kinds = React.useMemo(
     () => [...new Set(documents.map(kindOf))].sort().map((k) => ({ label: k, value: k })),
@@ -51,10 +45,14 @@ export function FilesTable({ documents }: { documents: CourseDocument[] }) {
         cell: ({ row }) => {
           const Icon = row.original.source === "canvas_page" ? NotebookText : FileText;
           return (
-            <div className="flex min-w-0 items-center gap-2">
+            <Link
+              to="/documents/$documentId"
+              params={{ documentId: row.original.id }}
+              className="flex min-w-0 items-center gap-2 rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
               <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="truncate font-medium">{row.original.title}</span>
-            </div>
+              <span className="truncate">{row.original.title}</span>
+            </Link>
           );
         },
         meta: { label: "Name", placeholder: "Search files…", variant: "text" },
@@ -101,12 +99,8 @@ export function FilesTable({ documents }: { documents: CourseDocument[] }) {
         id: "fileStatus",
         size: 140,
         accessorKey: "status",
-        header: ({ column }) => <DataTableColumnHeader column={column} label="Study aids" />,
-        cell: ({ row }) => (
-          <Badge variant={row.original.status === "ready" ? "success" : "outline"}>
-            {statusLabel[row.original.status]}
-          </Badge>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} label="Status" />,
+        cell: ({ row }) => <DocumentStatusBadge status={row.original.status} />,
       },
       {
         id: "fileUpdated",

@@ -21,3 +21,13 @@ describe("Button", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Button as a link", () => {
+  it("keeps link semantics when rendering an <a>", () => {
+    render(<Button render={<a href="/x" />}>Open</Button>);
+    const link = screen.getByRole("link", { name: "Open" });
+    expect(link).toHaveAttribute("href", "/x");
+    expect(link).not.toHaveAttribute("role");
+    expect(link).toHaveAttribute("data-slot", "button");
+  });
+});

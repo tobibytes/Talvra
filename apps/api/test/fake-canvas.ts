@@ -40,6 +40,10 @@ export type CanvasCourseState = {
 
 export type FakeCanvasState = {
   token: string;
+  /** Bytes served by the storage host for each file id. */
+  fileBytes?: Record<string, Uint8Array>;
+  /** Override where /files/:id/download redirects (to test the allowlist). */
+  downloadRedirect?: string;
   courses: { id: number; name: string; course_code: string; term: { name: string } }[];
   byCourse: Record<string, CanvasCourseState>;
 };
@@ -131,9 +135,31 @@ export function fakeCanvas(state: FakeCanvasState = defaultState()) {
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const auth = new Headers(init?.headers).get("authorization");
+    // Canvas's file storage: signed URL, no token needed (and none must be sent).
+    if (url.hostname === "instructure-uploads.s3.amazonaws.com") {
+      if (auth) return new Response("token leaked to storage host", { status: 400 });
+      const id = url.pathname.split("/").pop() ?? "";
+      const bytes = state.fileBytes?.[id];
+      return bytes ? new Response(bytes) : new Response("no", { status: 404 });
+    }
     if (auth !== `Bearer ${state.token}`) return new Response("{}", { status: 401 });
     const p = url.pathname.replace(/^\/api\/v1/, "");
     if (p === "/users/self") return Response.json({ id: 42, name: "Test Student" });
+    const fileMeta = p.match(/^\/files\/(\d+)$/);
+    if (fileMeta) {
+      const f = Object.values(state.byCourse)
+        .flatMap((c) => c.files)
+        .find((x) => String(x.id) === fileMeta[1]);
+      if (!f) return new Response("not found", { status: 404 });
+      return Response.json({ ...f, url: `${url.origin}/files/${f.id}/download?verifier=v` });
+    }
+    const download = url.pathname.match(/^\/files\/(\d+)\/download$/);
+    if (download) {
+      const target =
+        state.downloadRedirect ??
+        `https://instructure-uploads.s3.amazonaws.com/account/${download[1]}`;
+      return new Response(null, { status: 302, headers: { location: target } });
+    }
     if (p === "/courses") return Response.json(state.courses);
     const m = p.match(/^\/courses\/(\d+)(\/.*)$/);
     const course = m ? state.byCourse[m[1] as string] : undefined;

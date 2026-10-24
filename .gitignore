@@ -86,3 +86,9 @@ deploy/secrets.local.yaml
 .turbo/
 .wrangler/
 .dev.vars
+
+# Python (apps/extract)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

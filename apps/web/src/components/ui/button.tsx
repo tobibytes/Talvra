@@ -1,5 +1,7 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
+import { cloneElement, isValidElement } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -45,13 +47,21 @@ function Button({
   size = "default",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  );
+  const classes = cn(buttonVariants({ variant, size, className }));
+  // Talvra: `render={<a/>}` or `render={<Link/>}` is a link styled as a button.
+  // Render it directly so it keeps link semantics; Base UI's Button would add
+  // role="button" (or warn), and links must stay links for screen readers.
+  if (isValidElement(props.render) && props.render.type !== "button") {
+    const { render, children, nativeButton: _native, ...rest } = props;
+    const el = render as React.ReactElement<{ className?: string }>;
+    return cloneElement(el, {
+      ...(rest as object),
+      "data-slot": "button",
+      className: cn(classes, el.props.className),
+      children,
+    } as object);
+  }
+  return <ButtonPrimitive data-slot="button" className={classes} {...props} />;
 }
 
 export { Button, buttonVariants };

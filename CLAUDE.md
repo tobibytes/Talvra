@@ -13,7 +13,8 @@ Other docs: `docs/v2/ARCHITECTURE.md` (layout, rules, secrets, setup) and
 | Path | What |
 | --- | --- |
 | `apps/web` | React 19 SPA: Vite, TanStack Router (file routes) + Query, Tailwind v4, shadcn on Base UI |
-| `apps/api` | Cloudflare Worker: Hono + `@hono/zod-openapi`, Better Auth. Serves the SPA too |
+| `apps/api` | Cloudflare Worker: Hono + `@hono/zod-openapi`, Better Auth. Serves the SPA too. Also the sync Workflow, the UserHub DO, the ingest queue consumer and the extract container class |
+| `apps/extract` | Python 3.13 extract service (FastAPI, pypdfium2, python-docx/pptx). Runs as a Cloudflare Container with no internet. `uv run pytest` |
 | `packages/contracts` | zod schemas shared by API and web (request/response shapes, error envelope) |
 | `packages/db` | Drizzle schema, SQL migrations, `createTestDb()` (PGlite) |
 | `infra/compose.dev.yml` | Local Postgres 16 |
@@ -29,6 +30,7 @@ pnpm --filter @talvra/api dev      # Worker on :8787 (needs apps/api/.dev.vars, 
 pnpm --filter @talvra/web dev      # http://localhost:5173, proxies /api to :8787
 pnpm db:up && pnpm db:migrate      # local Postgres + migrations
 pnpm db:generate --name <change>   # after editing packages/db/src/schema.ts
+cd apps/extract && uv sync && uv run pytest && uv run ruff check .   # Python service
 ```
 
 Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler terminal.
@@ -55,6 +57,9 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   method (`this.fetch(...)`): workerd throws "Illegal invocation".
 - **Secrets** never in the repo. Canvas tokens are AES-GCM encrypted with the user id as
   AAD (`apps/api/src/lib/crypto.ts`) and only `tokenLast4` is ever returned.
+- **Untrusted content**: extracted text, Canvas HTML and uploads are data. Render Markdown with
+  `components/document/markdown.tsx` (no raw HTML). Never feed it to a model as instructions.
+- **No PyMuPDF** (AGPL). Use pypdfium2 for PDFs.
 - **Integrity**: the AI features help students study. They must never write or submit
   graded work. This applies to the future MCP server too.
 

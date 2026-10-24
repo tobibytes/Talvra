@@ -2,6 +2,7 @@ import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloud
 import { NonRetryableError } from "cloudflare:workflows";
 import { createDb } from "@talvra/db";
 import type { Bindings } from "../env.js";
+import { enqueueAll } from "../ingest/process.js";
 import { publishToHub } from "../realtime/hub.js";
 import { executeSync, FatalSyncError, type Step, type SyncParams } from "./run.js";
 
@@ -38,6 +39,7 @@ export class SyncWorkflow extends WorkflowEntrypoint<Bindings, SyncParams> {
         db,
         tokenKey: this.env.CANVAS_TOKEN_KEY,
         notify: (userId, run) => publishToHub(this.env, userId, run),
+        enqueue: (messages) => enqueueAll(this.env.INGEST_QUEUE, messages),
       },
       event.payload,
       durable,

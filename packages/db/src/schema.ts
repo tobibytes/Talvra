@@ -265,6 +265,8 @@ export const documentStatus = pgEnum("document_status", [
   "extracting",
   "ready",
   "failed",
+  /** A type Talvra can't read (video, zip, …) or too large. Not retried. */
+  "unsupported",
 ]);
 
 export const documents = pgTable(
@@ -291,6 +293,12 @@ export const documents = pgTable(
     canvasUrl: text("canvas_url"),
     /** Canvas folder, e.g. "course files/Lectures". */
     folderPath: text("folder_path"),
+    wordCount: integer("word_count"),
+    /** Extractor notes, e.g. "little_text" for scanned PDFs. */
+    warnings: text("warnings").array().notNull().default(sql`'{}'::text[]`),
+    extractedAt: timestamp("extracted_at", { withTimezone: true }),
+    /** Processing attempts since the last success; drives give-up and backoff. */
+    attempts: integer("attempts").notNull().default(0),
     /** Canvas pages are small: their HTML is stored inline. */
     bodyHtml: text("body_html"),
     canvasUpdatedAt: timestamp("canvas_updated_at", { withTimezone: true }),
@@ -303,6 +311,8 @@ export const documents = pgTable(
       .where(sql`${t.canvasId} is not null`),
     index("documents_user_course_idx").on(t.userId, t.courseId),
     index("documents_user_sha_idx").on(t.userId, t.contentSha256),
+    // The cron's "stuck documents" sweep.
+    index("documents_status_updated_idx").on(t.status, t.updatedAt),
     foreignKey({
       name: "documents_course_owner_fk",
       columns: [t.courseId, t.userId],
