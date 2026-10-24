@@ -187,7 +187,7 @@ export function createApp(opts: AppOptions = {}) {
       c.header("WWW-Authenticate", 'Bearer realm="talvra"');
       throw new AppError(
         "unauthorized",
-        "Use a Talvra API key (Settings → API keys) as a Bearer token.",
+        "Use a Talvra API key (Settings → AI assistants) as a Bearer token.",
       );
     }
     c.set("userId", userId);
