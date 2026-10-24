@@ -1,0 +1,24 @@
+# What the agent's Python has (the prompt lists these). Pinned in requirements.txt:
+#   uv pip compile toolchain/requirements.in -o toolchain/requirements.txt \
+#     --python-version 3.13 --python-platform x86_64-manylinux_2_28
+numpy
+pandas
+scipy
+scikit-learn
+statsmodels
+matplotlib
+seaborn
+sympy
+python-docx
+openpyxl
+python-pptx
+pypdf
+requests
+beautifulsoup4
+lxml
+jupyter-core
+nbformat
+nbclient
+nbconvert
+ipykernel
+playwright

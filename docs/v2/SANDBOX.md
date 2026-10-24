@@ -1,6 +1,6 @@
 # Self-hosted homework sandbox (plan)
 
-Status: **phase 1 done (2026-10-24)**, phase 2 next. "Do my homework" runs in Anthropic's code-execution sandbox
+Status: **phases 1-2 done (2026-10-24)**, phase 3 next. "Do my homework" runs in Anthropic's code-execution sandbox
 today (see ARCHITECTURE.md → Pipelines). That stays the production path until the self-hosted
 sandbox matches it. We build the new one beside it, behind a switch, and move over in phases.
 
@@ -76,9 +76,19 @@ tools.
    has the `ModelDriver`/`Sandbox` interfaces and the provider-neutral loop (bash,
    download_file, hand_in, verification_result), tested with a fake model and an in-memory
    sandbox (`test/tool-loop-agent.test.ts`). Production still uses only the Anthropic agent.
-2. **Image + control server.** `apps/sandbox` (toolchain + Playwright) with pytest coverage for
-   exec limits, path escape, timeouts, output caps and workspace size. A CI job like `media`.
-   Not deployed yet.
+2. **Image + control server. Done (2026-10-24).** `apps/sandbox`: FastAPI control server
+   (`talvra_sandbox/app.py`) and the image (Python data stack + Jupyter, gcc/g++, JDK, R, Node,
+   sqlite3, pandoc, LibreOffice, Playwright Chromium headless shell; ~1.1 GB compressed). The
+   agent's Python is `/opt/toolchain` (pins in `toolchain/requirements.txt`), separate from the
+   server's. Commands run as uid 10001 with `bash -c` in their own process group: timeouts kill
+   the whole group, background children can't hold the response open (0.5 s grace), output is
+   capped at 1 MB per stream (head + tail), core dumps off and a 2 GB per-file limit that can't
+   be raised. The server's environment isn't passed to commands. Tests: `tests/test_app.py`
+   (CI job `sandbox`) and the opt-in `tests/test_image.py`, which builds on real amd64 in the
+   `Sandbox image` workflow. Not deployed yet.
+   - Local note: on Apple Silicon the image runs emulated and Jupyter (ZeroMQ) kernels hang, so
+     that one image test is skipped there. `nbbuild.py` notebooks work.
+   - No workspace-size cap besides the container's disk (the Worker controls what it uploads).
 3. **Container + `Sandbox` implementation + browser tools.** `SandboxContainer` in
    `wrangler.jsonc` (dev + production) with internet on, the egress rules above, and a Worker-side
    `Sandbox` that talks to the control server. Browser tools in the loop. API tests with a fake

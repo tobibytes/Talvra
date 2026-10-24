@@ -56,3 +56,20 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
+
+  sandbox:
+    name: Sandbox control server (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.13"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      # The image tests (tests/test_image.py) are opt-in: they need a built image.
+      - run: uv run pytest -q

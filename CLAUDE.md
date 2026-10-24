@@ -15,6 +15,7 @@ homework sandbox).
 | `apps/web` | React 19 SPA: Vite, TanStack Router (file routes) + Query, Tailwind v4, shadcn on Base UI |
 | `apps/api` | Cloudflare Worker: Hono + `@hono/zod-openapi`, Better Auth. Serves the SPA too (`src/front.ts`). Also the sync Workflow, the UserHub DO, the queue consumers, the cron and both container classes |
 | `apps/extract` | Python 3.13 extract service (FastAPI, pypdfium2, python-docx/pptx). Runs as a Cloudflare Container with no internet. `uv run pytest` |
+| `apps/sandbox` | Python homework sandbox (planned path, not deployed): control server + toolchain image (JDK, R, gcc, LibreOffice, Chromium). `uv run pytest`; see `docs/v2/SANDBOX.md` |
 | `apps/media` | Python media service (Pillow + pypdfium2 + ffmpeg → narrated MP4 showing lecture pages). Cloudflare Container, no internet. `uv run pytest` (needs ffmpeg) |
 | `packages/contracts` | zod schemas shared by API and web (request/response shapes, error envelope) |
 | `packages/db` | Drizzle schema, SQL migrations, `createTestDb()` (PGlite) |
