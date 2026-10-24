@@ -4,7 +4,6 @@ import {
   BellRing,
   ChevronRight,
   Download,
-  LayoutGrid,
   LoaderCircle,
   LogOut,
   Monitor,
@@ -50,19 +49,13 @@ function Settings() {
         {me.data?.canvas ? <SyncStatusCard /> : null}
         <SessionsCard />
         <DataCard />
-        {/* Reminders and the gallery aren't in the mobile tab bar, so link them here. */}
+        {/* Reminders isn't in the mobile tab bar, so link it here. */}
         <div className="space-y-3">
           <SettingsLink
             to="/reminders"
             icon={BellRing}
             title="Reminders"
             description="Notification rules and digest"
-          />
-          <SettingsLink
-            to="/gallery"
-            icon={LayoutGrid}
-            title="Component gallery"
-            description="Every UI component in both themes"
           />
         </div>
       </div>
@@ -368,7 +361,7 @@ function SettingsLink({
   title,
   description,
 }: {
-  to: "/reminders" | "/gallery";
+  to: "/reminders";
   icon: typeof BellRing;
   title: string;
   description: string;

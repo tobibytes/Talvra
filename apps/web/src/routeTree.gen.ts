@@ -13,7 +13,6 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppGalleryRouteImport } from './routes/_app/gallery'
 import { Route as AppRemindersRouteImport } from './routes/_app/reminders'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
@@ -45,11 +44,6 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGalleryRoute = AppGalleryRouteImport.update({
-  id: '/gallery',
-  path: '/gallery',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRemindersRoute = AppRemindersRouteImport.update({
@@ -126,7 +120,6 @@ const AppHomeworkAssignmentIdRoute = AppHomeworkAssignmentIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/gallery': typeof AppGalleryRoute
   '/reminders': typeof AppRemindersRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -145,7 +138,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/gallery': typeof AppGalleryRoute
   '/reminders': typeof AppRemindersRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -166,7 +158,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/onboarding': typeof OnboardingRoute
-  '/_app/gallery': typeof AppGalleryRoute
   '/_app/reminders': typeof AppRemindersRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/search': typeof AppSearchRoute
@@ -188,7 +179,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/onboarding'
-    | '/gallery'
     | '/reminders'
     | '/review'
     | '/search'
@@ -207,7 +197,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/onboarding'
-    | '/gallery'
     | '/reminders'
     | '/review'
     | '/search'
@@ -227,7 +216,6 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_auth'
     | '/onboarding'
-    | '/_app/gallery'
     | '/_app/reminders'
     | '/_app/review'
     | '/_app/search'
@@ -279,13 +267,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/gallery': {
-      id: '/_app/gallery'
-      path: '/gallery'
-      fullPath: '/gallery'
-      preLoaderRoute: typeof AppGalleryRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reminders': {
@@ -390,7 +371,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppGalleryRoute: typeof AppGalleryRoute
   AppRemindersRoute: typeof AppRemindersRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSearchRoute: typeof AppSearchRoute
@@ -404,7 +384,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppGalleryRoute: AppGalleryRoute,
   AppRemindersRoute: AppRemindersRoute,
   AppReviewRoute: AppReviewRoute,
   AppSearchRoute: AppSearchRoute,

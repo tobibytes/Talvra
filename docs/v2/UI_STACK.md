@@ -64,4 +64,3 @@ and install from these registries instead of guessing props.
 | Light, dark and system themes (next-themes) | `src/components/theme.tsx` |
 | Page header, empty, error (with request id) and loading states | `src/components/page.tsx` |
 | Live API status in sidebar footer | `src/components/api-status.tsx` |
-| Component gallery | `/gallery` (`src/routes/gallery.tsx`) |
