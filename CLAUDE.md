@@ -5,7 +5,8 @@ Talvra is a study app for Morgan State students who use Canvas, live at https://
 decisions already made. Don't re-litigate those decisions without asking.
 
 Other docs: `docs/v2/ARCHITECTURE.md` (layout, AI, pipelines, secrets, deploying) and
-`docs/v2/UI_STACK.md` (component libraries and their quirks).
+`docs/v2/UI_STACK.md` (component libraries and their quirks), `docs/v2/SANDBOX.md` (planned self-hosted
+homework sandbox).
 
 ## Layout
 

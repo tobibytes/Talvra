@@ -111,6 +111,7 @@ Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take 
     into a fresh sandbox. Verify uses a separate `verification_result` tool and leaves file bytes
     unchanged. Rename updates file metadata; revisions/renames invalidate the verification report.
     Each job carries a run ID; submission claims the row atomically and checks the UI's version.
+  - A self-hosted sandbox to replace Anthropic's is planned: `docs/v2/SANDBOX.md`.
 - **Canvas accounts**: one Talvra account per Canvas user per school (`canvas_user_id`, unique
   with `base_url`; filled in on connect and on "Check connection").
 - **Video** (queue): a 3-5 minute script (≤ 750 words, one source page per slide) → narration
