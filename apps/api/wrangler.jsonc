@@ -106,10 +106,13 @@
       "vars": {
         "APP_ENV": "production",
         "APP_VERSION": "2.0.0-alpha.0",
-        "APP_URL": "https://talvra.app",
+        "APP_URL": "https://hwrk.help",
         "ALLOWED_EMAIL_DOMAINS": "morgan.edu",
-        "EMAIL_FROM": "Talvra <hello@talvra.app>"
+        "EMAIL_FROM": "Talvra <hello@hwrk.help>"
       },
+      // The app's own domain (zone on this Cloudflare account). Wrangler creates the DNS record.
+      "routes": [{ "pattern": "hwrk.help", "custom_domain": true }],
+      "workers_dev": false,
       "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }],
       // Bindings aren't inherited by environments; repeat them.
       "workflows": [

@@ -10,7 +10,7 @@ import type { SyncParams } from "./sync/run.js";
 export type Bindings = {
   APP_ENV: "development" | "preview" | "production";
   APP_VERSION: string;
-  /** Public origin of the app, e.g. https://talvra.app (SPA + /api, same origin). */
+  /** Public origin of the app, e.g. https://hwrk.help (SPA + /api, same origin). */
   APP_URL: string;
   /** Comma-separated list, e.g. "morgan.edu". */
   ALLOWED_EMAIL_DOMAINS: string;
