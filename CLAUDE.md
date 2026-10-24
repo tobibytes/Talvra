@@ -67,9 +67,11 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
 - `apps/api/src/ai/nbbuild.py` is the source of truth; run `node scripts/gen-nbbuild.mjs` after
   editing it (a test fails if `nbbuild-source.ts` drifts).
 - **AI calls** go through `pickAi` in `apps/api/src/ai/resolve.ts` (student's own key → Talvra's
-  Claude within daily limits → basic Workers AI). Claude calls live in `ai/claude.ts` and `ai/claude-homework-agent.ts` (Haiku 4.5
-  for light tasks, Opus 5.5 for notes and Ask; Haiku takes no `effort`), OpenAI and Workers AI in
-  `ai/compat.ts`. Routes never build clients. Read the `claude-api` skill before changing Claude
+  Claude within daily limits → basic Workers AI). Claude calls live in `ai/claude.ts` and
+  `ai/claude-homework-agent.ts` (Haiku 4.5 for light tasks, Opus 5.5 for notes and Ask; Haiku
+  takes no `effort`), OpenAI and Workers AI in `ai/compat.ts`. Routes never build clients.
+  Homework agents implement `HomeworkAgent` (`ai/homework-agent.ts`); the self-hosted sandbox
+  path is `ai/tool-loop-agent.ts` (see `docs/v2/SANDBOX.md`). Read the `claude-api` skill before changing Claude
   calls. Tests fake models with `fakeImpls`; `test/live-claude.test.ts` is the opt-in real smoke
   test. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
 - **Students' AI keys** are encrypted like Canvas tokens and never returned (last 4 only).

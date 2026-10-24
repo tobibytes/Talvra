@@ -3,7 +3,7 @@ import type { Database } from "@talvra/db";
 import { and, eq, inArray, schema, sql } from "@talvra/db";
 import { retrieve } from "../ai/ask.js";
 import { GenerationError } from "../ai/claude.js";
-import { type AgentApi, type AgentInput, runHomeworkAgent } from "../ai/claude-homework-agent.js";
+import type { AgentInput, HomeworkAgent } from "../ai/homework-agent.js";
 import { assignmentPrompt, DO_HOMEWORK_SYSTEM } from "../ai/homework-prompts.js";
 import type { FileStore } from "../ingest/process.js";
 import { type CanvasClient, CanvasError } from "../lib/canvas.js";
@@ -208,7 +208,7 @@ export async function startDraft(
 export type DraftJobDeps = {
   db: Database;
   files: FileStore;
-  agent: AgentApi;
+  agent: HomeworkAgent;
   /** The student's Canvas client, to download datasets that weren't extracted (CSV…). */
   canvas: CanvasClient | null;
   attachments: AttachmentDeps;
@@ -366,7 +366,7 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
       .filter(Boolean)
       .join("\n\n");
 
-    const out = await runHomeworkAgent(deps.agent, {
+    const out = await deps.agent.run({
       system: DO_HOMEWORK_SYSTEM,
       prompt,
       inputs,
@@ -383,6 +383,7 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
     console.log(
       JSON.stringify({
         msg: "homework agent",
+        agent: deps.agent.kind,
         ...out.usage,
         files: out.files.length,
         model: out.model,
