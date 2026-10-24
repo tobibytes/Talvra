@@ -128,13 +128,7 @@ export function FilesTable({ documents }: { documents: CourseDocument[] }) {
     },
   });
   if (!documents.length) {
-    return (
-      <EmptyState
-        icon={FileText}
-        title="No files"
-        description="Nothing to show for this course or module yet. Files appear after a sync."
-      />
-    );
+    return <EmptyState icon={FileText} title="No files" description="Files appear after a sync." />;
   }
   return (
     <DataTable table={table} aria-label="Course files">

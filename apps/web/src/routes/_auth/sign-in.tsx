@@ -63,7 +63,7 @@ function SignIn() {
   return (
     <AuthCard
       title="Welcome back"
-      description="Sign in to see what's due and pick up where you left off."
+      description="Pick up where you left off."
       footer={
         <>
           New to Talvra?{" "}

@@ -90,7 +90,6 @@ function ProfileCard() {
         <CardTitle>
           <h2>Account</h2>
         </CardTitle>
-        <CardDescription>Your name appears on Today and in emails.</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -152,7 +151,6 @@ function CanvasCard() {
         <CardTitle>
           <h2>Canvas</h2>
         </CardTitle>
-        <CardDescription>Talvra reads your courses with a personal access token.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {canvas ? (
@@ -227,7 +225,7 @@ function CanvasCard() {
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Choose courses</DialogTitle>
-            <DialogDescription>Talvra only syncs the courses you pick.</DialogDescription>
+            <DialogDescription>Only these courses sync.</DialogDescription>
           </DialogHeader>
           <CoursePicker
             onSaved={(n) => {
@@ -246,8 +244,7 @@ function CanvasCard() {
           <DialogHeader>
             <DialogTitle>Disconnect Canvas?</DialogTitle>
             <DialogDescription>
-              Talvra deletes your stored token and stops syncing. Material already synced stays
-              until you delete your account. You can reconnect anytime.
+              Your token is deleted and syncing stops. Synced material stays.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -298,7 +295,7 @@ function SessionsCard() {
         <CardTitle>
           <h2>Where you're signed in</h2>
         </CardTitle>
-        <CardDescription>Sessions end after 14 days without use.</CardDescription>
+        <CardDescription>Idle sessions end after 14 days.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {sessions.isPending ? (
@@ -411,9 +408,6 @@ function DataCard() {
         <CardTitle>
           <h2>Your data</h2>
         </CardTitle>
-        <CardDescription>
-          Download everything Talvra stores about you, or delete your account.
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button variant="outline" render={<a href={api.exportUrl} download />}>
@@ -434,8 +428,7 @@ function DataCard() {
           <DialogHeader>
             <DialogTitle>Delete your account?</DialogTitle>
             <DialogDescription>
-              This permanently deletes your courses, files, notes, flashcards, plans and reminders,
-              and disconnects Canvas. It can't be undone. Your Canvas account itself isn't touched.
+              Everything in Talvra is deleted for good. Your Canvas account isn't touched.
             </DialogDescription>
           </DialogHeader>
           <form

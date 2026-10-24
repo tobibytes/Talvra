@@ -60,8 +60,11 @@ function usePathname() {
 
 function Brand() {
   return (
-    <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-      <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+    <Link
+      to="/"
+      className="flex items-center gap-2 font-display text-lg font-extrabold tracking-tight"
+    >
+      <span className="flex size-7 items-center justify-center rounded-[9px] bg-primary text-primary-foreground">
         <GraduationCap className="size-4" />
       </span>
       <span className="group-data-[collapsible=icon]:hidden">Talvra</span>
@@ -73,7 +76,9 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
   const pathname = usePathname();
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupLabel className="font-mono text-[11px] tracking-[0.12em] uppercase">
+        {label}
+      </SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
@@ -82,6 +87,7 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
               <SidebarMenuItem key={item.to}>
                 <SidebarMenuButton
                   isActive={active}
+                  className="data-active:font-semibold data-active:[&_svg]:text-primary"
                   tooltip={item.label}
                   render={<Link to={item.to} aria-current={active ? "page" : undefined} />}
                 >
@@ -168,10 +174,17 @@ function MobileTabBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium outline-none focus-visible:bg-muted",
-                  active ? "text-primary" : "text-muted-foreground",
+                  active ? "font-semibold text-foreground" : "text-muted-foreground",
                 )}
               >
-                <item.icon className="size-5" aria-hidden />
+                <span
+                  className={cn(
+                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150",
+                    active && "bg-primary/15 text-primary",
+                  )}
+                >
+                  <item.icon className="size-5" aria-hidden />
+                </span>
                 {item.label}
               </Link>
             </li>

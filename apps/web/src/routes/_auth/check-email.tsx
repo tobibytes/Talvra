@@ -47,7 +47,7 @@ function CheckEmail() {
         </span>
       </div>
       <p className="text-center text-sm text-muted-foreground">
-        Open the link on this device to finish setting up. It expires in 24 hours.
+        Open it on this device within 24 hours.
       </p>
       {email ? (
         <Button variant="outline" onClick={resend}>

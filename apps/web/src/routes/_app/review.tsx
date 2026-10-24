@@ -92,10 +92,7 @@ function Review() {
 
   return (
     <>
-      <PageHeader
-        title="Review"
-        description={`Flashcards due from ${scope}, scheduled to help you remember.`}
-      />
+      <PageHeader title="Review" description={`Cards due from ${scope}.`} />
       {due.isPending ? (
         <ListSkeleton rows={2} />
       ) : due.isError ? (
@@ -104,7 +101,7 @@ function Review() {
         <EmptyState
           icon={CircleCheck}
           title="All caught up"
-          description="Nothing is due right now. Make flashcards from any document and they'll show up here when it's time."
+          description="Nothing is due. New cards show up here when it's time."
           action={<Button render={<Link to="/courses" />}>Find something to study</Button>}
         />
       ) : !card ? (

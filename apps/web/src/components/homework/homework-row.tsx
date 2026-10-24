@@ -44,18 +44,17 @@ export function HomeworkRow({
     >
       <div className="min-w-0 flex-1 space-y-1">
         <p className="truncate font-medium">{item.name}</p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {showCourse ? (
-            <span title={item.courseName}>{courseLabel(item.courseCode, item.courseName)}</span>
+            <span
+              title={item.courseName}
+              className="rounded-[6px] border bg-background px-1.5 py-px font-mono text-[11px] text-soft"
+            >
+              {courseLabel(item.courseCode, item.courseName)}
+            </span>
           ) : null}
-          {showCourse ? <span aria-hidden>·</span> : null}
           <span title={item.dueAt ? dateTime(item.dueAt) : undefined}>{dueText(item)}</span>
-          {item.pointsPossible ? (
-            <>
-              <span aria-hidden>·</span>
-              <span>{item.pointsPossible} pts</span>
-            </>
-          ) : null}
+          {item.pointsPossible ? <span data-numeric>{item.pointsPossible} pts</span> : null}
         </p>
         {item.plan.total ? (
           <div className="flex items-center gap-2 pt-0.5">

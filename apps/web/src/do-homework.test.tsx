@@ -62,7 +62,7 @@ describe("do my homework", () => {
     const files = await within(card).findByRole("list", { name: "Files to hand in" });
     expect(within(files).getByText("lab2.py")).toBeInTheDocument();
     expect(within(card).getByText("Put your name at the top.")).toBeInTheDocument();
-    expect(within(card).getByText(/with your note: “Use numpy”/)).toBeInTheDocument();
+    expect(within(card).getByText(/Your note: “Use numpy”/)).toBeInTheDocument();
     expect(within(files).getByRole("link", { name: "Download lab2.py" })).toHaveAttribute(
       "href",
       expect.stringContaining("/draft/files/lab2.py"),

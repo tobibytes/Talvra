@@ -121,10 +121,9 @@ function CoursePage() {
         <PageHeader
           title={courseLabel(c.courseCode, c.name)}
           description={
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>{c.name}</span>
               {c.term && !c.name.includes(c.term) ? <span>{c.term}</span> : null}
-              <span aria-hidden>·</span>
               {c.lastSyncedAt ? (
                 <span title={dateTime(c.lastSyncedAt)}>Synced {relativeTime(c.lastSyncedAt)}</span>
               ) : (
@@ -243,7 +242,7 @@ function CourseStudy({ courseId }: { courseId: string }) {
       <EmptyState
         icon={GraduationCap}
         title="Study any file in this course"
-        description="Open a file or page from Modules or Files, then pick Notes, Flashcards or Quiz. Everything it makes cites the page it came from."
+        description="Open a file, then make notes, flashcards or a quiz."
         action={
           <Button
             variant="outline"

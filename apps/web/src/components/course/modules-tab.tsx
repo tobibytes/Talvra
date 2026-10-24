@@ -104,7 +104,7 @@ export function ModulesTab({ modules, moduleId }: { modules: CourseModule[]; mod
       <EmptyState
         icon={Layers}
         title="No modules"
-        description="This course doesn't organize its material into modules. Check Files and Assignments."
+        description="This course doesn't use modules. Try Files."
       />
     );
   }
