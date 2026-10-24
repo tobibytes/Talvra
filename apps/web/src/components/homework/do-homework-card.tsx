@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { Markdown } from "@/components/document/markdown";
 import { ErrorState, ListSkeleton } from "@/components/page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -157,7 +158,11 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                     <p className="mb-1 text-xs font-medium text-muted-foreground">
                       {m.role === "user" ? "You" : "Talvra"}
                     </p>
-                    <p className="whitespace-pre-wrap break-words text-sm">{m.text}</p>
+                    {m.role === "user" ? (
+                      <p className="whitespace-pre-wrap break-words text-sm">{m.text}</p>
+                    ) : (
+                      <Markdown compact>{m.text}</Markdown>
+                    )}
                   </div>
                 ))}
               </div>
@@ -168,7 +173,7 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                   <ClipboardCheck className="size-4" />
                   <h3 className="text-sm font-medium">Verification report</h3>
                 </div>
-                <p className="text-sm">{d.verification.summary}</p>
+                <Markdown compact>{d.verification.summary}</Markdown>
                 <ul className="space-y-3">
                   {d.verification.checks.map((check, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: immutable report checks have no ids
@@ -183,9 +188,9 @@ export function DoHomeworkCard({ assignment }: { assignment: AssignmentDetail })
                               : "Not checked"}
                         </Badge>
                       </div>
-                      <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                      <Markdown compact className="mt-1 text-muted-foreground">
                         {check.detail}
-                      </p>
+                      </Markdown>
                     </li>
                   ))}
                 </ul>
@@ -394,7 +399,9 @@ function DraftView({
       {draft.notes && !draft.messages.length ? (
         <Alert>
           <AlertTitle>Before you submit</AlertTitle>
-          <AlertDescription className="whitespace-pre-line">{draft.notes}</AlertDescription>
+          <AlertDescription>
+            <Markdown compact>{draft.notes}</Markdown>
+          </AlertDescription>
         </Alert>
       ) : null}
       <ul className="divide-y rounded-lg border" aria-label="Files to hand in">
@@ -418,8 +425,10 @@ function DraftView({
 }
 
 /** How a file can be previewed in the page. */
-function previewKind(f: DraftFile): "text" | "notebook" | null {
-  if (f.name.toLowerCase().endsWith(".ipynb")) return "notebook";
+function previewKind(f: DraftFile): "text" | "markdown" | "notebook" | null {
+  const name = f.name.toLowerCase();
+  if (name.endsWith(".ipynb")) return "notebook";
+  if (name.endsWith(".md") || name.endsWith(".markdown")) return "markdown";
   if (/^(text\/|application\/json)/.test(f.contentType)) return "text";
   return null;
 }
@@ -452,7 +461,7 @@ function NotebookPreview({ json }: { json: string }) {
         // biome-ignore lint/suspicious/noArrayIndexKey: cells have no stable id here
         <div key={i} className="space-y-1">
           {c.cell_type === "markdown" ? (
-            <pre className="whitespace-pre-wrap font-sans text-sm">{joined(c.source)}</pre>
+            <Markdown compact>{joined(c.source)}</Markdown>
           ) : (
             <>
               <pre className="overflow-auto rounded bg-muted p-2 text-xs leading-5">
@@ -561,6 +570,10 @@ function FileRow({
           <p className="mt-2 text-xs text-destructive">{text.error.message}</p>
         ) : kind === "notebook" ? (
           <NotebookPreview json={text.data} />
+        ) : kind === "markdown" ? (
+          <Markdown compact className="mt-2 max-h-96 overflow-auto rounded-md border p-3">
+            {text.data}
+          </Markdown>
         ) : (
           <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs leading-5">
             {text.data}

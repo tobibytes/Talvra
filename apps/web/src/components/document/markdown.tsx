@@ -90,29 +90,80 @@ const components: Components = {
  * `renderCite` turns `[n]` citations into custom links (the `cite:` scheme is
  * the only non-standard URL let through the sanitizer).
  */
+/**
+ * Small type and tight spacing for cards and chat (AI replies, notes, notebook cells).
+ * Headings get no ids there: several replies on one page would repeat them.
+ */
+const plainHeading =
+  (Tag: "h1" | "h2" | "h3" | "h4", className: string) =>
+  ({ children }: { children?: React.ReactNode }) => (
+    <Tag className={cn("font-semibold tracking-tight", className)}>{children}</Tag>
+  );
+const compactComponents: Components = {
+  ...components,
+  h1: plainHeading("h1", "mt-4 mb-2 text-lg"),
+  h2: plainHeading("h2", "mt-4 mb-2 text-base"),
+  h3: plainHeading("h3", "mt-3 mb-1.5 text-sm"),
+  h4: plainHeading("h4", "mt-3 mb-1 text-sm"),
+  p: ({ children }) => <p className="my-1.5 leading-6">{children}</p>,
+  ul: ({ children }) => <ul className="my-1.5 list-disc space-y-0.5 ps-5">{children}</ul>,
+  ol: ({ children }) => <ol className="my-1.5 list-decimal space-y-0.5 ps-5">{children}</ol>,
+  li: ({ children }) => <li className="leading-6">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="my-2 border-s-4 border-primary/30 bg-muted/40 py-0.5 ps-3 text-muted-foreground">
+      {children}
+    </blockquote>
+  ),
+  pre: ({ children }) => (
+    <pre className="my-2 overflow-x-auto rounded-md border bg-muted/50 p-2.5 font-mono text-xs leading-5">
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto rounded-md border">
+      <table className="w-full text-xs">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border-b bg-muted/50 px-2 py-1.5 text-start font-medium">{children}</th>
+  ),
+  td: ({ children }) => <td className="border-b px-2 py-1.5 align-top">{children}</td>,
+  hr: () => <hr className="my-3" />,
+};
+
 export function Markdown({
   children,
   className,
   renderCite,
+  compact = false,
 }: {
   children: string;
   className?: string;
   renderCite?: (n: number) => React.ReactNode;
+  /** Card/chat sizing (see compactComponents). */
+  compact?: boolean;
 }) {
+  const base = compact ? compactComponents : components;
   const text = renderCite ? children.replace(/\[(\d{1,2})\]/g, "[$1](cite:$1)") : children;
   const comps: Components = renderCite
     ? {
-        ...components,
+        ...base,
         a: (props) =>
           props.href?.startsWith("cite:")
             ? renderCite(Number(props.href.slice(5)))
-            : components.a
-              ? (components.a as (p: typeof props) => React.ReactNode)(props)
+            : base.a
+              ? (base.a as (p: typeof props) => React.ReactNode)(props)
               : null,
       }
-    : components;
+    : base;
   return (
-    <div className={cn("text-[15px] text-foreground [overflow-wrap:anywhere]", className)}>
+    <div
+      className={cn(
+        compact ? "text-sm [&>:first-child]:mt-0 [&>:last-child]:mb-0" : "text-[15px]",
+        "text-foreground [overflow-wrap:anywhere]",
+        className,
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={comps}

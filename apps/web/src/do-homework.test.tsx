@@ -17,9 +17,11 @@ describe("do my homework", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send follow-up" }));
     const log = await screen.findByRole("log", { name: "Homework conversation" });
     expect(within(log).getByText("Add the explanation.")).toBeInTheDocument();
-    expect(
-      within(log).getByText("Added the explanation to your current files."),
-    ).toBeInTheDocument();
+    // Replies are Markdown, rendered (not shown as raw ** and -).
+    expect(within(log).getByText("explanation").tagName).toBe("STRONG");
+    expect(within(log).getByRole("listitem")).toHaveTextContent("lab2.py explains the result");
+    expect(within(log).getByText("lab2.py").tagName).toBe("CODE");
+    expect(log).not.toHaveTextContent("**");
     expect(screen.queryByRole("region", { name: "Verification report" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Rename lab2.py" }));
     const rename = await screen.findByRole("dialog", { name: "Rename file" });
