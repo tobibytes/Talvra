@@ -1,6 +1,10 @@
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { FileText, MessageCircleQuestion } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
+import { slugify } from "@/components/document/markdown";
+import { anchorLabel } from "@/components/search/highlight";
 import { themes } from "@/components/theme";
 import {
   Command,
@@ -13,6 +17,8 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { api } from "@/lib/api";
 import { allNav } from "@/lib/nav";
 
 type PaletteContext = { open: boolean; setOpen: (open: boolean) => void };
@@ -51,6 +57,19 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
 function CommandPalette({ open, setOpen }: PaletteContext) {
   const navigate = useNavigate();
   const { setTheme } = useTheme();
+  const [query, setQuery] = React.useState("");
+  const q = useDebouncedValue(query.trim(), 200);
+  // Course material matches, once there's enough to search for.
+  const material = useQuery({
+    queryKey: ["search", "palette", q],
+    queryFn: () => api.search({ q, limit: 5 }),
+    enabled: open && q.length >= 3,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  React.useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
 
   const run = (fn: () => void) => {
     setOpen(false);
@@ -66,7 +85,11 @@ function CommandPalette({ open, setOpen }: PaletteContext) {
     >
       {/* CommandDialog is only the dialog; cmdk needs its own <Command> root inside. */}
       <Command>
-        <CommandInput placeholder="Search pages and actions…" />
+        <CommandInput
+          placeholder="Search pages and actions…"
+          value={query}
+          onValueChange={setQuery}
+        />
         <CommandList>
           <CommandEmpty>Nothing matches that yet.</CommandEmpty>
           <CommandGroup heading="Go to">
@@ -82,6 +105,46 @@ function CommandPalette({ open, setOpen }: PaletteContext) {
               </CommandItem>
             ))}
           </CommandGroup>
+          {q.length >= 3 && material.data?.hits.length ? (
+            <CommandGroup heading="In your material">
+              {material.data.hits.map((h) => (
+                <CommandItem
+                  key={h.chunkId}
+                  value={`material ${h.chunkId}`}
+                  // The server already matched these; let cmdk keep them for this query.
+                  keywords={[query]}
+                  onSelect={() =>
+                    run(() =>
+                      navigate({
+                        to: "/documents/$documentId",
+                        params: { documentId: h.documentId },
+                        search: { tab: "read" },
+                        hash: slugify(h.heading),
+                      }),
+                    )
+                  }
+                >
+                  <FileText />
+                  <span className="truncate">{h.documentTitle}</span>
+                  <span className="ms-auto shrink-0 text-xs text-muted-foreground">
+                    {anchorLabel(h.anchor)}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
+          {q.length >= 3 ? (
+            <CommandGroup heading="Ask">
+              <CommandItem
+                value={`ask ${query}`}
+                keywords={[query]}
+                onSelect={() => run(() => navigate({ to: "/search", search: { mode: "ask", q } }))}
+              >
+                <MessageCircleQuestion />
+                <span className="truncate">Ask “{q}”</span>
+              </CommandItem>
+            </CommandGroup>
+          ) : null}
           <CommandSeparator />
           <CommandGroup heading="Theme">
             {themes.map((t) => (

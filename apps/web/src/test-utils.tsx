@@ -475,6 +475,61 @@ export function fakeApi(state: {
       const source = url.searchParams.get("source");
       return json({ items: state.documents?.filter((d) => !source || d.source === source) ?? [] });
     }
+    if (p === "/api/v1/search") {
+      const q = (url.searchParams.get("q") ?? "").toLowerCase();
+      const match = "contiguous".startsWith(q.slice(0, 6)) || q.includes("array");
+      return json({
+        mode: "keyword",
+        titles: match
+          ? [
+              {
+                kind: "document",
+                id: DOC_ID,
+                title: "Lecture 1.pdf",
+                courseId: COURSE_ID,
+                courseName: "COSC 220",
+              },
+            ]
+          : [],
+        hits: match
+          ? [
+              {
+                chunkId: "55555555-5555-4555-8555-555555555555",
+                documentId: DOC_ID,
+                documentTitle: "Lecture 1.pdf",
+                courseId: COURSE_ID,
+                courseName: "COSC 220 Data Structures",
+                anchor: { kind: "page", n: 3 },
+                heading: "Page 3",
+                snippet: "Arrays store elements «contiguously» in memory.",
+                score: 0.03,
+              },
+            ]
+          : [],
+      });
+    }
+    if (p === "/api/v1/ask") {
+      const events = [
+        {
+          type: "sources",
+          sources: [
+            {
+              n: 1,
+              documentId: DOC_ID,
+              documentTitle: "Lecture 1.pdf",
+              anchor: { kind: "page", n: 3 },
+              heading: "Page 3",
+            },
+          ],
+        },
+        { type: "delta", text: "Arrays are stored **contiguously** " },
+        { type: "delta", text: "[1]." },
+        { type: "done" },
+      ];
+      return new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), {
+        headers: { "content-type": "text/event-stream" },
+      });
+    }
     if (p === "/api/v1/study/summary") {
       return json({ dueNow: state.cards?.length ?? 0, newCards: 0, reviewedToday: 0 });
     }

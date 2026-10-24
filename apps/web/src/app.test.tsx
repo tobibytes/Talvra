@@ -100,6 +100,8 @@ describe("accessibility (axe, WCAG 2.2 AA rules)", () => {
     ["/review", () => fakeApi({ me: makeMe(), cards: [makeCard()] })],
     ["/homework", signedIn],
     ["/search", signedIn],
+    ["/search?q=arrays", signedIn],
+    ["/search?mode=ask", signedIn],
     ["/reminders", signedIn],
     ["/settings", signedIn],
     ["/gallery", signedIn],

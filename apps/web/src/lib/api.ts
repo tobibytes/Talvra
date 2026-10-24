@@ -1,5 +1,8 @@
 import {
   ApiError,
+  type AskEvent,
+  AskEvent as AskEventSchema,
+  type AskInput,
   AssignmentList,
   CanvasCourseList,
   type ConnectCanvas,
@@ -18,6 +21,7 @@ import {
   Me,
   PublicConfig,
   ReviewResult,
+  SearchResult,
   StudyAid,
   type StudyAidKind,
   StudySummary,
@@ -143,4 +147,47 @@ export const api = {
   reviewCard: (id: string, rating: 1 | 2 | 3 | 4) =>
     request(`/v1/flashcards/${id}/review`, ReviewResult, { method: "POST", json: { rating } }),
   studySummary: () => request("/v1/study/summary", StudySummary),
+  search: (params: { q: string; courseId?: string; limit?: number }) => {
+    const q = new URLSearchParams({ q: params.q });
+    if (params.courseId) q.set("courseId", params.courseId);
+    if (params.limit) q.set("limit", String(params.limit));
+    return request(`/v1/search?${q}`, SearchResult);
+  },
+  /** Streams an answer; calls `onEvent` for each server-sent event. */
+  ask: async (input: AskInput, onEvent: (e: AskEvent) => void, signal?: AbortSignal) => {
+    const res = await fetch(`${API_BASE}/v1/ask`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const body: unknown = await res.json().catch(() => null);
+      const parsed = ApiError.safeParse(body);
+      throw new ApiRequestError(res.status, parsed.success ? parsed.data : null);
+    }
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let cut = buffer.indexOf("\n\n");
+      while (cut >= 0) {
+        const block = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        const data = block
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => l.slice(5).trimStart())
+          .join("\n");
+        if (data) {
+          const parsed = AskEventSchema.safeParse(JSON.parse(data));
+          if (parsed.success) onEvent(parsed.data);
+        }
+        cut = buffer.indexOf("\n\n");
+      }
+    }
+  },
 };

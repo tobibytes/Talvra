@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 6. Whoever picks this up: read this file, then
+Last updated at the end of session 7. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -13,9 +13,9 @@ Last updated at the end of session 6. Whoever picks this up: read this file, the
 | 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
-| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ⏭ **Next up** |
+| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
-| 9 | Homework workspace + real Today dashboard | Planned |
+| 9 | Homework workspace + real Today dashboard | ⏭ **Next up** (8 awaits the owner's go-ahead) |
 | 10 | Reminders + video (media container: script → Azure TTS → MP4 in R2) | Planned |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | Planned |
 
@@ -186,18 +186,52 @@ the card to Learning, due in 10 minutes). **Not verified: a real Claude generati
 
 ---
 
-## Next up: session 7, Search and Ask
+## Session 7 notes (Search and Ask)
 
-1. **Chunks**: after extraction, split sections into ~800-token chunks (keep anchors) into a
-   `chunks` table (user_id, document_id, course_id, anchor, heading, text, tsvector generated
-   column with a GIN index).
-2. **Embeddings**: Workers AI `@cf/baai/bge-m3` (multilingual; Pidgin/English content exists) or
-   Voyage; upsert into Vectorize (`talvra-chunks`, metadata `{userId, courseId, documentId}`,
-   **always query with a userId filter**). Embed in the ingest consumer after `ready`; backfill job.
-3. **Hybrid search**: Postgres FTS (`websearch_to_tsquery`) + Vectorize top-k, merged with
-   reciprocal-rank fusion. `GET /search?q=&courseId=&kind=` returns documents with highlighted
-   snippets and anchors; assignments/modules by title too.
-4. **Ask** (`POST /ask`, SSE): retrieve top chunks (scoped to a course or document), answer with
-   Claude citing chunk anchors, stream tokens. Conversations stored per user. Same integrity rule.
-5. **Web**: `/search` page (instant results, filters, keyboard), ⌘K searches content too, Ask panel
-   on Course and Document pages using AI Elements (streamed message, sources).
+- **Chunks** (`packages/db` `chunks`, `apps/api/src/search/`): after extraction, sections are split
+  into ~300-word chunks that never cross a section (exact citation), with a generated, GIN-indexed
+  `tsvector` (heading weighted B, text A). Re-processing replaces chunks and their vectors.
+- **Semantic**: Workers AI `@cf/baai/bge-m3` (multilingual, 1024-d) into Vectorize `talvra-chunks`
+  with metadata `{userId, documentId, courseId}`. **Every query filters by userId**, and ids coming
+  back from Vectorize are re-checked against Postgres. Only bound in the production env; locally
+  (and if embedding fails) search is keyword-only and says so (`mode: "keyword"`). Embedding is
+  best effort and never fails ingestion.
+- **Hybrid** (`searchChunks`): prefix-aware tsquery built only from letters/digits (no user input
+  reaches tsquery syntax), `all` terms for the search box and `any` for questions, + Vectorize top-30
+  (score ≥ 0.45), merged with reciprocal-rank fusion, one hit per document page, `ts_headline`
+  snippets marked with « » (not HTML). Title matches for courses, documents, assignments (ILIKE with
+  escaped wildcards).
+- **Ask** (`POST /api/v1/ask`, SSE): top 8 passages → Claude (`claude-opus-5-5`, effort low,
+  streamed, cached system prompt, `fallbacks: "default"`) citing `[n]`; events `sources` → `delta`* →
+  `done | error`. Passages are escaped and treated as data; same integrity rule. 150/day per user
+  (`usage_events`). Conversations are client-side only for now (last 10 turns sent).
+- **Web**: `/search?q=&course=&mode=search|ask` (instant results with highlights, "Jump to", "Ask
+  instead"; streamed chat with numbered source chips, Stop, Enter to send), ⌘K shows material hits
+  and "Ask …". `Markdown` takes `renderCite` (only the `cite:` scheme passes the URL sanitizer).
+
+Verified: 12 API tests (chunking, tsquery safety, RRF, highlights, prefix, titles + escaping,
+userId filter + stale vector ids dropped, re-index, scoping, keyword-only mode, SSE order, errors,
+limits) and web tests incl. axe; live keyword search on the real uploaded PDF under `wrangler dev`
+(stemming, prefix "pidg", rare terms, page citations).
+
+Production setup (owner): `npx wrangler vectorize create talvra-chunks --dimensions=1024 --metric=cosine`
+then metadata indexes for filtering: `npx wrangler vectorize create-metadata-index talvra-chunks
+--property-name=userId --type=string` (repeat for `courseId`, `documentId`).
+
+---
+
+## Next up: session 9, Homework workspace + real Today
+
+(Session 8, the MCP server, waits for the owner's go-ahead.)
+
+1. **Homework list** `/homework`: every assignment across selected courses, grouped Overdue / This
+   week / Later / No date, filters by course and status; submission state from Canvas
+   (`/courses/:id/assignments?include[]=submission` → `submitted_at`, `workflow_state`, `score`
+   hidden by default) synced in session 4's sync.
+2. **Workspace** `/homework/$assignmentId`: the assignment description (sanitized HTML), a Claude
+   "brief" (what's being asked, deliverables, constraints, rubric points, due) that never does the
+   work, related material (hybrid search seeded with the assignment text, with citations), and a
+   step plan (Kibo kanban or checklist) saved server-side with effort estimates and dates.
+3. **Today**: real due list (next 7 days + overdue, grouped by day), cards due, recently processed
+   material, sync status. Each item one tap to its workspace.
+4. Integrity copy everywhere in the workspace.

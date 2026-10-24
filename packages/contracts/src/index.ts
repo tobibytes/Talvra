@@ -4,5 +4,6 @@ export * from "./documents.js";
 export * from "./errors.js";
 export * from "./health.js";
 export * from "./me.js";
+export * from "./search.js";
 export * from "./study.js";
 export * from "./sync.js";

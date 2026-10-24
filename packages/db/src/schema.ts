@@ -485,3 +485,52 @@ export const flashcardReviews = pgTable(
   },
   (t) => [index("flashcard_reviews_user_time_idx").on(t.userId, t.reviewedAt)],
 );
+
+const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
+
+/**
+ * Searchable pieces of a document (~300 words), each tied to the page/slide/
+ * section it came from. `tsv` powers keyword search; the same ids are the
+ * vector ids in Vectorize (semantic search), always queried with a userId filter.
+ */
+export const chunks = pgTable(
+  "chunks",
+  {
+    id: id(),
+    userId: owner(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    courseId: uuid("course_id"),
+    position: integer("position").notNull(),
+    anchorKind: text("anchor_kind", { enum: ["page", "slide", "section"] }).notNull(),
+    anchorN: integer("anchor_n").notNull(),
+    heading: text("heading").notNull(),
+    text: text("text").notNull(),
+    tsv: tsvector("tsv")
+      .notNull()
+      .generatedAlwaysAs(
+        sql`setweight(to_tsvector('english', coalesce(heading, '')), 'B') || setweight(to_tsvector('english', text), 'A')`,
+      ),
+    /** Set once the vector is in Vectorize. */
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("chunks_user_doc_idx").on(t.userId, t.documentId, t.position),
+    index("chunks_user_course_idx").on(t.userId, t.courseId),
+    index("chunks_tsv_idx").using("gin", t.tsv),
+  ],
+);
+
+/** Metered actions (e.g. "ask") for per-user daily limits. */
+export const usageEvents = pgTable(
+  "usage_events",
+  {
+    id: id(),
+    userId: owner(),
+    kind: text("kind").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("usage_events_user_kind_time_idx").on(t.userId, t.kind, t.createdAt)],
+);
