@@ -41,20 +41,18 @@ function CheckEmail() {
         </Link>
       }
     >
-      <div className="flex justify-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <MailCheck className="size-7" aria-hidden />
+      <div className="flex items-center gap-3 rounded-xl border bg-background p-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-primary/14 text-primary">
+          <MailCheck className="size-5" aria-hidden />
         </span>
+        <p className="text-sm text-muted-foreground">Open it on this device within 24 hours.</p>
       </div>
-      <p className="text-center text-sm text-muted-foreground">
-        Open it on this device within 24 hours.
-      </p>
       {email ? (
         <Button variant="outline" onClick={resend}>
           Resend the link
         </Button>
       ) : null}
-      <p role="status" className="text-center text-sm text-muted-foreground">
+      <p role="status" className="text-sm text-muted-foreground">
         {status}
       </p>
     </AuthCard>
