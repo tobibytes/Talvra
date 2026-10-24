@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ExternalLink, GraduationCap, SearchX } from "lucide-react";
 import { z } from "zod";
+import { StatusPill } from "@/components/blocks";
 import { AssignmentsTable } from "@/components/course/assignments-table";
 import { FilesTable } from "@/components/course/files-table";
 import { ModulesTab } from "@/components/course/modules-tab";
@@ -29,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
 import { meQuery } from "@/lib/auth";
 import { courseLabel } from "@/lib/course-label";
-import { dateTime, plural, relativeTime } from "@/lib/time";
+import { dateTime, relativeTime } from "@/lib/time";
 
 const tabs = ["modules", "files", "assignments", "study"] as const;
 type Tab = (typeof tabs)[number];
@@ -119,15 +120,17 @@ function CoursePage() {
         </div>
       ) : c ? (
         <PageHeader
+          eyebrow={c.term && !c.name.includes(c.term) ? c.term : "Course"}
           title={courseLabel(c.courseCode, c.name)}
           description={
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>{c.name}</span>
-              {c.term && !c.name.includes(c.term) ? <span>{c.term}</span> : null}
               {c.lastSyncedAt ? (
-                <span title={dateTime(c.lastSyncedAt)}>Synced {relativeTime(c.lastSyncedAt)}</span>
+                <span title={dateTime(c.lastSyncedAt)}>
+                  <StatusPill tone="ok">Synced {relativeTime(c.lastSyncedAt)}</StatusPill>
+                </span>
               ) : (
-                <span>Not synced yet</span>
+                <StatusPill>Not synced</StatusPill>
               )}
             </span>
           }
@@ -232,9 +235,13 @@ function CourseStudy({ courseId }: { courseId: string }) {
     <div className="space-y-4">
       {n ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4">
-          <p className="text-sm">
-            <span className="font-medium">{plural(n, "flashcard")}</span>{" "}
-            <span className="text-muted-foreground">due from this course.</span>
+          <p className="flex items-baseline gap-2">
+            <span className="font-display text-2xl font-extrabold text-primary" data-numeric>
+              {n}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {n === 1 ? "card" : "cards"} due from this course
+            </span>
           </p>
           <Button render={<Link to="/review" search={{ courseId }} />}>Review now</Button>
         </div>

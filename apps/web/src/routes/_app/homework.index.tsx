@@ -3,19 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardCheck, ClipboardList } from "lucide-react";
 import { z } from "zod";
+import { SectionLabel } from "@/components/blocks";
 import { HomeworkRow } from "@/components/homework/homework-row";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { courseLabel } from "@/lib/course-label";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/homework/")({
   validateSearch: z.object({
@@ -72,28 +67,31 @@ function Homework() {
           </TabsList>
         </Tabs>
         {selected.length > 1 ? (
-          <Select
-            value={search.course ?? ALL}
-            onValueChange={(v) => set({ course: !v || v === ALL ? undefined : String(v) })}
-            items={[
-              { value: ALL, label: "All courses" },
-              ...selected.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          >
-            <SelectTrigger className="w-full sm:w-64" aria-label="Filter by course">
-              <SelectValue>
-                {selected.find((c) => c.id === search.course)?.name ?? "All courses"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All courses</SelectItem>
-              {selected.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {courseLabel(c.courseCode, c.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <fieldset className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 py-0.5">
+            <legend className="sr-only">Filter by course</legend>
+            {[
+              { id: undefined, label: "All courses" },
+              ...selected.map((c) => ({ id: c.id, label: courseLabel(c.courseCode, c.name) })),
+            ].map((c) => {
+              const on = search.course === c.id;
+              return (
+                <button
+                  key={c.id ?? ALL}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => set({ course: c.id })}
+                  className={cn(
+                    "h-8 shrink-0 rounded-full border px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    on
+                      ? "border-primary/40 bg-primary/12 text-primary"
+                      : "bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </fieldset>
         ) : null}
       </div>
       {hw.isPending ? (
@@ -123,10 +121,16 @@ function Homework() {
       ) : (
         <div className="space-y-6">
           {group(hw.data.items).map((g) => (
-            <section key={g.key} aria-labelledby={`hw-${g.key}`} className="space-y-2">
-              <h2 id={`hw-${g.key}`} className="text-sm font-medium text-muted-foreground">
-                {g.title} <span className="tabular-nums">({g.items.length})</span>
-              </h2>
+            <section key={g.key} aria-labelledby={`hw-${g.key}`} className="animate-rise space-y-2">
+              <SectionLabel id={`hw-${g.key}`} tone={g.key === "overdue" ? "stop" : undefined}>
+                {g.title}
+                <span
+                  className="rounded-full border px-1.5 text-[10px] tracking-normal"
+                  data-numeric
+                >
+                  {g.items.length}
+                </span>
+              </SectionLabel>
               <ul className="divide-y overflow-hidden rounded-xl border bg-card">
                 {g.items.map((i) => (
                   <li key={i.id}>

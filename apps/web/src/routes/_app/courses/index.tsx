@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, ChevronRight, FileText } from "lucide-react";
+import { IconTile, SectionLabel, StatusPill } from "@/components/blocks";
 import { DocumentStatusBadge } from "@/components/document/status";
 import { UploadButton } from "@/components/document/upload-dialog";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
@@ -38,38 +39,38 @@ function Courses() {
       ) : courses.isError ? (
         <ErrorState error={courses.error} onRetry={() => courses.refetch()} />
       ) : selected.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {selected.map((c) => (
-            <li key={c.id}>
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {selected.map((c, i) => (
+            <li key={c.id} className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
               <Link
                 to="/courses/$courseId"
                 params={{ courseId: c.id }}
-                className="group flex h-full items-start gap-4 rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="group flex h-full flex-col gap-4 rounded-xl border bg-card p-4 outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <BookOpen className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-medium leading-snug">{courseLabel(c.courseCode, c.name)}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <IconTile icon={BookOpen} />
+                  {c.lastSyncedAt ? (
+                    <span title={dateTime(c.lastSyncedAt)}>
+                      <StatusPill tone="ok">Synced {relativeTime(c.lastSyncedAt)}</StatusPill>
+                    </span>
+                  ) : (
+                    <StatusPill>Not synced</StatusPill>
+                  )}
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <p className="font-display text-xl leading-tight font-extrabold tracking-tight">
+                    {courseLabel(c.courseCode, c.name)}
+                  </p>
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
                     {[c.name, c.term && !c.name.includes(c.term) ? c.term : null]
                       .filter(Boolean)
                       .join(", ")}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.lastSyncedAt ? (
-                      <span title={dateTime(c.lastSyncedAt)}>
-                        Synced {relativeTime(c.lastSyncedAt)}
-                      </span>
-                    ) : (
-                      "Not synced yet"
-                    )}
-                  </p>
                 </div>
-                <ChevronRight
-                  className="mt-2 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                />
+                <span className="mt-auto flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors duration-150 group-hover:text-primary">
+                  Open course
+                  <ChevronRight className="size-3.5" aria-hidden />
+                </span>
               </Link>
             </li>
           ))}
@@ -84,19 +85,17 @@ function Courses() {
       )}
       {uploads.data?.items.length ? (
         <section aria-labelledby="uploads-heading" className="mt-10 space-y-3">
-          <h2 id="uploads-heading" className="font-semibold">
-            Your uploads
-          </h2>
+          <SectionLabel id="uploads-heading">Your uploads</SectionLabel>
           <ul className="divide-y rounded-xl border bg-card">
             {uploads.data.items.map((d) => (
               <li key={d.id}>
                 <Link
                   to="/documents/$documentId"
                   params={{ documentId: d.id }}
-                  className="flex items-center gap-3 p-4 text-sm outline-none transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
+                  className="flex items-center gap-3 p-3 text-sm outline-none transition-colors duration-150 first:rounded-t-xl last:rounded-b-xl hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
                 >
-                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate font-medium">{d.title}</span>
+                  <IconTile icon={FileText} />
+                  <span className="min-w-0 flex-1 truncate font-semibold">{d.title}</span>
                   <span className="hidden text-xs text-muted-foreground sm:inline">
                     {relativeTime(d.updatedAt)}
                   </span>
