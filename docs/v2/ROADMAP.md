@@ -382,6 +382,11 @@ deleted, and there is no backup tag (the owner didn't want one). Only git histor
   missing pages and broken PDFs fall back to the text layout. ffmpeg inputs are now explicitly
   `-protocol_whitelist file` with stated formats (the session 11 note claimed this, but only the
   `.mp3` rename had landed).
+  Production (37-page deck, standard-2 media container): 8 slides, 6 with pages, 4.5-minute video,
+  ready ~2 minutes after the click (script 19 s, narration 27 s with 4 in parallel, render 76 s).
+  Narration is held to 750 words a video (`fitBudget`); infra errors from the container (e.g. a
+  rollout restart) are retried, only its 400/413/422 answers are final. Each job logs
+  `video timing` (visible in `wrangler tail`).
 
 ## Original session 11 plan (for reference)
 
