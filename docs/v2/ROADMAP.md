@@ -17,7 +17,7 @@ Last updated at the end of session 11. Whoever picks this up: read this file, th
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed (the only session left) |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
-| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done in code (deploy and Sentry DSN wait on the owner, see below) |
+| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done. Live at https://hwrk.help (Sentry waits on a DSN) |
 
 Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
 If you want something usable sooner, the shortest useful path is 4 → 5 → the Today part of 9.
@@ -50,11 +50,11 @@ Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
       tokens, DB password, OpenAI key (revoke). They're gone from the tree since the cutover but still
       in git history. Then purge them from history. That
       rewrite needs a force-push to `main`; only do it when the owner says so.
-- [ ] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
-- [ ] Resend API key (required in production).
-- [ ] Cloudflare Workers **paid** plan: password hashing needs more than the free plan's 10ms CPU.
-- [ ] Neon project + `wrangler hyperdrive create` → put the id in `apps/api/wrangler.jsonc`.
-- [ ] **A valid `ANTHROPIC_API_KEY`.** The key in the agent's environment returned 401, so study
+- [x] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
+- [x] Resend API key, hwrk.help verified.
+- [x] Cloudflare Workers paid plan.
+- [x] Neon project + Hyperdrive (`talvra-db`).
+- [x] **A valid `ANTHROPIC_API_KEY`** (production key verified; the live smoke test is still worth running).** The key in the agent's environment returned 401, so study
       aids were never generated against the real API (everything else, including the failure path,
       was). Put it in `apps/api/.dev.vars`, then run the opt-in smoke test:
       `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`
@@ -327,9 +327,25 @@ Not part of `pnpm check` (needs Docker and a running stack). Don't rebuild `apps
 **Not done, needs the owner**:
 - Sentry: no DSN yet. Add `@sentry/cloudflare` (Worker) and `@sentry/react` (web) gated on
   `SENTRY_DSN`, and add the ingest host to the CSP `connect-src`.
-- Deploy (see Open items): paid Workers plan, Neon + Hyperdrive id, R2 bucket, queues + DLQs,
-  Vectorize index (`bge-m3`, 1024 dims, cosine, metadata indexes on `userId`/`documentId`),
-  secrets, then `wrangler deploy --env production` and a smoke test.
+
+**Production** (deployed 2026-10-24): Worker `talvra-production` on `hwrk.help` (custom domain; `www`
+is a second custom domain that the Worker 301s to the bare domain, `src/front.ts`). The Worker runs
+first on every request (`run_worker_first: true`) and hands non-`/api` paths to the `ASSETS`
+binding; `_headers` (CSP etc.) still apply. Resources: Neon (Postgres 18) via Hyperdrive
+`talvra-db`, R2 `talvra-files`, queues `talvra-ingest`/`talvra-ai` + DLQs, Vectorize
+`talvra-chunks` (1024, cosine, metadata indexes `userId`/`courseId`/`documentId`), both
+containers. Resend sends from `hello@hwrk.help` (domain verified).
+
+Redeploy:
+```bash
+pnpm prod:env --check                       # secrets still valid
+DATABASE_URL=… pnpm db:migrate              # only when there are new migrations
+pnpm --filter @talvra/web build
+grep -v -E '^(DATABASE_URL=|#)' apps/api/.prod.vars > /tmp/s.env
+(cd apps/api && pnpm exec wrangler deploy --env production --secrets-file /tmp/s.env); rm /tmp/s.env
+```
+Container image pushes to Cloudflare's registry can time out on a slow uplink; rerun, finished
+layers are kept.
 
 **Cutover**: legacy v1 is removed from the tree, its old branches and the local leftovers are
 deleted, and there is no backup tag (the owner didn't want one). Only git history has it.

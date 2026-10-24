@@ -11,6 +11,7 @@ import {
 } from "./ai/video.js";
 import { createApp } from "./app.js";
 import type { Bindings } from "./env.js";
+import { frontDoor } from "./front.js";
 import {
   enqueueAll,
   type IngestDeps,
@@ -97,7 +98,7 @@ async function sweepStuckDocuments(env: Bindings) {
 }
 
 export default {
-  fetch: app.fetch,
+  fetch: (req, env, ctx) => frontDoor((r) => app.fetch(r, env, ctx), env.ASSETS, req),
   scheduled(controller, env, ctx) {
     // Every 15 minutes: reminders (time-sensitive). Every 30: sync + sweeps.
     ctx.waitUntil(runReminders(env));

@@ -15,6 +15,8 @@ export type Bindings = {
   /** Comma-separated list, e.g. "morgan.edu". */
   ALLOWED_EMAIL_DOMAINS: string;
   EMAIL_FROM: string;
+  /** The SPA build (apps/web/dist). The Worker runs first and hands non-API paths to it. */
+  ASSETS?: Fetcher;
   HYPERDRIVE?: Hyperdrive;
   /** Durable Canvas sync (sync/workflow.ts). */
   SYNC_WORKFLOW?: Workflow<SyncParams>;

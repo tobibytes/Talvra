@@ -10,8 +10,10 @@
   // paths falling back to index.html for client-side routing.
   "assets": {
     "directory": "../web/dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    // The Worker sees every request so it can redirect www (see src/front.ts).
+    "run_worker_first": true
   },
   "vars": {
     "APP_ENV": "development",
@@ -111,9 +113,13 @@
         "EMAIL_FROM": "Talvra <hello@hwrk.help>"
       },
       // The app's own domain (zone on this Cloudflare account). Wrangler creates the DNS record.
-      "routes": [{ "pattern": "hwrk.help", "custom_domain": true }],
+      "routes": [
+        { "pattern": "hwrk.help", "custom_domain": true },
+        // The Worker redirects www to the bare domain (src/front.ts).
+        { "pattern": "www.hwrk.help", "custom_domain": true }
+      ],
       "workers_dev": false,
-      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }],
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "a7e61db5bd414e8d8425be1fbbc06077" }],
       // Bindings aren't inherited by environments; repeat them.
       "workflows": [
         {
