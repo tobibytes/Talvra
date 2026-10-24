@@ -1,5 +1,5 @@
 import { ApiError, type StudyNotes, Video, VideoState } from "@talvra/contracts";
-import { schema } from "@talvra/db";
+import { eq, schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -11,6 +11,7 @@ import {
   type VideoDeps,
   VideoError,
 } from "../src/ai/video.js";
+import { fileKeys } from "../src/lib/files.js";
 import { fakeR2 } from "./fake-r2.js";
 import { harness, signedInUser } from "./helpers.js";
 
@@ -156,6 +157,38 @@ describe("video API", () => {
       .returning();
     expect(await renderVideo(deps, { userId: ctx.userId, videoId: v2?.id ?? "" })).toBe("ready");
     expect(ctx.speak.mock.calls[0]?.[0]).toBe("Arrays. How arrays store data.");
+  });
+
+  it("sends the source PDF and each slide's page, so slides show the real lecture", async () => {
+    const ctx = await setup();
+    await ctx.addNotes();
+    const pdf = new TextEncoder().encode("%PDF-1.7 lecture");
+    await ctx.r2.store.put(fileKeys(ctx.userId, ctx.docId).original, pdf);
+    const script = vi.fn(async () => [
+      { heading: "Arrays", bullets: [], narration: "Intro.", page: null },
+      { heading: "Memory", bullets: ["Contiguous"], narration: "Side by side.", page: 3 },
+      { heading: "Recap", bullets: [], narration: "Done.", page: 0 },
+    ]);
+    const [v] = await ctx.db
+      .insert(schema.videos)
+      .values({ userId: ctx.userId, documentId: ctx.docId })
+      .returning();
+    await renderVideo({ ...ctx.deps, script }, { userId: ctx.userId, videoId: v?.id ?? "" });
+    const input = ctx.render.mock.calls[0]?.[0];
+    expect(input?.pdf).toEqual(pdf);
+    expect(input?.slides.map((s) => s.page)).toEqual([null, 3, null]);
+
+    // Not a PDF: no file goes to the renderer (text slides only).
+    await ctx.db
+      .update(schema.documents)
+      .set({ title: "Slides.pptx" })
+      .where(eq(schema.documents.id, ctx.docId));
+    const [v2] = await ctx.db
+      .insert(schema.videos)
+      .values({ userId: ctx.userId, documentId: ctx.docId })
+      .returning();
+    await renderVideo({ ...ctx.deps, script }, { userId: ctx.userId, videoId: v2?.id ?? "" });
+    expect(ctx.render.mock.calls[1]?.[0].pdf).toBeUndefined();
   });
 
   it("retries a busy renderer, then fails with a clear message", async () => {

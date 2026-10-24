@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from talvra_media.app import app
 
@@ -112,3 +113,99 @@ def test_rejects_bad_input():
         == 422
     )
     assert client.post("/render", json={"slides": []}).status_code == 422
+
+
+def two_page_pdf() -> bytes:
+    """Page 1: landscape, solid red. Page 2: portrait, solid blue."""
+    from io import BytesIO
+
+    buf = BytesIO()
+    red = Image.new("RGB", (1600, 900), (220, 30, 30))
+    blue = Image.new("RGB", (850, 1100), (30, 60, 220))
+    red.save(buf, "PDF", save_all=True, append_images=[blue], resolution=150)
+    return buf.getvalue()
+
+
+def frame_at(mp4: bytes, seconds: float) -> Image.Image:
+    from io import BytesIO
+
+    with tempfile.TemporaryDirectory() as t:
+        src = Path(t) / "v.mp4"
+        src.write_bytes(mp4)
+        png = Path(t) / "f.png"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loglevel",
+                "error",
+                "-ss",
+                f"{seconds}",
+                "-i",
+                str(src),
+                "-frames:v",
+                "1",
+                str(png),
+            ],
+            check=True,
+        )
+        return Image.open(BytesIO(png.read_bytes())).convert("RGB")
+
+
+def test_shows_the_cited_lecture_pages():
+    audio = base64.b64encode(tone(1.2)).decode()
+    r = client.post(
+        "/render",
+        json={
+            "title": "Lecture 4",
+            "pdf_b64": base64.b64encode(two_page_pdf()).decode(),
+            "slides": [
+                {"heading": "Lecture 4", "bullets": [], "audio_b64": audio, "page": 1},
+                {
+                    "heading": "Red slide",
+                    "bullets": ["Shown beside page 1"],
+                    "audio_b64": audio,
+                    "page": 1,
+                },
+                {
+                    "heading": "Blue notes",
+                    "bullets": ["Tall page pans"],
+                    "audio_b64": audio,
+                    "page": 2,
+                },
+                {
+                    "heading": "No such page",
+                    "bullets": ["Text only"],
+                    "audio_b64": audio,
+                    "page": 9,
+                },
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    d = [float(x) for x in r.headers["x-slide-durations"].split(",")]
+    starts = [sum(d[:i]) for i in range(len(d))]
+    # The title slide stays plain; slides 2 and 3 show their page on the right.
+    right = (900, 360)
+    assert frame_at(r.content, starts[0] + 0.5).getpixel(right) == (250, 250, 252)
+    r2, g2, b2 = frame_at(r.content, starts[1] + 0.5).getpixel(right)
+    assert r2 > 180 and g2 < 80 and b2 < 80
+    r3, g3, b3 = frame_at(r.content, starts[2] + 0.5).getpixel(right)
+    assert b3 > 180 and r3 < 80
+    # Out-of-range page: the plain text layout (background colour on the right).
+    assert sum(frame_at(r.content, starts[3] + 0.5).getpixel(right)) > 700
+
+
+def test_a_broken_pdf_just_means_text_slides():
+    audio = base64.b64encode(tone(0.5)).decode()
+    r = client.post(
+        "/render",
+        json={
+            "pdf_b64": base64.b64encode(b"%PDF-1.7 garbage").decode(),
+            "slides": [
+                {"heading": "A", "bullets": [], "audio_b64": audio, "page": 1},
+                {"heading": "B", "bullets": ["x"], "audio_b64": audio, "page": 1},
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
