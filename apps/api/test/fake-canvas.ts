@@ -136,7 +136,10 @@ export function fakeCanvas(state: FakeCanvasState = defaultState()) {
     const url = new URL(String(input));
     const auth = new Headers(init?.headers).get("authorization");
     // Canvas's file storage: signed URL, no token needed (and none must be sent).
-    if (url.hostname === "instructure-uploads.s3.amazonaws.com") {
+    if (
+      url.hostname === "instructure-uploads.s3.amazonaws.com" ||
+      url.hostname.endsWith(".inscloudgate.net")
+    ) {
       if (auth) return new Response("token leaked to storage host", { status: 400 });
       const id = url.pathname.split("/").pop() ?? "";
       const bytes = state.fileBytes?.[id];
