@@ -160,7 +160,11 @@ export function buildMcpServer(call: ApiCall): McpServer {
         "Submits the current ready homework draft files for this assignment to Canvas as the student. This hands the work in. Call get_homework_draft first to confirm the files and status.",
       inputSchema: {
         assignment_id: uuid,
-        updated_at: z.string().datetime().optional().describe("Draft updatedAt from get_homework_draft"),
+        updated_at: z
+          .string()
+          .datetime()
+          .optional()
+          .describe("Draft updatedAt from get_homework_draft"),
       },
       annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
     },
