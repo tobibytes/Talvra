@@ -40,7 +40,7 @@ function ForgotPassword() {
       }
     >
       {sent ? (
-        <p role="status" className="text-center text-sm">
+        <p role="status" className="text-sm">
           If an account exists for <strong>{email}</strong>, a reset link is on its way.
         </p>
       ) : (
