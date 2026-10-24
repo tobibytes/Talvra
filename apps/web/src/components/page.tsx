@@ -18,14 +18,22 @@ export function PageHeader({
   title,
   description,
   actions,
+  eyebrow,
 }: {
   title: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** Small mono label above the title (a date, a course code). */
+  eyebrow?: React.ReactNode;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="space-y-1.5">
+        {eyebrow ? (
+          <p className="animate-fade font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
+            {eyebrow}
+          </p>
+        ) : null}
         <h1 className="animate-rise font-display text-[clamp(30px,4vw,40px)] leading-[1.05] font-extrabold tracking-[-0.02em]">
           {title}
         </h1>

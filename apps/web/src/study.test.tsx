@@ -93,7 +93,7 @@ describe("review", () => {
     fakeApi({ me: makeMe(), cards: [makeCard(), makeCard()] });
     await renderApp("/");
     await waitFor(() =>
-      expect(screen.getByRole("link", { name: /Review 2 cards/ })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: /Cards to review\s*2/ })).toHaveAttribute(
         "href",
         "/review",
       ),
