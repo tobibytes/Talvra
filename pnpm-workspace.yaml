@@ -1,8 +1,8 @@
-# v2 workspace. Legacy code (frontend/, services/) is intentionally NOT part of
-# this workspace; it stays in the repo until the session 10 cutover.
+# v2 workspace. e2e/ is opt-in (`pnpm e2e`); it needs the local stack running.
 packages:
   - "apps/*"
   - "packages/*"
+  - "e2e"
 
 onlyBuiltDependencies:
   - esbuild

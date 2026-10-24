@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("ALLOW_NO_AUTH", "1")
+
 import base64
 import subprocess
 import tempfile
@@ -79,6 +83,19 @@ def test_renders_slides_with_narration_into_mp4():
     assert "h264" in info["raw"] and "aac" in info["raw"]
     assert "width=1280" in info["raw"] and "height=720" in info["raw"]
     assert abs(float(info["duration"]) - sum(durations)) < 0.5
+
+
+def test_refuses_playlist_masquerading_as_audio():
+    playlist = b"#EXTM3U\n#EXTINF:1,\nfile:///etc/passwd\n"
+    r = client.post(
+        "/render",
+        json={
+            "slides": [
+                {"heading": "x", "bullets": [], "audio_b64": base64.b64encode(playlist).decode()}
+            ]
+        },
+    )
+    assert r.status_code == 422
 
 
 def test_rejects_bad_input():

@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AskInput, AskSource, SearchHit } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
-import { and, eq, gt, inArray, schema, sql } from "@talvra/db";
-import { AppError } from "../lib/errors.js";
+import { and, eq, inArray, schema } from "@talvra/db";
+import { meter } from "../lib/usage.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
 import { MODEL } from "./claude.js";
 
-const { chunks, usageEvents } = schema;
+const { chunks } = schema;
 
 export const DAILY_ASK_LIMIT = 150;
 
@@ -70,20 +70,10 @@ export function claudeAnswerer(apiKey: string): Answerer {
 
 /** Counts this request against the daily limit (throws when over). */
 export async function meterAsk(db: Database, userId: string) {
-  const [{ n } = { n: 0 }] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(usageEvents)
-    .where(
-      and(
-        eq(usageEvents.userId, userId),
-        eq(usageEvents.kind, "ask"),
-        gt(usageEvents.createdAt, new Date(Date.now() - 86_400_000)),
-      ),
-    );
-  if (n >= DAILY_ASK_LIMIT) {
-    throw new AppError("rate_limited", "You've asked a lot today. Try again tomorrow.");
-  }
-  await db.insert(usageEvents).values({ userId, kind: "ask" });
+  await meter(db, userId, "ask", {
+    limit: DAILY_ASK_LIMIT,
+    message: "You've asked a lot today. Try again tomorrow.",
+  });
 }
 
 const location = (h: Pick<SearchHit, "anchor">) =>

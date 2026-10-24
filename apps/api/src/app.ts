@@ -8,7 +8,10 @@ import { type AppEnv, allowedDomains, isAllowedEmail } from "./env.js";
 import type { Fetch } from "./lib/canvas.js";
 import { emailSender, type SendEmail } from "./lib/email.js";
 import { AppError, fromZod, sendError } from "./lib/errors.js";
+import { sameOrigin } from "./middleware/csrf.js";
+import { type Limiters, rateLimit } from "./middleware/rate-limit.js";
 import { requestId } from "./middleware/request-id.js";
+import { accountRoutes } from "./routes/account.js";
 import { canvasRoutes } from "./routes/canvas.js";
 import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
@@ -43,6 +46,8 @@ export type AppOptions = {
   homework?: HomeworkOptions;
   /** Tests use in-memory files and render inline. */
   video?: VideoOptions;
+  /** Tests inject fake rate limiters. */
+  limits?: Limiters;
 };
 
 /**
@@ -90,6 +95,19 @@ export function createApp(opts: AppOptions = {}) {
     await next();
   });
 
+  // Credential endpoints: per-IP limit against stuffing and email bombing.
+  const authLimit = rateLimit("RL_AUTH", "ip", opts.limits);
+  for (const path of [
+    "/auth/sign-in/*",
+    "/auth/sign-up/*",
+    "/auth/request-password-reset",
+    "/auth/forget-password",
+    "/auth/reset-password",
+    "/auth/send-verification-email",
+  ]) {
+    app.post(path, authLimit);
+  }
+
   // Better Auth owns everything under /api/auth.
   app.on(["GET", "POST"], "/auth/*", (c) => authFor(c).handler(c.req.raw));
 
@@ -107,10 +125,27 @@ export function createApp(opts: AppOptions = {}) {
     await next();
   });
 
+  // Per-user limits once the session is known: a general ceiling, and a tighter
+  // one on the expensive actions (Canvas, uploads, Claude, video).
+  app.use("/v1/*", sameOrigin);
+  app.use("/v1/*", rateLimit("RL_API", "user", opts.limits));
+  const heavy = rateLimit("RL_HEAVY", "user", opts.limits);
+  app.post("/v1/sync", heavy);
+  app.put("/v1/canvas/connection", heavy);
+  app.post("/v1/documents", heavy);
+  app.post("/v1/documents/:id/aids", heavy);
+  app.post("/v1/documents/:id/video", heavy);
+  app.post("/v1/documents/:id/retry", heavy);
+  app.post("/v1/ask", heavy);
+  app.post("/v1/homework/:id/brief", heavy);
+  app.post("/v1/homework/:id/plan/suggest", heavy);
+  app.post("/v1/reminders/test", heavy);
+
   app.route("/", health);
   app.route("/", configRoutes);
   const launch = opts.launchSync ?? launchWorkflow;
   app.route("/v1", meRoutes(launch));
+  app.route("/v1", accountRoutes({ files: opts.documents?.files as never }));
   app.route("/v1", syncRoutes(launch));
   app.route("/v1", documentsRoutes(opts.documents));
   app.route("/v1", studyRoutes(opts.study));

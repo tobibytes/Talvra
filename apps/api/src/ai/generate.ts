@@ -4,6 +4,7 @@ import { and, desc, eq, gt, inArray, schema, sql } from "@talvra/db";
 import type { FileStore } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
 import { fileKeys, sha256Hex } from "../lib/files.js";
+import { DAY, meter } from "../lib/usage.js";
 import { type AidContent, GenerationError, type Generator, SCHEMAS } from "./claude.js";
 import { anchorLabel, documentXml, PROMPT_VERSION } from "./prompts.js";
 
@@ -20,8 +21,10 @@ export type AidDeps = {
 
 /** Generations per user per rolling 24 hours (cost guard). */
 export const DAILY_AID_LIMIT = 40;
-/** ~600k tokens of input; beyond that we'd rather say so than truncate. */
-export const MAX_INPUT_CHARS = 2_400_000;
+/** ~200k tokens of input; beyond that we'd rather say so than truncate. */
+export const MAX_INPUT_CHARS = 800_000;
+/** Input tokens per user per rolling day across all study aids (cost guard). */
+export const DAILY_INPUT_TOKENS = 3_000_000;
 export const MAX_ATTEMPTS = 3;
 /** In-flight aids older than this are treated as lost. */
 export const STUCK_AFTER_MS = 30 * 60_000;
@@ -88,18 +91,20 @@ export async function requestAid(
   if (latest?.status === "ready" && !input.regenerate)
     return { aid: toStudyAid(latest), created: false };
 
-  const [{ n } = { n: 0 }] = await db
-    .select({ n: sql<number>`count(*)::int` })
+  const [{ tokens } = { tokens: 0 }] = await db
+    .select({ tokens: sql<number>`coalesce(sum(${studyAids.inputTokens}), 0)::int` })
     .from(studyAids)
-    .where(
-      and(eq(studyAids.userId, userId), gt(studyAids.createdAt, new Date(Date.now() - 86_400_000))),
-    );
-  if (n >= DAILY_AID_LIMIT) {
+    .where(and(eq(studyAids.userId, userId), gt(studyAids.createdAt, new Date(Date.now() - DAY))));
+  if (tokens >= DAILY_INPUT_TOKENS) {
     throw new AppError(
       "rate_limited",
       "You've made a lot of study material today. Try again tomorrow.",
     );
   }
+  await meter(db, userId, "aid", {
+    limit: DAILY_AID_LIMIT,
+    message: "You've made a lot of study material today. Try again tomorrow.",
+  });
 
   const [row] = await db
     .insert(studyAids)
@@ -207,7 +212,7 @@ export async function generateAid(deps: AidDeps, { userId, aidId }: AidMessage, 
     .from(documents)
     .where(and(eq(documents.userId, userId), eq(documents.id, aid.documentId)))
     .limit(1);
-  if (!doc || doc.status !== "ready") {
+  if (doc?.status !== "ready") {
     await save(deps, aid, { status: "failed", error: "The document isn't available anymore." });
     return "failed" as const;
   }

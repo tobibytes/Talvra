@@ -44,6 +44,19 @@ const ITEM_KINDS: Record<string, schema.ModuleItemKind> = {
   SubHeader: "subheader",
 };
 
+/** Only http(s) links from Canvas are kept (they're rendered as hrefs). */
+function safeUrl(u: string | undefined | null, allowHttp = false) {
+  if (!u) return null;
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:" || (allowHttp && url.protocol === "http:")
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function itemRef(item: CanvasModuleItemRaw) {
   if (item.type === "Page") return item.page_url ?? null;
   return item.content_id != null ? String(item.content_id) : null;
@@ -129,8 +142,8 @@ export async function syncCourse(
         title: item.title ?? "Untitled",
         kind,
         refCanvasId: ref,
-        htmlUrl: item.html_url ?? null,
-        externalUrl: item.external_url ?? null,
+        htmlUrl: safeUrl(item.html_url),
+        externalUrl: safeUrl(item.external_url, true),
       });
     }
   }
@@ -212,7 +225,7 @@ export async function syncCourse(
           pointsPossible: a.points_possible == null ? null : Math.round(a.points_possible),
           submissionTypes: a.submission_types ?? [],
           published: a.published ?? true,
-          htmlUrl: a.html_url ?? null,
+          htmlUrl: safeUrl(a.html_url),
           submissionState: a.submission?.workflow_state ?? null,
           submittedAt: date(a.submission?.submitted_at),
           missing: a.submission?.missing ?? false,

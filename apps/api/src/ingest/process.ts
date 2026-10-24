@@ -68,7 +68,7 @@ async function canvasClient(deps: IngestDeps, userId: string) {
     .from(canvasConnections)
     .where(eq(canvasConnections.userId, userId))
     .limit(1);
-  if (!conn || conn.status !== "active") return null;
+  if (conn?.status !== "active") return null;
   const token = await decryptSecret(
     deps.tokenKey,
     { ciphertext: conn.tokenCiphertext, iv: conn.tokenIv },

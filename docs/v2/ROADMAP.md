@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 10. Whoever picks this up: read this file, then
+Last updated at the end of session 11. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -14,10 +14,10 @@ Last updated at the end of session 10. Whoever picks this up: read this file, th
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
-| 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
+| 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed (the only session left) |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
-| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ⏭ **Next up** |
+| 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done. Live at https://hwrk.help (Sentry waits on a DSN) |
 
 Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
 If you want something usable sooner, the shortest useful path is 4 → 5 → the Today part of 9.
@@ -41,18 +41,20 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 
 ## Open items for the owner
 
-- [ ] Rotate the secrets that were committed in v1 (`deploy/secrets.yaml`, `infra/.env`): Canvas
-      tokens, DB password, OpenAI key (revoke). Then purge those files from git history. That
-      rewrite needs a force-push to `main`; only do it when the owner says so.
-- [ ] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
-- [ ] Resend API key (required in production).
-- [ ] Cloudflare Workers **paid** plan: password hashing needs more than the free plan's 10ms CPU.
-- [ ] Neon project + `wrangler hyperdrive create` → put the id in `apps/api/wrangler.jsonc`.
-- [ ] **A valid `ANTHROPIC_API_KEY`.** The key in the agent's environment returned 401, so study
-      aids were never generated against the real API (everything else, including the failure path,
-      was). Put it in `apps/api/.dev.vars`, then run the opt-in smoke test:
-      `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`
-      (3 small calls). Production: `wrangler secret put ANTHROPIC_API_KEY --env production`.
+Production secrets: run `pnpm prod:env`. It asks for each value (hidden input), generates the
+app's own secrets, checks the database and keys against their services, and writes the gitignored
+`apps/api/.prod.vars` (`pnpm prod:env --check` re-validates). Any Postgres 15+ works (Neon,
+Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
+
+- [ ] Rotate the secrets that were committed in v1 (Canvas tokens, DB password, OpenAI key). History
+      was rewritten on 2026-10-24 (it now starts at session 1), but GitHub still serves the old commits
+      through closed PRs' refs until GitHub Support purges them, so rotation is still required.
+- [x] Google OAuth client (redirect URIs in `ARCHITECTURE.md`) → `GOOGLE_CLIENT_ID/SECRET`.
+- [x] Resend API key, hwrk.help verified.
+- [x] Cloudflare Workers paid plan.
+- [x] Neon project + Hyperdrive (`talvra-db`).
+- [x] Valid `ANTHROPIC_API_KEY` in production (verified by `pnpm prod:env`). To smoke-test real
+      generation: `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`.
 - [ ] Confirm the MCP server session (8). The proposal: personal API keys first, OAuth later. Tools:
       `list_courses`, `upcoming_due`, `search_material`, `get_document`, `generate_study_aid`,
       `review_flashcards`, `homework_brief`. Same integrity rule.
@@ -62,8 +64,11 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 - Session tokens are not rotated; sessions expire after 14 idle days, are extended at most daily,
   and are revoked on sign-out/password reset. A 5-minute cookie cache means revocation can
   take up to 5 minutes to apply everywhere.
-- Better Auth's built-in rate limiter uses memory storage, which doesn't share state across
-  isolates on Workers. Real rate limits come in session 11 (Durable Object or Workers rate limiting).
+- Workers Rate Limiting is per Cloudflare location and eventually consistent: a ceiling against
+  abuse, not exact accounting. Exact per-user budgets (Claude, video, test emails) live in
+  `usage_events` (`lib/usage.ts`).
+- Ask history is sent by the client, so a student can put words in the "assistant" turns of their
+  own conversation. It only affects their own answer and the integrity rules still apply.
 - `documents.module_id` uses a plain FK (not the composite owner FK) because `ON DELETE SET NULL`
   on a composite key would null `user_id` too.
 - Rotating `CANVAS_TOKEN_KEY` makes stored tokens unreadable; users must reconnect.
@@ -277,7 +282,71 @@ scheduling a step that then shows on Today.
 
 ---
 
-## Next up: session 11, Hardening and cutover
+## Session 11 notes (Hardening and cutover)
+
+**Rate limits** (`middleware/rate-limit.ts`, Workers Rate Limiting bindings in `wrangler.jsonc`):
+- `RL_AUTH` 10/min per IP on sign-in, sign-up, password reset and verification email.
+  `RL_API` 300/min per user on `/v1/*`. `RL_HEAVY` 20/min per user on sync, Canvas connect,
+  uploads, aids, video, retry, Ask, brief, plan suggestions and test emails. 429 + `Retry-After`.
+- Daily budgets in `usage_events` via `meter()` (insert, count, roll back if over): Ask 150/day,
+  aids 40/day plus 3M input tokens/day, briefs and plan suggestions 30/day each, videos 10/day with
+  one in flight, test emails 3/hour.
+
+**CSRF / origin**: `middleware/csrf.ts` rejects non-GET `/v1/*` requests whose `Origin` isn't the
+app (or that say `Sec-Fetch-Site: cross-site`). `appOrigins(env)` is the single list (also used by
+Better Auth's `trustedOrigins` and the sync WebSocket check); it includes `localhost:8787` in dev.
+
+**Account data** (`routes/account.ts`, Settings → Your data):
+- `GET /v1/me/export`: JSON download of everything the user owns (no secrets, no token ciphertext).
+- `DELETE /v1/me` with `{ confirm: <email> }`: deletes Vectorize ids, purges the user's R2 prefix,
+  deletes the user (cascade) and clears the session cookies. The dialog requires typing the email.
+
+**Security review fixes**: extract container zip-bomb guard (300 MB / 100:1) and 2000-page PDF cap;
+both containers fail closed without their shared secret (tests set `ALLOW_NO_AUTH=1`); media ffmpeg
+inputs locked to `-protocol_whitelist file`; Worker → container timeouts (extract 120s, media 300s);
+`*_URL` without `*_SECRET` throws; Canvas `htmlUrl`/`externalUrl` kept only if http(s); Canvas base
+URL rejects custom ports; unsubscribe tokens expire (366 days) and need a POST (GET shows a confirm
+page, so link scanners can't unsubscribe people); `/original` serves a safe MIME type; prompt
+escaping fixes; video title query scoped by user. Provider errors map to friendly messages.
+
+**SPA headers**: `apps/web/public/_headers` sets a strict CSP (`script-src 'self'`, no inline
+scripts; the pre-paint theme script is `public/theme-init.js`), `nosniff`, `frame-ancestors 'none'`,
+COOP and a Permissions-Policy. Light `--success` darkened for contrast.
+
+**E2E** (`e2e/`, see its README): Playwright on desktop Chrome and Pixel 7 against `wrangler dev`:
+sign up → verify (link from the Wrangler log) → upload Markdown → wait for the extract container →
+document page → search with highlights → reminders settings → delete account. axe (WCAG 2.2 AA,
+incl. contrast) runs on each screen after transitions settle, and any CSP violation fails the test.
+Not part of `pnpm check` (needs Docker and a running stack). Don't rebuild `apps/web` while
+`wrangler dev` runs: it reloads and can crash on a locked local SQLite; restart it.
+
+**Not done, needs the owner**:
+- Sentry: no DSN yet. Add `@sentry/cloudflare` (Worker) and `@sentry/react` (web) gated on
+  `SENTRY_DSN`, and add the ingest host to the CSP `connect-src`.
+
+**Production** (deployed 2026-10-24): Worker `talvra-production` on `hwrk.help` (custom domain; `www`
+is a second custom domain that the Worker 301s to the bare domain, `src/front.ts`). The Worker runs
+first on every request (`run_worker_first: true`) and hands non-`/api` paths to the `ASSETS`
+binding; `_headers` (CSP etc.) still apply. Resources: Neon (Postgres 18) via Hyperdrive
+`talvra-db`, R2 `talvra-files`, queues `talvra-ingest`/`talvra-ai` + DLQs, Vectorize
+`talvra-chunks` (1024, cosine, metadata indexes `userId`/`courseId`/`documentId`), both
+containers. Resend sends from `hello@hwrk.help` (domain verified).
+
+Redeploy:
+```bash
+pnpm prod:env --check                       # secrets still valid
+DATABASE_URL=… pnpm db:migrate              # only when there are new migrations
+pnpm --filter @talvra/web build
+grep -v -E '^(DATABASE_URL=|#)' apps/api/.prod.vars > /tmp/s.env
+(cd apps/api && pnpm exec wrangler deploy --env production --secrets-file /tmp/s.env); rm /tmp/s.env
+```
+Container image pushes to Cloudflare's registry can time out on a slow uplink; rerun, finished
+layers are kept.
+
+**Cutover**: legacy v1 is removed from the tree, its old branches and the local leftovers are
+deleted, and there is no backup tag (the owner didn't want one). Only git history has it.
+
+## Original session 11 plan (for reference)
 
 1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on
    auth, sync, uploads, Ask, aids.

@@ -92,3 +92,9 @@ deploy/secrets.local.yaml
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+# Production secrets handed to the deploy (never committed)
+.prod.vars

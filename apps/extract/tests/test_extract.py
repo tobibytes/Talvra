@@ -77,6 +77,18 @@ def test_unsupported_and_broken_files():
     assert post(b"old", "notes.doc").status_code == 415
 
 
+def test_rejects_zip_bombs():
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", b"0" * (200 * 1024 * 1024))
+    r = post(buf.getvalue(), "bomb.docx")
+    assert r.status_code == 422
+    assert "unreasonable size" in r.json()["error"]["message"]
+
+
 def test_requires_secret_when_configured(monkeypatch, pdf_bytes):
     import talvra_extract.app as mod
 

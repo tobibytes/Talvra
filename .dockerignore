@@ -19,6 +19,3 @@ yarn-error.log*
 
 docs
 .env
-deploy
-push.sh
-version.txt

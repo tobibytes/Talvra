@@ -107,7 +107,7 @@ export type CanvasClientOptions = {
 
 const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export const CANVAS_USER_AGENT = "Talvra/2.0 (+https://talvra.app; study app for Morgan State)";
+export const CANVAS_USER_AGENT = "Talvra/2.0 (+https://hwrk.help; study app for Morgan State)";
 
 /** Canvas allows ~700 "cost units" per token; below this we pace ourselves. */
 const RATE_LIMIT_LOW_WATER = 150;
@@ -338,7 +338,11 @@ export class CanvasClient {
           signal: AbortSignal.timeout(60_000),
         });
       } catch (err) {
-        throw new CanvasError("unavailable", `Download failed: ${String(err)}`);
+        console.warn(JSON.stringify({ msg: "canvas download failed", error: String(err) }));
+        throw new CanvasError(
+          "unavailable",
+          "Couldn't download this file from Canvas. Trying again soon.",
+        );
       }
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");

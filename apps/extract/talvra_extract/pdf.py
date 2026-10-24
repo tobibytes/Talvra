@@ -6,6 +6,8 @@ import pypdfium2 as pdfium
 
 from .model import BadFile, Extracted, Section
 
+MAX_PAGES = 2000
+
 # Lines repeated on most pages (running headers/footers, page numbers) are noise.
 PAGE_NUMBER = re.compile(r"^\s*(page\s*)?\d+(\s*(of|/)\s*\d+)?\s*$", re.I)
 
@@ -31,6 +33,9 @@ def extract_pdf(data: bytes) -> Extracted:
         raise BadFile(
             f"Couldn't open this PDF ({e}). It may be damaged or password-protected."
         ) from e
+    if len(pdf) > MAX_PAGES:
+        pdf.close()
+        raise BadFile(f"This PDF has {len(pdf)} pages; Talvra reads up to {MAX_PAGES}.")
     try:
         pages: list[str] = []
         for i in range(len(pdf)):

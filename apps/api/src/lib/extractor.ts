@@ -36,13 +36,22 @@ export function httpExtractor(
     if (secret) headers.set("authorization", `Bearer ${secret}`);
     let res: Response;
     try {
-      res = await send(new Request(url, { method: "POST", body: data, headers }));
+      res = await send(
+        new Request(url, {
+          method: "POST",
+          body: data,
+          headers,
+          signal: AbortSignal.timeout(120_000),
+        }),
+      );
     } catch (err) {
-      throw new ExtractError("unavailable", `Extractor unreachable: ${String(err)}`);
+      console.warn(JSON.stringify({ msg: "extractor unreachable", error: String(err) }));
+      throw new ExtractError("unavailable", "The file reader is busy. Trying again shortly.");
     }
     if (res.ok) {
       const parsed = ExtractResult.safeParse(await res.json().catch(() => null));
-      if (!parsed.success) throw new ExtractError("unavailable", "Extractor returned bad JSON.");
+      if (!parsed.success)
+        throw new ExtractError("unavailable", "The file reader returned something unexpected.");
       return parsed.data;
     }
     const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -57,6 +66,8 @@ export function httpExtractor(
  */
 export function extractorFor(env: Bindings): Extractor | null {
   if (env.EXTRACT_URL) {
+    // A network-reachable extractor must be authenticated.
+    if (!env.EXTRACT_SECRET) throw new Error("EXTRACT_URL is set without EXTRACT_SECRET");
     return httpExtractor(
       (req) => fetch(req),
       `${env.EXTRACT_URL.replace(/\/$/, "")}/extract`,

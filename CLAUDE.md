@@ -19,7 +19,9 @@ Other docs: `docs/v2/ARCHITECTURE.md` (layout, rules, secrets, setup) and
 | `packages/contracts` | zod schemas shared by API and web (request/response shapes, error envelope) |
 | `packages/db` | Drizzle schema, SQL migrations, `createTestDb()` (PGlite) |
 | `infra/compose.dev.yml` | Local Postgres 16 |
-| `frontend/`, `services/`, `deploy/`, `migrations/`, old `docs/*` | **Legacy v1. Don't edit.** Deleted in the last session |
+| `e2e` | Playwright e2e against `wrangler dev` (opt-in: `pnpm e2e`, see `e2e/README.md`) |
+
+Legacy v1 was removed at the cutover (its old branches too); only git history has it.
 
 ## Commands
 
@@ -100,4 +102,4 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   run `pnpm check`, push. Update `docs/v2/ROADMAP.md` (status + anything the next session
   needs to know) as part of the same change.
 - Verify UI changes in a real browser (both themes, mobile width), not just tests.
-- Don't touch the legacy folders. Don't rewrite git history without asking.
+- Don't rewrite git history without asking.

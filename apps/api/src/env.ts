@@ -10,11 +10,13 @@ import type { SyncParams } from "./sync/run.js";
 export type Bindings = {
   APP_ENV: "development" | "preview" | "production";
   APP_VERSION: string;
-  /** Public origin of the app, e.g. https://talvra.app (SPA + /api, same origin). */
+  /** Public origin of the app, e.g. https://hwrk.help (SPA + /api, same origin). */
   APP_URL: string;
   /** Comma-separated list, e.g. "morgan.edu". */
   ALLOWED_EMAIL_DOMAINS: string;
   EMAIL_FROM: string;
+  /** The SPA build (apps/web/dist). The Worker runs first and hands non-API paths to it. */
+  ASSETS?: Fetcher;
   HYPERDRIVE?: Hyperdrive;
   /** Durable Canvas sync (sync/workflow.ts). */
   SYNC_WORKFLOW?: Workflow<SyncParams>;
@@ -49,6 +51,10 @@ export type Bindings = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
+  /** Rate limiters (wrangler "ratelimits"). Absent locally. */
+  RL_AUTH?: RateLimit;
+  RL_HEAVY?: RateLimit;
+  RL_API?: RateLimit;
   /** Claude, for study aids. */
   ANTHROPIC_API_KEY?: string;
 };
@@ -80,4 +86,14 @@ export function allowedDomains(env: Pick<Bindings, "ALLOWED_EMAIL_DOMAINS">) {
 export function isAllowedEmail(email: string, domains: string[]) {
   const domain = email.toLowerCase().split("@")[1];
   return !!domain && domains.includes(domain);
+}
+
+/**
+ * Origins allowed to make credentialed, state-changing requests: the app itself,
+ * plus (in development only) the Worker's own port, which serves the built SPA.
+ */
+export function appOrigins(env: Pick<Bindings, "APP_URL" | "APP_ENV">) {
+  const origins = [new URL(env.APP_URL).origin];
+  if (env.APP_ENV === "development") origins.push("http://localhost:8787", "http://127.0.0.1:8787");
+  return origins;
 }

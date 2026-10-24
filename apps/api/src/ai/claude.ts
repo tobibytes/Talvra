@@ -39,7 +39,8 @@ export function toGenerationError(err: unknown): unknown {
     return new GenerationError(false, "Study tools are temporarily unavailable.");
   }
   if (err instanceof Anthropic.BadRequestError) {
-    return new GenerationError(false, `The request was rejected: ${err.message}`);
+    console.error(JSON.stringify({ msg: "anthropic bad request", error: err.message }));
+    return new GenerationError(false, "Couldn't make this from this material.");
   }
   if (
     err instanceof Anthropic.RateLimitError ||
@@ -49,7 +50,13 @@ export function toGenerationError(err: unknown): unknown {
     return new GenerationError(true, "Claude is busy right now. Try again in a minute.");
   }
   if (err instanceof Anthropic.APIError) {
-    return new GenerationError(err.status !== undefined && err.status >= 500, err.message);
+    console.error(
+      JSON.stringify({ msg: "anthropic error", status: err.status, error: err.message }),
+    );
+    return new GenerationError(
+      err.status !== undefined && err.status >= 500,
+      "Claude couldn't finish this. Try again later.",
+    );
   }
   return err;
 }

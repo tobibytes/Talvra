@@ -36,7 +36,8 @@ export async function renderApp(path = "/") {
       </QueryClientProvider>
     </ThemeProvider>,
   );
-  await screen.findByRole("main");
+  // The first render loads the whole route tree; allow for a busy machine (turbo runs suites in parallel).
+  await screen.findByRole("main", undefined, { timeout: 15_000 });
   return { ...utils, router };
 }
 
@@ -327,6 +328,13 @@ export function fakeApi(state: {
     const me = state.me;
 
     if (p === "/api/v1/me" && method === "GET") return json(me);
+    if (p === "/api/v1/me" && method === "DELETE") {
+      if (String(body?.confirm).toLowerCase() !== me.user.email) {
+        return apiError(422, "validation_failed", "Type your email exactly to confirm.");
+      }
+      state.me = null;
+      return new Response(null, { status: 204 });
+    }
     if (p === "/api/v1/me" && method === "PATCH") {
       state.me = { ...me, user: { ...me.user, name: body.name } };
       return json(state.me);

@@ -1,11 +1,12 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { ApiError, DocumentParams, Video, VideoState } from "@talvra/contracts";
-import { and, desc, eq, schema } from "@talvra/db";
+import { and, desc, eq, gt, inArray, schema } from "@talvra/db";
 import { z } from "zod";
 import { toVideo, type VideoMessage } from "../ai/video.js";
 import type { AppEnv, Bindings } from "../env.js";
 import type { FileStore } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
+import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
 
 const { videos, documents, studyAids } = schema;
@@ -108,7 +109,7 @@ export function videoRoutes(opts: VideoOptions = {}) {
       .from(videos)
       .where(and(eq(videos.userId, userId), eq(videos.id, id)))
       .limit(1);
-    if (!v || v.status !== "ready") throw new AppError("not_found", "Video not found.");
+    if (v?.status !== "ready") throw new AppError("not_found", "Video not found.");
     return v;
   };
 
@@ -130,6 +131,26 @@ export function videoRoutes(opts: VideoOptions = {}) {
         if (recent && Date.now() - new Date(s.video?.updatedAt ?? 0).getTime() < 30 * 60_000) {
           throw new AppError("conflict", "A video is already being made.");
         }
+        const [busy] = await c.var.db
+          .select({ id: videos.id })
+          .from(videos)
+          .where(
+            and(
+              eq(videos.userId, userId),
+              inArray(videos.status, ["queued", "rendering"]),
+              gt(videos.updatedAt, new Date(Date.now() - 30 * 60_000)),
+            ),
+          )
+          .limit(1);
+        if (busy)
+          throw new AppError(
+            "conflict",
+            "One video at a time: wait for the current one to finish.",
+          );
+        await meter(c.var.db, userId, "video", {
+          limit: 10,
+          message: "That's a lot of videos today. Try again tomorrow.",
+        });
         const [v] = await c.var.db.insert(videos).values({ userId, documentId }).returning();
         if (!v) throw new Error("insert returned nothing");
         await enqueue(c.env)({ type: "video", userId, videoId: v.id });

@@ -3,12 +3,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BellRing,
   ChevronRight,
+  Download,
   LayoutGrid,
   LoaderCircle,
   LogOut,
   Monitor,
   RefreshCw,
   Smartphone,
+  Trash2,
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -47,6 +49,7 @@ function Settings() {
         <CanvasCard />
         {me.data?.canvas ? <SyncStatusCard /> : null}
         <SessionsCard />
+        <DataCard />
         {/* Reminders and the gallery aren't in the mobile tab bar, so link them here. */}
         <div className="space-y-3">
           <SettingsLink
@@ -382,5 +385,86 @@ function SettingsLink({
       </div>
       <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
     </Link>
+  );
+}
+
+function DataCard() {
+  const me = useQuery(meQuery);
+  const queryClient = useQueryClient();
+  const [open, setOpen] = React.useState(false);
+  const [confirm, setConfirm] = React.useState("");
+  const del = useMutation({
+    mutationFn: () => api.deleteAccount(confirm),
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.assign("/sign-in?deleted=1");
+    },
+  });
+  const email = me.data?.user.email ?? "";
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2>Your data</h2>
+        </CardTitle>
+        <CardDescription>
+          Download everything Talvra stores about you, or delete your account.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        <Button variant="outline" render={<a href={api.exportUrl} download />}>
+          <Download /> Download my data
+        </Button>
+        <Button variant="ghost" className="text-destructive" onClick={() => setOpen(true)}>
+          <Trash2 /> Delete account
+        </Button>
+      </CardContent>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) setConfirm("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes your courses, files, notes, flashcards, plans and reminders,
+              and disconnects Canvas. It can't be undone. Your Canvas account itself isn't touched.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              del.mutate();
+            }}
+          >
+            <Field data-invalid={del.isError ? true : undefined}>
+              <FieldLabel htmlFor="delete-confirm">Type {email} to confirm</FieldLabel>
+              <Input
+                id="delete-confirm"
+                autoComplete="off"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
+              <FieldError errors={[{ message: del.error?.message }]} />
+            </Field>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={confirm.trim().toLowerCase() !== email.toLowerCase() || del.isPending}
+              >
+                {del.isPending ? <LoaderCircle className="animate-spin" /> : null}
+                Delete forever
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

@@ -9,6 +9,10 @@
     "includes": [
       "apps/**",
       "packages/**",
+      "e2e/**",
+      "scripts/**",
+      "!e2e/test-results",
+      "!e2e/playwright-report",
       "!**/dist",
       "!**/node_modules",
       "!**/routeTree.gen.ts",

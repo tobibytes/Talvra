@@ -15,7 +15,7 @@ import { and, desc, eq, schema } from "@talvra/db";
 import type { AppEnv, Bindings } from "../env.js";
 import { enqueueAll, type FileStore, type IngestMessage } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
-import { contentDisposition, fileKeys, isSupported, sha256Hex } from "../lib/files.js";
+import { contentDisposition, fileKeys, isSupported, servedMime, sha256Hex } from "../lib/files.js";
 import { requireUser } from "../middleware/auth.js";
 import { unindexDocument } from "../search/engine.js";
 import { searchDepsFor } from "./search.js";
@@ -236,7 +236,7 @@ export function documentsRoutes(opts: DocumentsOptions = {}) {
         if (!obj) throw new AppError("not_found", "The original file is missing.");
         return new Response(obj.body, {
           headers: {
-            "content-type": doc.mimeType ?? "application/octet-stream",
+            "content-type": servedMime(doc.title),
             "content-disposition": contentDisposition(doc.title),
             "cache-control": "private, max-age=300",
             "x-content-type-options": "nosniff",

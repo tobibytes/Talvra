@@ -1,7 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { ApiError, StartSync, SyncRun, SyncRunList, SyncRunsQuery } from "@talvra/contracts";
 import { and, eq, schema } from "@talvra/db";
-import type { AppEnv, Bindings } from "../env.js";
+import { type AppEnv, appOrigins, type Bindings } from "../env.js";
 import { AppError } from "../lib/errors.js";
 import { requireUser } from "../middleware/auth.js";
 import { hubFor } from "../realtime/hub.js";
@@ -107,7 +107,7 @@ export function syncRoutes(launch: LaunchSync = launchWorkflow) {
         // Browsers send cookies on cross-site WebSocket requests, so check the
         // origin explicitly (cross-site WebSocket hijacking).
         const origin = c.req.header("origin");
-        if (origin && origin !== new URL(c.env.APP_URL).origin) {
+        if (origin && !appOrigins(c.env).includes(origin)) {
           throw new AppError("forbidden", "Cross-origin connection refused.");
         }
         const hub = hubFor(c.env, c.get("userId") as string);

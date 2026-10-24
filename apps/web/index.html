@@ -6,15 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Talvra</title>
-    <script>
-      // Apply the saved theme before first paint to avoid a flash.
-      try {
-        const t = localStorage.getItem("talvra-theme");
-        const dark =
-          t === "dark" || ((!t || t === "system") && matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.classList.toggle("dark", dark);
-      } catch {}
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

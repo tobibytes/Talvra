@@ -28,8 +28,10 @@ apps/media        Python container (Pillow + ffmpeg; narration via Workers AI) s
 | `apps/media` | Python media service (narrated videos); Cloudflare Container (`MediaContainer`, no internet) |
 | `infra/compose.dev.yml` | Local Postgres 16 |
 
-Legacy v1 code (`frontend/`, `services/`, `deploy/`, `migrations/`, old docs)
-is outside the pnpm workspace and is removed in the final session (see ROADMAP.md).
+| `e2e` | Playwright end-to-end tests against `wrangler dev` (opt-in, `pnpm e2e`) |
+
+Legacy v1 (`frontend/`, `services/`, `deploy/`, root `migrations/`, old docs) was removed at the
+cutover, along with its old branches. Only git history has it now.
 
 ## Rules
 
