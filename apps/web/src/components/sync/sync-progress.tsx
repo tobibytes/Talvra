@@ -1,5 +1,5 @@
 import type { SyncCourseProgress, SyncRun } from "@talvra/contracts";
-import { CircleAlert, CircleCheck, CircleDashed, LoaderCircle } from "lucide-react";
+import { StatusPill } from "@/components/blocks";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +15,12 @@ function countsLine(c: SyncCourseProgress) {
   return shown.length ? shown.join(", ") : "Nothing yet";
 }
 
-const stateIcon = {
-  waiting: <CircleDashed className="size-4 text-muted-foreground" aria-hidden />,
-  running: <LoaderCircle className="size-4 animate-spin text-primary" aria-hidden />,
-  done: <CircleCheck className="size-4 text-success" aria-hidden />,
-  failed: <CircleAlert className="size-4 text-destructive" aria-hidden />,
+const statePill = {
+  waiting: <StatusPill>Waiting</StatusPill>,
+  running: <StatusPill tone="accent">Syncing</StatusPill>,
+  done: <StatusPill tone="ok">Done</StatusPill>,
+  failed: <StatusPill tone="stop">Failed</StatusPill>,
 };
-const stateLabel = { waiting: "Waiting", running: "Syncing", done: "Done", failed: "Failed" };
 
 /** Overall bar + one row per course. Announces progress politely to screen readers. */
 export function SyncProgress({ run, className }: { run: SyncRun; className?: string }) {
@@ -40,22 +39,21 @@ export function SyncProgress({ run, className }: { run: SyncRun; className?: str
                 ? `${done} of ${total} courses`
                 : "Loading courses…"}
           </span>
-          <span className="text-muted-foreground tabular-nums">{pct}%</span>
+          <span className="font-mono text-muted-foreground tabular-nums">{pct}%</span>
         </div>
         <Progress value={pct} aria-label="Sync progress" />
       </div>
       {p?.courses.length ? (
         <ul className="divide-y rounded-xl border" aria-live="polite">
           {p.courses.map((c) => (
-            <li key={c.courseId} className="flex items-start gap-3 p-3">
-              <span className="mt-0.5">{stateIcon[c.state]}</span>
+            <li key={c.courseId} className="flex items-center gap-3 px-3 py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{c.name}</p>
+                <p className="truncate text-sm font-semibold">{c.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {c.state === "failed" ? (c.error ?? "Couldn't sync") : countsLine(c)}
                 </p>
               </div>
-              <span className="sr-only">{stateLabel[c.state]}</span>
+              {statePill[c.state]}
             </li>
           ))}
         </ul>

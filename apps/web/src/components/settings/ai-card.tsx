@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, KeyRound, LoaderCircle, Sparkles } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { IconTile, StatusPill } from "@/components/blocks";
 import { ErrorState } from "@/components/page";
-import { Badge } from "@/components/ui/badge";
+import { Facts, TileRow } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -121,16 +122,12 @@ export function AiCard() {
 function TalvraAi({ s, onUseOwn }: { s: AiSettings; onUseOwn: () => void }) {
   return (
     <>
-      <div className="flex items-start gap-3">
-        <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
-        <div className="space-y-1 text-sm">
-          <p className="font-medium">Talvra's AI, free with daily limits</p>
-          <p className="text-muted-foreground">
-            {s.defaults.standard}, and {s.defaults.advanced} for notes and Ask. A basic model takes
-            over after the daily limit.
-          </p>
-        </div>
-      </div>
+      <TileRow
+        className="-mx-2 items-start"
+        tile={<IconTile icon={Sparkles} />}
+        title="Talvra's AI, free with daily limits"
+        meta={`${s.defaults.standard}, and ${s.defaults.advanced} for notes and Ask. A basic model takes over after the daily limit.`}
+      />
       <Button variant="outline" onClick={onUseOwn}>
         <KeyRound /> Use my own API key
       </Button>
@@ -149,33 +146,32 @@ function OwnKey({
 }) {
   return (
     <>
-      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-        <dt className="text-muted-foreground">Status</dt>
-        <dd>
-          {s.status === "active" ? (
-            <Badge variant="success">Using your key</Badge>
-          ) : (
-            <Badge variant="destructive">Not working, using Talvra's AI</Badge>
-          )}
-        </dd>
-        {s.status !== "active" && s.lastError ? (
-          <>
-            <dt className="text-muted-foreground">Problem</dt>
-            <dd role="alert">{s.lastError}</dd>
-          </>
-        ) : null}
-        <dt className="text-muted-foreground">Provider</dt>
-        <dd>{s.provider ? PROVIDERS[s.provider].name : ""}</dd>
-        <dt className="text-muted-foreground">Model</dt>
-        <dd className="break-all font-mono">{s.model}</dd>
-        <dt className="text-muted-foreground">Key</dt>
-        <dd className="font-mono">••••{s.keyLast4}</dd>
-      </dl>
+      <Facts
+        items={[
+          {
+            label: "Status",
+            value:
+              s.status === "active" ? (
+                <StatusPill tone="ok">Using your key</StatusPill>
+              ) : (
+                <StatusPill tone="stop">Not working, using Talvra's AI</StatusPill>
+              ),
+          },
+          { label: "Provider", value: s.provider ? PROVIDERS[s.provider].name : "" },
+          { label: "Model", value: <span className="font-mono">{s.model}</span> },
+          { label: "Key", value: <span className="font-mono">••••{s.keyLast4}</span> },
+        ]}
+      />
+      {s.status !== "active" && s.lastError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {s.lastError}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={onChange}>
           {s.status === "active" ? "Change key or model" : "Replace key"}
         </Button>
-        <Button variant="ghost" className="text-destructive" onClick={onRemove}>
+        <Button variant="destructive" onClick={onRemove}>
           Stop using my key
         </Button>
       </div>
@@ -282,7 +278,7 @@ function KeyForm({
             value={model}
             onChange={(e) => setModel(e.target.value)}
             className={cn(
-              "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none",
+              "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none",
               "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
             )}
           >
