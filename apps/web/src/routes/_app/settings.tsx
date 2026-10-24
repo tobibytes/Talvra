@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
 import { CoursePicker } from "@/components/canvas/course-picker";
 import { PageHeader } from "@/components/page";
+import { SyncStatusCard } from "@/components/sync/sync-status-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,12 +38,14 @@ import { authClient, authErrorMessage, meQuery } from "@/lib/auth";
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 
 function Settings() {
+  const me = useQuery(meQuery);
   return (
     <>
       <PageHeader title="Settings" />
       <div className="space-y-6">
         <ProfileCard />
         <CanvasCard />
+        {me.data?.canvas ? <SyncStatusCard /> : null}
         <SessionsCard />
         {/* Reminders and the gallery aren't in the mobile tab bar, so link them here. */}
         <div className="space-y-3">

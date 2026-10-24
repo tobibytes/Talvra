@@ -54,7 +54,15 @@
   },
   "overrides": [
     {
-      "includes": ["apps/web/src/components/ui/**", "apps/web/src/hooks/use-mobile.ts"],
+      "includes": [
+        "apps/web/src/components/ui/**",
+        "apps/web/src/components/data-table/**",
+        "apps/web/src/hooks/use-mobile.ts",
+        "apps/web/src/hooks/use-data-table.ts",
+        "apps/web/src/hooks/use-debounced-callback.ts",
+        "apps/web/src/lib/data-table-*.ts",
+        "apps/web/src/lib/format.ts"
+      ],
       "linter": {
         "enabled": false
       }

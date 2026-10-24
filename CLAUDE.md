@@ -50,7 +50,9 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
 - **Same origin.** The API lives under `/api`; the web app calls relative `/api/...` URLs.
   No CORS, first-party cookies.
 - **External URLs**: the server only calls `https://*.instructure.com` (see
-  `CANVAS_HOST_PATTERN`), with `redirect: "error"` and same-host pagination. Keep it that way.
+  `CANVAS_HOST_PATTERN`), with `redirect: "manual"` + any 3xx rejected (workerd has no
+  `redirect: "error"`), and same-host pagination. Keep it that way. Never call `fetch` as a
+  method (`this.fetch(...)`): workerd throws "Illegal invocation".
 - **Secrets** never in the repo. Canvas tokens are AES-GCM encrypted with the user id as
   AAD (`apps/api/src/lib/crypto.ts`) and only `tokenLast4` is ever returned.
 - **Integrity**: the AI features help students study. They must never write or submit

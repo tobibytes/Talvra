@@ -32,3 +32,15 @@ if (!globalThis.ResizeObserver) {
   };
 }
 Element.prototype.scrollIntoView ??= () => {};
+
+// Never open real sockets in tests: a socket that stays "connecting" means
+// the app falls back to polling, which the fake API serves.
+globalThis.WebSocket = class {
+  static readonly CONNECTING = 0;
+  readyState = 0;
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  send() {}
+  close() {}
+} as unknown as typeof WebSocket;

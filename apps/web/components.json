@@ -17,5 +17,7 @@
     "utils": "@/lib/utils",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@diceui": "https://diceui.com/r/{style}/{name}.json"
+  }
 }

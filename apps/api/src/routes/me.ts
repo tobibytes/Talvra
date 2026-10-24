@@ -5,6 +5,8 @@ import { eq, schema } from "@talvra/db";
 import type { AppEnv } from "../env.js";
 import { AppError } from "../lib/errors.js";
 import { requireUser } from "../middleware/auth.js";
+import { startSync } from "../sync/run.js";
+import type { LaunchSync } from "./sync.js";
 
 const { users, canvasConnections } = schema;
 const json = <T>(s: T) => ({ "application/json": { schema: s } });
@@ -71,17 +73,25 @@ const completeOnboarding = createRoute({
   },
 });
 
-export const meRoutes = new OpenAPIHono<AppEnv>()
-  .openapi(getMe, async (c) => c.json(await loadMe(c.var.db, c.get("userId") as string), 200))
-  .openapi(patchMe, async (c) => {
-    const userId = c.get("userId") as string;
-    await c.var.db.update(users).set(c.req.valid("json")).where(eq(users.id, userId));
-    return c.json(await loadMe(c.var.db, userId), 200);
-  })
-  .openapi(completeOnboarding, async (c) => {
-    const userId = c.get("userId") as string;
-    const me = await loadMe(c.var.db, userId);
-    if (!me.canvas) throw new AppError("conflict", "Connect Canvas before finishing setup.");
-    await c.var.db.update(users).set({ onboardedAt: new Date() }).where(eq(users.id, userId));
-    return c.json({ ...me, onboarded: true }, 200);
-  });
+export const meRoutes = (launch: LaunchSync) =>
+  new OpenAPIHono<AppEnv>()
+    .openapi(getMe, async (c) => c.json(await loadMe(c.var.db, c.get("userId") as string), 200))
+    .openapi(patchMe, async (c) => {
+      const userId = c.get("userId") as string;
+      await c.var.db.update(users).set(c.req.valid("json")).where(eq(users.id, userId));
+      return c.json(await loadMe(c.var.db, userId), 200);
+    })
+    .openapi(completeOnboarding, async (c) => {
+      const userId = c.get("userId") as string;
+      const me = await loadMe(c.var.db, userId);
+      if (!me.canvas) throw new AppError("conflict", "Connect Canvas before finishing setup.");
+      if (me.onboarded) return c.json(me, 200);
+      await c.var.db.update(users).set({ onboardedAt: new Date() }).where(eq(users.id, userId));
+      // Kick off the first sync. Finishing setup must not fail because of it:
+      // the schedule (and "Sync now") will pick it up later.
+      await startSync(c.var.db, { userId, trigger: "onboarding" }, (p) => launch(c.env, p)).catch(
+        (err) =>
+          console.error(JSON.stringify({ msg: "first sync failed to start", error: String(err) })),
+      );
+      return c.json({ ...me, onboarded: true }, 200);
+    });

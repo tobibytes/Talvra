@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, CalendarCheck } from "lucide-react";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
-import { Badge } from "@/components/ui/badge";
+import { SyncStatusCard } from "@/components/sync/sync-status-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { relativeTime } from "@/lib/time";
 
 export const Route = createFileRoute("/_app/")({ component: Today });
 
@@ -36,14 +37,16 @@ function Today() {
           <h2 id="due-heading" className="font-semibold">
             Due soon
           </h2>
-          {/* Filled by Canvas sync (session 4) and the Today dashboard (session 8). */}
+          {/* The real due list lands with the Today dashboard (session 9). */}
           <EmptyState
             icon={CalendarCheck}
-            title="Waiting for your first sync"
-            description="Assignments and due dates from your courses will show up here once syncing is turned on."
+            title="Your due list is coming"
+            description="Assignments are syncing from Canvas. Open a course to see its due dates for now."
+            action={<Button render={<Link to="/courses" />}>Open courses</Button>}
           />
         </section>
         <section aria-labelledby="courses-heading" className="space-y-3">
+          <SyncStatusCard />
           <h2 id="courses-heading" className="font-semibold">
             Your courses
           </h2>
@@ -54,14 +57,20 @@ function Today() {
           ) : selected.length ? (
             <Card className="gap-0 divide-y p-0">
               {selected.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 p-4">
+                <Link
+                  key={c.id}
+                  to="/courses/$courseId"
+                  params={{ courseId: c.id }}
+                  className="flex items-center gap-3 p-4 outline-none transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
                   <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{c.name}</p>
-                    {c.term ? <p className="text-xs text-muted-foreground">{c.term}</p> : null}
+                    <p className="text-xs text-muted-foreground">
+                      {c.lastSyncedAt ? `Synced ${relativeTime(c.lastSyncedAt)}` : "Not synced yet"}
+                    </p>
                   </div>
-                  <Badge variant="secondary">Not synced</Badge>
-                </div>
+                </Link>
               ))}
             </Card>
           ) : (
