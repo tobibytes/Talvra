@@ -590,6 +590,15 @@ export function fakeApi(state: {
               skills: ["Indexing"],
               questionsForInstructor: ["Is Python 3.12 OK?"],
               searchQueries: ["arrays"],
+              attachments: [
+                { documentId: DOC_ID, title: "Lab2.pdf", read: true, note: null },
+                {
+                  documentId: null,
+                  title: "data.csv",
+                  read: false,
+                  note: "Talvra can't read this type of file.",
+                },
+              ],
             },
           },
         });

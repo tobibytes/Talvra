@@ -47,7 +47,7 @@ export const AssignmentDetail = HomeworkItem.extend({
 export type AssignmentDetail = z.infer<typeof AssignmentDetail>;
 
 /** Claude's reading of an assignment (structured output). Never the answer. */
-export const BriefContent = z.object({
+export const BriefModelContent = z.object({
   summary: z.string().describe("2-3 sentences: what the assignment asks the student to do."),
   deliverables: z.array(z.string()).describe("What exactly must be handed in."),
   requirements: z
@@ -63,6 +63,21 @@ export const BriefContent = z.object({
   searchQueries: z
     .array(z.string())
     .describe("2-5 short queries to find relevant course material for this assignment."),
+});
+
+/** A file linked from the assignment, and whether the brief could read it. */
+export const BriefAttachment = z.object({
+  documentId: Id.nullable(),
+  title: z.string(),
+  read: z.boolean(),
+  /** Why it wasn't read (or that it was cut short). */
+  note: z.string().nullable(),
+});
+export type BriefAttachment = z.infer<typeof BriefAttachment>;
+
+/** The stored brief: the model's reading plus which attachments it read. */
+export const BriefContent = BriefModelContent.extend({
+  attachments: z.array(BriefAttachment).default([]),
 });
 export type BriefContent = z.infer<typeof BriefContent>;
 

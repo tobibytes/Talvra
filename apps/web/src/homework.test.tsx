@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ASSIGNMENT_ID, fakeApi, makeHomework, makeMe, renderApp } from "./test-utils";
+import { ASSIGNMENT_ID, DOC_ID, fakeApi, makeHomework, makeMe, renderApp } from "./test-utils";
 
 describe("homework", () => {
   it("groups work by urgency and links to each workspace", async () => {
@@ -42,6 +42,12 @@ describe("homework", () => {
       await screen.findByText("Write a function that reverses an array without a built-in."),
     ).toBeInTheDocument();
     expect(screen.getByText("Is Python 3.12 OK?")).toBeInTheDocument();
+    // Shows which attached files the breakdown read, linking to the readable ones.
+    expect(screen.getByRole("link", { name: /Lab2\.pdf/ })).toHaveAttribute(
+      "href",
+      `/documents/${DOC_ID}`,
+    );
+    expect(screen.getByText("Talvra can't read this type of file.")).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: /Suggest steps/ }));
     const dialog = await screen.findByRole("dialog", { name: "Suggested steps" });

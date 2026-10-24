@@ -346,6 +346,17 @@ layers are kept.
 **Cutover**: legacy v1 is removed from the tree, its old branches and the local leftovers are
 deleted, and there is no backup tag (the owner didn't want one). Only git history has it.
 
+## After launch (fixes and additions)
+
+- Morgan State's Canvas is `morganstate.instructure.com` (the old default was another school).
+- Canvas downloads go through Instructure File Service (`*.inst-fs-*.inscloudgate.net`); the
+  allowlist accepts any depth under `inscloudgate.net`.
+- **Briefs read attachments.** Files linked from an assignment description (`lib/canvas-links.ts`)
+  are synced even when the Files tab is hidden, and the brief reads their extracted text
+  (`homework/attachments.ts`: up to 6 files, 40k chars each, 100k total). Unprocessed ones are
+  extracted on the spot (60s cap); data/media files and anything unreadable are listed with a
+  reason. The brief shows which files it read. Same integrity rule: describe, never solve.
+
 ## Original session 11 plan (for reference)
 
 1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on
