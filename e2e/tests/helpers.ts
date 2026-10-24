@@ -32,6 +32,26 @@ export async function expectAccessible(page: Page) {
         .map((a) => a.finished.catch(() => undefined)),
     ),
   );
+  // Nothing sticks out past the screen edge (clipped or scrolling), except inside areas
+  // meant to scroll sideways (tab strips, tables). Phones showed this with long titles.
+  const offscreen = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const scrollsX = (el: Element | null): boolean => {
+      for (let e = el; e && e !== document.body; e = e.parentElement) {
+        const o = getComputedStyle(e).overflowX;
+        if (o === "auto" || o === "scroll") return true;
+      }
+      return false;
+    };
+    return [...document.querySelectorAll("main *")]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.right > vw + 1 && !scrollsX(el.parentElement);
+      })
+      .slice(0, 3)
+      .map((el) => `${el.tagName.toLowerCase()}: ${(el.textContent ?? "").trim().slice(0, 40)}`);
+  });
+  expect(offscreen, "content sticks out past the screen edge").toEqual([]);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
