@@ -1,6 +1,6 @@
 # Self-hosted homework sandbox (plan)
 
-Status: **phases 1-4 built (2026-10-24); container not deployed yet** (its biggest image layer kept failing to upload to Cloudflare's registry, so the SANDBOX binding and container are out of the production config until the image is split into smaller layers): our sandbox runs Do my homework for rollout accounts only (`HOMEWORK_SANDBOX_EMAILS`); everyone else stays on Anthropic's. Phase 5 (OpenAI) next. "Do my homework" runs in Anthropic's code-execution sandbox
+Status: **phases 1-4 built (2026-10-24)**. The first deploy failed to upload the image (two 1.3-1.7 GB layers); the Dockerfile now installs in many small layers and the container is back in the production config: our sandbox runs Do my homework for rollout accounts only (`HOMEWORK_SANDBOX_EMAILS`); everyone else stays on Anthropic's. Phase 5 (OpenAI) next. "Do my homework" runs in Anthropic's code-execution sandbox
 today (see ARCHITECTURE.md → Pipelines). That stays the production path until the self-hosted
 sandbox matches it. We build the new one beside it, behind a switch, and move over in phases.
 

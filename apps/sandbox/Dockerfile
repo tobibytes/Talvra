@@ -5,23 +5,31 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /usr/local/bin/uv
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_LINK_MODE=copy \
     DEBIAN_FRONTEND=noninteractive
 
-# Compilers and runtimes: C/C++, Java, R, Node, plus documents and data tools.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      bash ca-certificates curl git unzip zip xz-utils file \
-      build-essential default-jdk-headless r-base-core nodejs npm \
-      sqlite3 pandoc \
-      libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
-      fonts-dejavu fonts-liberation \
+# Compilers, runtimes and document tools, one layer each: Cloudflare's registry drops very
+# large blob uploads, so no single layer should be more than a few hundred MB.
+ENV APT="apt-get install -y --no-install-recommends"
+RUN apt-get update && $APT bash ca-certificates curl git unzip zip xz-utils file sqlite3 \
+      fonts-dejavu fonts-liberation && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT default-jdk-headless && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT r-base-core && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT nodejs npm pandoc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT libreoffice-writer-nogui && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && $APT libreoffice-calc-nogui libreoffice-impress-nogui \
   && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/default-java
 
-# The agent's Python (separate from the server's), and Chromium for Playwright.
+# The agent's Python (separate from the server's), split the same way, then Chromium.
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 COPY toolchain/requirements.txt /tmp/toolchain.txt
 RUN uv venv /opt/toolchain --python /usr/local/bin/python3.13 \
-  && uv pip install --python /opt/toolchain/bin/python --no-cache -r /tmp/toolchain.txt \
-  && /opt/toolchain/bin/playwright install --with-deps --only-shell chromium \
-  && rm -rf /var/lib/apt/lists/* /tmp/toolchain.txt
+  && uv pip install --python /opt/toolchain/bin/python --no-cache --no-deps \
+       $(grep -E '^(numpy|scipy|pandas)==' /tmp/toolchain.txt)
+RUN uv pip install --python /opt/toolchain/bin/python --no-cache --no-deps \
+       $(grep -E '^(scikit-learn|statsmodels|sympy|joblib|threadpoolctl|patsy)==' /tmp/toolchain.txt)
+RUN uv pip install --python /opt/toolchain/bin/python --no-cache -r /tmp/toolchain.txt
+RUN /opt/toolchain/bin/playwright install-deps chromium && rm -rf /var/lib/apt/lists/*
+RUN /opt/toolchain/bin/playwright install --only-shell chromium && rm /tmp/toolchain.txt
 
 # The control server.
 WORKDIR /app
