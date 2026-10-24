@@ -15,6 +15,7 @@ import { coursesRoutes } from "./routes/courses.js";
 import { type DocumentsOptions, documentsRoutes } from "./routes/documents.js";
 import { health } from "./routes/health.js";
 import { meRoutes } from "./routes/me.js";
+import { type StudyOptions, studyRoutes } from "./routes/study.js";
 import { type LaunchSync, launchWorkflow, syncRoutes } from "./routes/sync.js";
 
 export type AppOptions = {
@@ -30,6 +31,8 @@ export type AppOptions = {
   launchSync?: LaunchSync;
   /** Tests use in-memory file storage and process documents inline. */
   documents?: DocumentsOptions;
+  /** Tests generate study aids inline with a fake model. */
+  study?: StudyOptions;
 };
 
 /**
@@ -100,6 +103,7 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", meRoutes(launch));
   app.route("/v1", syncRoutes(launch));
   app.route("/v1", documentsRoutes(opts.documents));
+  app.route("/v1", studyRoutes(opts.study));
   app.route("/v1", coursesRoutes);
   app.route("/v1", canvasRoutes(opts.canvasFetch));
 

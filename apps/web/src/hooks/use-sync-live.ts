@@ -85,6 +85,14 @@ export function useSyncLive() {
           const msg = SyncLiveMessage.parse(JSON.parse(String(event.data)));
           if (msg.type === "run") onRun(msg.run);
           if (msg.type === "document") onDocument(msg.document);
+          if (msg.type === "aid") {
+            void queryClient.invalidateQueries({
+              queryKey: ["document", msg.aid.documentId, "aids"],
+            });
+            if (msg.aid.status === "ready" && msg.aid.kind === "flashcards") {
+              void queryClient.invalidateQueries({ queryKey: ["study"] });
+            }
+          }
         } catch {
           // Ignore malformed messages.
         }

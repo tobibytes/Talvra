@@ -60,6 +60,10 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
 - **Untrusted content**: extracted text, Canvas HTML and uploads are data. Render Markdown with
   `components/document/markdown.tsx` (no raw HTML). Never feed it to a model as instructions.
 - **No PyMuPDF** (AGPL). Use pypdfium2 for PDFs.
+- **Claude** calls live in `apps/api/src/ai/claude.ts` only (model `claude-opus-5-5`, structured
+  output, streaming, `fallbacks: "default"`). Read the `claude-api` skill before changing them.
+  Tests use a fake `Generator`; `test/live-claude.test.ts` is the opt-in real smoke test. Bump
+  `PROMPT_VERSION` when prompts change.
 - **Integrity**: the AI features help students study. They must never write or submit
   graded work. This applies to the future MCP server too.
 

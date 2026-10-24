@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, CalendarCheck } from "lucide-react";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
+import { StudyCard } from "@/components/study/study-card";
 import { SyncStatusCard } from "@/components/sync/sync-status-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -46,6 +47,7 @@ function Today() {
           />
         </section>
         <section aria-labelledby="courses-heading" className="space-y-3">
+          <StudyCard />
           <SyncStatusCard />
           <h2 id="courses-heading" className="font-semibold">
             Your courses

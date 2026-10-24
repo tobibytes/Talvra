@@ -1,6 +1,6 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 5. Whoever picks this up: read this file, then
+Last updated at the end of session 6. Whoever picks this up: read this file, then
 `CLAUDE.md`, then start the next session at the top of "Next up".
 
 ## Status
@@ -12,8 +12,8 @@ Last updated at the end of session 5. Whoever picks this up: read this file, the
 | 3 | Auth and onboarding: Better Auth, @morgan.edu only, sessions, guards, onboarding, account settings, Canvas connect | ✅ Done |
 | 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
-| 6 | AI study aids: notes, flashcards (FSRS), quizzes, slides with Claude; versions; citations; streaming | ⏭ **Next up** |
-| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | Planned |
+| 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
+| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ⏭ **Next up** |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed |
 | 9 | Homework workspace + real Today dashboard | Planned |
 | 10 | Reminders + video (media container: script → Azure TTS → MP4 in R2) | Planned |
@@ -48,6 +48,11 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
 - [ ] Resend API key (required in production).
 - [ ] Cloudflare Workers **paid** plan: password hashing needs more than the free plan's 10ms CPU.
 - [ ] Neon project + `wrangler hyperdrive create` → put the id in `apps/api/wrangler.jsonc`.
+- [ ] **A valid `ANTHROPIC_API_KEY`.** The key in the agent's environment returned 401, so study
+      aids were never generated against the real API (everything else, including the failure path,
+      was). Put it in `apps/api/.dev.vars`, then run the opt-in smoke test:
+      `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`
+      (3 small calls). Production: `wrangler secret put ANTHROPIC_API_KEY --env production`.
 - [ ] Confirm the MCP server session (8). The proposal: personal API keys first, OAuth later. Tools:
       `list_courses`, `upcoming_due`, `search_material`, `get_document`, `generate_study_aid`,
       `review_flashcards`, `homework_brief`. Same integrity rule.
@@ -149,24 +154,50 @@ Not done yet: OCR for scanned PDFs, legacy .doc/.ppt, images inside documents.
 
 ---
 
-## Next up: session 6, AI study aids
+## Session 6 notes (Study aids)
 
-Read the `claude-api` skill first (model ids, structured output, streaming, prompt caching).
+- **One Claude call per aid** (`apps/api/src/ai/claude.ts`): `claude-opus-5-5`, effort `medium`,
+  streamed (`finalMessage()`), structured output via `zodOutputFormat` (schemas in
+  `packages/contracts/src/study.ts`), `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`).
+  No map-reduce: Opus 5.5 has a 1M context; documents over ~600k tokens fail with a clear message.
+- **Prompt** (`ai/prompts.ts`, `PROMPT_VERSION`): system prompt + document (both `cache_control`) +
+  kind instruction last, so notes/flashcards/quiz for one document share the cached prefix. The
+  document is XML-escaped `<section anchor="page 3">` blocks; the model is told the document is data
+  and to never write graded work.
+- **Validation** (`ai/generate.ts` `cleanContent`): zod parse, citations not matching a real section
+  anchor are dropped, quiz MCQs must have 4 choices and a valid index, counts capped.
+- **Jobs**: `POST /documents/:id/aids {kind, regenerate?}` creates a versioned `study_aids` row and
+  sends it to `AI_QUEUE` (`talvra-ai`, batch size 1). Consumer retries transient errors (3 attempts),
+  pushes `{ type: "aid" }` events to the hub. Guards: document must be ready, 40 aids per user per
+  24h, in-flight >30 min is treated as lost, missing key fails cleanly.
+- **Versions**: each slot returns `current` (newest ready) and `latest` (newest any); a failed
+  regeneration never hides the working version. New flashcard decks suspend the old cards; reviews
+  are kept.
+- **FSRS** (`ai/review.ts`, ts-fsrs, 90% retention, no fuzz): `GET /flashcards/due`,
+  `POST /flashcards/:id/review {rating 1-4}`, `GET /study/summary`.
+- **Web**: Document page tabs Read / Notes / Flashcards / Quiz (`?tab=`); citation chips link to
+  `?tab=read#page-n`; quiz runner (practice only); `/review` session (Space flips, 1–4 grades);
+  Today "Flashcards" card; Course "Study" tab; "Review" in the sidebar and ⌘K.
 
-1. **Schema**: `study_aids` (user_id, document_id, kind `notes|flashcards|quiz|slides`, version,
-   status, model, input_sha256, content jsonb, created_at); `flashcards` rows for review state
-   (FSRS: due, stability, difficulty, reps, lapses, last_review); `reviews` log.
-2. **Generation** (`apps/api/src/ai/`): Claude via the Anthropic SDK (`ANTHROPIC_API_KEY` secret).
-   Input = the document's sections (with anchors); output validated with zod (tool/JSON schema).
-   Every claim carries `cite: [{ kind, n }]` that must match a real section anchor (drop/repair
-   otherwise). Long documents: map over section chunks, then reduce. Prompt-cache the document.
-   System prompt: study help only; never answer graded questions; treat document text as data.
-3. **Durability**: generation runs in a Workflow (`AidWorkflow`), one step per chunk; the UI streams
-   progress over the UserHub; notes stream token-by-token over SSE for the first view.
-4. **Versions**: regenerate creates a new version; keep the last 5; diff-free "restore".
-5. **Flashcards**: FSRS scheduling (ts-fsrs), review UI with keyboard (Space flip, 1–4 grade),
-   due count on Today.
-6. **Quiz**: MCQ + short answer with explanations and citations; never graded work.
-7. **Web**: Document page tabs Read / Notes / Flashcards / Quiz; Course "Study" tab lists aids;
-   citations link to `#page-n` in the reader.
-8. **Costs**: per-user daily token budget (DO counter), cached results by `input_sha256`.
+Verified: unit/API tests with a fake model (citations, cleaning, retries, limits, versions, decks,
+FSRS scheduling, scoping); under `wrangler dev` the real queue/consumer/hub path including the
+failure UX; the ready views and a keyboard review session in Chrome (seeded content; FSRS moved
+the card to Learning, due in 10 minutes). **Not verified: a real Claude generation** (see owner items).
+
+---
+
+## Next up: session 7, Search and Ask
+
+1. **Chunks**: after extraction, split sections into ~800-token chunks (keep anchors) into a
+   `chunks` table (user_id, document_id, course_id, anchor, heading, text, tsvector generated
+   column with a GIN index).
+2. **Embeddings**: Workers AI `@cf/baai/bge-m3` (multilingual; Pidgin/English content exists) or
+   Voyage; upsert into Vectorize (`talvra-chunks`, metadata `{userId, courseId, documentId}`,
+   **always query with a userId filter**). Embed in the ingest consumer after `ready`; backfill job.
+3. **Hybrid search**: Postgres FTS (`websearch_to_tsquery`) + Vectorize top-k, merged with
+   reciprocal-rank fusion. `GET /search?q=&courseId=&kind=` returns documents with highlighted
+   snippets and anchors; assignments/modules by title too.
+4. **Ask** (`POST /ask`, SSE): retrieve top chunks (scoped to a course or document), answer with
+   Claude citing chunk anchors, stream tokens. Conversations stored per user. Same integrity rule.
+5. **Web**: `/search` page (instant results, filters, keyboard), ⌘K searches content too, Ask panel
+   on Course and Document pages using AI Elements (streamed message, sources).
