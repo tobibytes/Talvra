@@ -93,7 +93,12 @@ describe("tool-loop homework agent", () => {
     expect(out.usage).toEqual({ inputTokens: 20, outputTokens: 10, webSearches: 0, turns: 2 });
     expect(read(files.get("input/hw.pdf"))).toBe("%PDF");
     expect(files.has("input/nbbuild.py")).toBe(true);
-    expect(started[0]?.tools.map((t) => t.name)).toEqual(["bash", "download_file", "hand_in"]);
+    expect(started[0]?.tools.map((t) => t.name)).toEqual([
+      "bash",
+      "view_image",
+      "download_file",
+      "hand_in",
+    ]);
     expect(sent[0]?.text).toContain("Files in $INPUT_DIR: hw.pdf, nbbuild.py.");
     expect(sent[1]?.results).toEqual([
       { callId: "c1", content: "Exit code 0.\n<stdout>\ndone\n</stdout>", isError: false },
@@ -212,6 +217,33 @@ describe("tool-loop homework agent", () => {
       runToolLoop(fakeDriver(loop).driver, async () => busy, { ...base, maxTurns: 3 }),
     ).rejects.toThrow("ran out of steps");
     expect(busy.closed).toBe(true);
+  });
+});
+
+describe("view_image", () => {
+  it("returns the image to the model, and refuses other types, big files and escapes", async () => {
+    const { sandbox, files } = fakeSandbox();
+    files.set("shot.png", new Uint8Array([137, 80, 78, 71]));
+    files.set("big.png", new Uint8Array(5 * 1024 * 1024 + 1));
+    files.set("output/a.txt", text("a"));
+    const { driver, sent } = fakeDriver([
+      turn([
+        { id: "i1", name: "view_image", input: { path: "/work/shot.png" } },
+        { id: "i2", name: "view_image", input: { path: "notes.txt" } },
+        { id: "i3", name: "view_image", input: { path: "big.png" } },
+        { id: "i4", name: "view_image", input: { path: "/etc/x.png" } },
+      ]),
+      turn([{ id: "h", name: "hand_in", input: { files: ["a.txt"], notes: "" } }]),
+    ]);
+    await runToolLoop(driver, async () => sandbox, base);
+    const [ok, wrongType, big, outside] = sent[1]?.results ?? [];
+    expect(ok?.content).toEqual([
+      { type: "image", mediaType: "image/png", data: btoa(String.fromCharCode(137, 80, 78, 71)) },
+      { type: "text", text: "shot.png (4 bytes)" },
+    ]);
+    expect(wrongType?.isError).toBe(true);
+    expect(big).toMatchObject({ isError: true, content: expect.stringContaining("over 5 MB") });
+    expect(outside?.isError).toBe(true);
   });
 });
 

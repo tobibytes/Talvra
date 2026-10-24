@@ -4,7 +4,11 @@ import { and, eq, inArray, schema, sql } from "@talvra/db";
 import { retrieve } from "../ai/ask.js";
 import { GenerationError } from "../ai/claude.js";
 import type { AgentInput, HomeworkAgent } from "../ai/homework-agent.js";
-import { assignmentPrompt, DO_HOMEWORK_SYSTEM } from "../ai/homework-prompts.js";
+import {
+  assignmentPrompt,
+  DO_HOMEWORK_SYSTEM,
+  OWN_SANDBOX_HOMEWORK_SYSTEM,
+} from "../ai/homework-prompts.js";
 import type { FileStore } from "../ingest/process.js";
 import { type CanvasClient, CanvasError } from "../lib/canvas.js";
 import { linkedFiles } from "../lib/canvas-links.js";
@@ -367,7 +371,7 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
       .join("\n\n");
 
     const out = await deps.agent.run({
-      system: DO_HOMEWORK_SYSTEM,
+      system: deps.agent.kind === "tool-loop" ? OWN_SANDBOX_HOMEWORK_SYSTEM : DO_HOMEWORK_SYSTEM,
       prompt,
       inputs,
       model: deps.model,

@@ -107,6 +107,15 @@ const FIELDS = [
     secret: true,
   },
   {
+    key: "HOMEWORK_SANDBOX_EMAILS",
+    label: "Our own homework sandbox: rollout accounts (optional)",
+    help: "Comma-separated emails whose Do my homework runs in Talvra's own sandbox (internet, browser,\nJava/C/R) instead of Anthropic's. Skip to keep everyone on Anthropic's. See docs/v2/SANDBOX.md.",
+    validate: (v) =>
+      v.split(",").every((e) => /^[^@\s]+@[^@\s]+$/.test(e.trim()))
+        ? null
+        : "Use emails separated by commas.",
+  },
+  {
     key: "AZURE_SPEECH_KEY",
     label: "Azure Speech key (optional)",
     help: "Only if you prefer Azure voices for videos. Skip to use Workers AI (default).",

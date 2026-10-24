@@ -47,7 +47,9 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["UserHub"] },
     { "tag": "v2", "new_sqlite_classes": ["ExtractContainer"] },
-    { "tag": "v3", "new_sqlite_classes": ["MediaContainer"] }
+    { "tag": "v3", "new_sqlite_classes": ["MediaContainer"] },
+    // Homework sandbox (apps/sandbox). Bound in production only; dev uses SANDBOX_URL.
+    { "tag": "v4", "new_sqlite_classes": ["SandboxContainer"] }
   ],
   // Workers AI: narration (text-to-speech). Runs remotely even in wrangler dev.
   "ai": { "binding": "AI" },
@@ -132,7 +134,8 @@
         "bindings": [
           { "name": "USER_HUB", "class_name": "UserHub" },
           { "name": "EXTRACT", "class_name": "ExtractContainer" },
-          { "name": "MEDIA", "class_name": "MediaContainer" }
+          { "name": "MEDIA", "class_name": "MediaContainer" },
+          { "name": "SANDBOX", "class_name": "SandboxContainer" }
         ]
       },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "talvra-files" }],
@@ -173,6 +176,14 @@
           "image": "../media/Dockerfile",
           "max_instances": 3,
           // A full vCPU: renders ~2x faster than standard-1 for about the same cost per video.
+          "instance_type": "standard-2"
+        },
+        // Homework sandbox: one instance per run, internet on (see SandboxContainer). Only used
+        // when HOMEWORK_SANDBOX / HOMEWORK_SANDBOX_EMAILS say so; idle instances cost nothing.
+        {
+          "class_name": "SandboxContainer",
+          "image": "../sandbox/Dockerfile",
+          "max_instances": 4,
           "instance_type": "standard-2"
         }
       ],

@@ -111,7 +111,8 @@ Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take 
     into a fresh sandbox. Verify uses a separate `verification_result` tool and leaves file bytes
     unchanged. Rename updates file metadata; revisions/renames invalidate the verification report.
     Each job carries a run ID; submission claims the row atomically and checks the UI's version.
-  - A self-hosted sandbox to replace Anthropic's is planned: `docs/v2/SANDBOX.md`.
+  - Our own sandbox (container per run, internet, browser, Java/C/R) runs it for rollout accounts:
+    `docs/v2/SANDBOX.md`.
 - **Canvas accounts**: one Talvra account per Canvas user per school (`canvas_user_id`, unique
   with `base_url`; filled in on connect and on "Check connection").
 - **Video** (queue): a 3-5 minute script (≤ 750 words, one source page per slide) → narration
@@ -145,6 +146,8 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in (optional). Redirect URI: `https://hwrk.help/api/auth/callback/google` (and `http://localhost:5173/...` locally) |
 | `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` | Optional Azure voices for videos |
 | `BASIC_MODEL` (var) | Optional override for the basic-mode model |
+| `HOMEWORK_SANDBOX_EMAILS` | Optional. Accounts whose Do my homework runs in our own sandbox (docs/v2/SANDBOX.md). `HOMEWORK_SANDBOX=self` (var) moves everyone |
+| `SANDBOX_URL` + `SANDBOX_SECRET` | Dev/other hosts: the sandbox image run elsewhere instead of the `SANDBOX` container. A non-local URL without its secret refuses to start |
 | `EXTRACT_URL` + `EXTRACT_SECRET`, `MEDIA_URL` + `MEDIA_SECRET` | Optional: run the same container images elsewhere (e.g. Azure Container Apps) instead of Cloudflare Containers. A URL without its secret refuses to start |
 
 Production secrets live in `apps/api/.prod.vars` (gitignored, written by `pnpm prod:env`, which

@@ -157,3 +157,40 @@ describe.skipIf(!live)("live homework agent", () => {
     expect(outputs.some((o) => o.output_type === "error")).toBe(false);
   });
 });
+
+/**
+ * Our own sandbox, for real: Claude (driver) + the apps/sandbox image. Needs the image running:
+ *   docker run --rm -p 8001:8000 -e ALLOW_NO_AUTH=1 talvra-sandbox:dev
+ *   LIVE_CLAUDE=1 SANDBOX_URL=http://localhost:8001 ANTHROPIC_API_KEY=... \
+ *     pnpm exec vitest run test/live-claude.test.ts -t "own sandbox"
+ */
+describe.skipIf(!live || !process.env.SANDBOX_URL)("live homework agent, own sandbox", () => {
+  it("compiles and runs Java, makes a plot, looks at it, and hands in both", {
+    timeout: 900_000,
+  }, async () => {
+    const { anthropicClaudeTurn, claudeDriver } = await import("../src/ai/claude-driver.js");
+    const { runToolLoop } = await import("../src/ai/tool-loop-agent.js");
+    const { httpSandbox } = await import("../src/homework/sandbox-client.js");
+    const { OWN_SANDBOX_HOMEWORK_SYSTEM } = await import("../src/ai/homework-prompts.js");
+    const steps: string[] = [];
+    const out = await runToolLoop(
+      claudeDriver(anthropicClaudeTurn(process.env.ANTHROPIC_API_KEY ?? "")),
+      async () => httpSandbox((r) => fetch(r), process.env.SANDBOX_URL ?? ""),
+      {
+        system: OWN_SANDBOX_HOMEWORK_SYSTEM,
+        prompt:
+          "<assignment>Tiny lab. (1) Write Sum.java that prints the sum of the integers 1 to 10; compile and run it. (2) Make plot.png: a line plot of y = x^2 for x in 0..10 with matplotlib, and look at it with view_image to check it. Hand in Sum.java and plot.png only. Keep it simple.</assignment>",
+        inputs: [],
+        onProgress: (t) => {
+          steps.push(t);
+        },
+      },
+    );
+    expect(out.files.map((f) => f.name).sort()).toEqual(["Sum.java", "plot.png"]);
+    expect(new TextDecoder().decode(out.files.find((f) => f.name === "Sum.java")?.data)).toContain(
+      "class Sum",
+    );
+    expect(steps).toContain("Looking at an image");
+    console.log(JSON.stringify({ usage: out.usage, model: out.model, notes: out.notes }));
+  });
+});
