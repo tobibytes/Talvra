@@ -12,21 +12,18 @@ import {
 import { createApp } from "./app.js";
 import type { Bindings } from "./env.js";
 import { frontDoor } from "./front.js";
+import { ingestDepsFor } from "./ingest/deps.js";
 import {
   enqueueAll,
-  type IngestDeps,
   type IngestMessage,
   processDocument,
   RetryableIngestError,
   stuckDocuments,
 } from "./ingest/process.js";
 import { emailSender } from "./lib/email.js";
-import { extractorFor } from "./lib/extractor.js";
-import { publishAidToHub, publishDocumentToHub, publishVideoToHub } from "./realtime/hub.js";
+import { publishAidToHub, publishVideoToHub } from "./realtime/hub.js";
 import { planNotifications, sendPending } from "./reminders/engine.js";
-import { searchDepsFor } from "./routes/search.js";
 import { launchWorkflow } from "./routes/sync.js";
-import { indexDocument } from "./search/engine.js";
 import { dueForScheduledSync, startSync } from "./sync/run.js";
 
 export { ExtractContainer } from "./extract-container.js";
@@ -56,22 +53,6 @@ async function scheduledSync(env: Bindings) {
     }
   }
   console.log(JSON.stringify({ msg: "scheduled sync tick", due: userIds.length, started }));
-}
-
-function ingestDeps(env: Bindings): IngestDeps {
-  const extract = extractorFor(env);
-  if (!env.HYPERDRIVE || !env.FILES || !extract) {
-    throw new Error("Ingest needs HYPERDRIVE, FILES and EXTRACT (or EXTRACT_URL)");
-  }
-  const db = createDb(env.HYPERDRIVE.connectionString);
-  return {
-    db,
-    files: env.FILES,
-    extract,
-    tokenKey: env.CANVAS_TOKEN_KEY,
-    notify: (userId, doc) => publishDocumentToHub(env, userId, doc),
-    index: (doc, sections) => indexDocument({ db, ...searchDepsFor(env) }, doc, sections),
-  };
 }
 
 /** Cron: plan due reminders and digests, then send what's due. */
@@ -113,7 +94,7 @@ export default {
       await consumeAi(batch as MessageBatch<AidMessage | VideoMessage>, env);
       return;
     }
-    const deps = ingestDeps(env);
+    const deps = ingestDepsFor(env);
     for (const msg of (batch as MessageBatch<IngestMessage>).messages) {
       try {
         await processDocument(deps, msg.body);

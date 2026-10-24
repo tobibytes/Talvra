@@ -1,4 +1,10 @@
-import type { AssignmentDetail, BriefContent, PlanStep, PlanSuggestion } from "@talvra/contracts";
+import type {
+  AssignmentDetail,
+  BriefAttachment,
+  BriefContent,
+  PlanStep,
+  PlanSuggestion,
+} from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -6,6 +12,8 @@ import {
   ArrowUp,
   CircleAlert,
   ExternalLink,
+  FileCheck2,
+  FileMinus2,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -163,6 +171,47 @@ function List({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+/** Which linked files the brief read, so the student knows what it's based on. */
+function Attachments({ items }: { items: BriefAttachment[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="space-y-1.5">
+      <h3 className="text-sm font-medium">Attached files</h3>
+      <ul className="space-y-1.5 text-sm">
+        {items.map((f) => {
+          const Icon = f.read ? FileCheck2 : FileMinus2;
+          return (
+            <li key={`${f.documentId ?? ""}${f.title}`} className="flex gap-2">
+              <Icon
+                className={cn(
+                  "mt-0.5 size-4 shrink-0",
+                  f.read ? "text-success" : "text-muted-foreground",
+                )}
+                aria-hidden
+              />
+              <div className="min-w-0">
+                {f.documentId ? (
+                  <Link
+                    to="/documents/$documentId"
+                    params={{ documentId: f.documentId }}
+                    className="break-words font-medium underline-offset-4 hover:underline"
+                  >
+                    {f.title}
+                  </Link>
+                ) : (
+                  <span className="break-words font-medium">{f.title}</span>
+                )}
+                <span className="sr-only">{f.read ? " (read)" : " (not read)"}</span>
+                {f.note ? <p className="text-xs text-muted-foreground">{f.note}</p> : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function BriefCard({ assignmentId }: { assignmentId: string }) {
   const queryClient = useQueryClient();
   const brief = useQuery({
@@ -187,7 +236,8 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
           <h2>What's being asked</h2>
         </CardTitle>
         <CardDescription>
-          A plain-language read of the assignment by Claude. Check it against Canvas.
+          A plain-language read of the assignment and its attached files by Claude. Check it against
+          Canvas.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -195,7 +245,8 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
           <ListSkeleton rows={2} />
         ) : make.isPending ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Reading the assignment…
+            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Reading the assignment and
+            its attached files…
           </p>
         ) : content ? (
           <>
@@ -206,6 +257,7 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
               <List title="What graders look for" items={content.rubricPoints} />
               <List title="Skills you'll use" items={content.skills} />
             </div>
+            <Attachments items={content.attachments} />
             {content.questionsForInstructor.length ? (
               <div className="rounded-lg border bg-muted/40 p-3">
                 <List title="Worth asking your instructor" items={content.questionsForInstructor} />

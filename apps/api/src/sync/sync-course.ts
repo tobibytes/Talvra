@@ -6,6 +6,7 @@ import {
   type CanvasFileRaw,
   type CanvasModuleItemRaw,
 } from "../lib/canvas.js";
+import { linkedFiles } from "../lib/canvas-links.js";
 
 const { courses, modules, moduleItems, assignments, documents } = schema;
 
@@ -269,7 +270,12 @@ export async function syncCourse(
   await report("assignments", counts);
 
   // --- Files (metadata only) ---------------------------------------------
-  const rawFiles = await listFiles(client, canvasCourseId, itemRows);
+  // Files linked from assignment descriptions (the PDF with the questions, datasets) are often
+  // hidden from the Files tab, so fetch those one by one too.
+  const linkedIds = rawAssignments.flatMap((a) =>
+    linkedFiles(a.description).map((f) => f.canvasId),
+  );
+  const rawFiles = await listFiles(client, canvasCourseId, itemRows, linkedIds);
   const folders = await client
     .folders(canvasCourseId)
     .then((f) => new Map(f.map((x) => [x.id, x.full_name ?? null])))
@@ -352,23 +358,30 @@ export async function syncCourse(
 
 /**
  * Many courses hide the Files tab from students (403), but files linked from
- * modules are still readable one by one. Fall back to those.
+ * modules or assignments are still readable one by one. Fetch those that the
+ * listing didn't include (all of them when there's no listing).
  */
 async function listFiles(
   client: CanvasClient,
   canvasCourseId: string,
   items: (typeof moduleItems.$inferInsert)[],
+  linkedIds: string[] = [],
 ): Promise<CanvasFileRaw[]> {
+  let listed: CanvasFileRaw[] | null = null;
   try {
-    return await client.files(canvasCourseId);
+    listed = await client.files(canvasCourseId);
   } catch (err) {
     if (!(err instanceof CanvasError) || (err.kind !== "forbidden" && err.kind !== "not_found"))
       throw err;
   }
-  const ids = [
-    ...new Set(items.filter((i) => i.kind === "file" && i.refCanvasId).map((i) => i.refCanvasId)),
-  ] as string[];
-  const out: CanvasFileRaw[] = [];
+  const moduleIds = items
+    .filter((i) => i.kind === "file" && i.refCanvasId)
+    .map((i) => i.refCanvasId as string);
+  const out: CanvasFileRaw[] = listed ?? [];
+  const have = new Set(out.map((f) => String(f.id)));
+  const ids = [...new Set(listed ? linkedIds : [...moduleIds, ...linkedIds])].filter(
+    (id) => !have.has(id),
+  );
   for (const id of ids) {
     try {
       out.push(await client.file(canvasCourseId, id));

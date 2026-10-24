@@ -5,6 +5,7 @@ import {
   AssignmentParams,
   type Brief,
   BriefContent,
+  BriefModelContent,
   BriefResponse,
   HomeworkList,
   HomeworkQuery,
@@ -25,6 +26,7 @@ import {
 } from "../ai/homework-prompts.js";
 import { studySummary } from "../ai/review.js";
 import type { AppEnv, Bindings } from "../env.js";
+import { type AttachmentDeps, loadAttachments } from "../homework/attachments.js";
 import {
   assignmentDetail,
   getPlan,
@@ -32,6 +34,8 @@ import {
   ownedAssignment,
   today,
 } from "../homework/service.js";
+import { ingestDepsFor } from "../ingest/deps.js";
+import { type FileStore, type IngestMessage, processDocument } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
 import { sha256Hex } from "../lib/files.js";
 import { meter } from "../lib/usage.js";
@@ -50,8 +54,24 @@ const notFound = {
 export type HomeworkOptions = {
   /** Tests inject a fake model. */
   structured?: Structured;
+  /** Tests pass in-memory files and an inline ingester for attachments. */
+  files?: FileStore;
+  ingestNow?: (msg: IngestMessage) => Promise<unknown>;
   search?: Omit<SearchDeps, "db">;
 };
+
+function attachmentDeps(env: Bindings, db: Database, opts: HomeworkOptions): AttachmentDeps {
+  let ingestNow = opts.ingestNow;
+  if (!ingestNow) {
+    try {
+      const deps = ingestDepsFor(env, db);
+      ingestNow = (m) => processDocument(deps, m);
+    } catch {
+      // No extractor here (e.g. local dev without containers): read only what's ready.
+    }
+  }
+  return { db, files: opts.files ?? env.FILES, ingestNow };
+}
 
 function structuredFor(env: Bindings, opts: HomeworkOptions) {
   if (opts.structured) return opts.structured;
@@ -214,7 +234,14 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
       const { assignmentId } = c.req.valid("param");
       const regenerate = c.req.valid("json")?.regenerate ?? false;
       const a = await assignmentDetail(c.var.db, userId, assignmentId);
-      const prompt = assignmentPrompt(a);
+      const owned = await ownedAssignment(c.var.db, userId, assignmentId);
+      // Files linked from the description (often the actual questions) are part of the assignment.
+      const attachments = await loadAttachments(attachmentDeps(c.env, c.var.db, opts), {
+        userId,
+        courseId: owned.a.courseId,
+        descriptionHtml: owned.a.descriptionHtml,
+      });
+      const prompt = assignmentPrompt({ ...a, attachments });
       const sha = await sha256Hex(
         new TextEncoder().encode(`${HOMEWORK_PROMPT_VERSION}\n${prompt}`).buffer as ArrayBuffer,
       );
@@ -242,10 +269,10 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
           c.env,
           opts,
         )({
-          schema: BriefContent,
+          schema: BriefModelContent,
           system: BRIEF_SYSTEM,
           user: prompt,
-          maxTokens: 6000,
+          maxTokens: 8000,
         });
         const trim = (xs: string[], n: number) =>
           xs
@@ -260,6 +287,7 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
           skills: trim(out.data.skills, 10),
           questionsForInstructor: trim(out.data.questionsForInstructor, 6),
           searchQueries: trim(out.data.searchQueries, 5),
+          attachments: attachments.map(({ text: _text, ...rest }) => rest),
         };
         const row = await upsert({
           status: "ready",

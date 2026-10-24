@@ -145,6 +145,21 @@ describe("syncCourse", () => {
     ]);
   });
 
+  it("also brings in files linked from an assignment when the Files tab is hidden", async () => {
+    const state = defaultState();
+    const c101 = state.byCourse["101"];
+    const hw = c101?.assignments[0];
+    const linked = c101?.files.find((f) => f.id !== 501);
+    if (!c101 || !hw || !linked) throw new Error("fixture");
+    c101.filesForbidden = true;
+    hw.description = `<p>Questions: <a href="/courses/101/files/${linked.id}?wrap=1">HW.pdf</a></p>`;
+    const { db, canvas, userId, courseId } = await setup(state);
+    const counts = await syncCourse(db, client(canvas.fetch), { userId, courseId });
+    expect(counts.files).toBe(2);
+    const files = await db.select().from(schema.documents);
+    expect(files.map((d) => d.canvasId)).toContain(String(linked.id));
+  });
+
   it("surfaces 401 as unauthorized", async () => {
     const { db, canvas, userId, courseId } = await setup();
     canvas.state.token = "rotated";
