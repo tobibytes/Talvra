@@ -241,6 +241,11 @@ export function fakeApi(state: {
   ai?: Record<string, unknown>;
   draft?: Record<string, unknown>;
   connectedApps?: { clientId: string; name: string; uri: string | null; connectedAt: string }[];
+  /** Today's checklist. Default: dismissed, so screens that don't test it stay unchanged. */
+  gettingStarted?: {
+    steps: Record<"canvas" | "studyAid" | "review" | "ask" | "assistant", boolean>;
+    dismissed: boolean;
+  };
   apiKeys?: {
     id: string;
     name: string;
@@ -358,6 +363,24 @@ export function fakeApi(state: {
     if (p.startsWith("/api/v1/me/connected-apps/") && method === "DELETE") {
       state.connectedApps = [];
       return new Response(null, { status: 204 });
+    }
+    if (p === "/api/v1/me/getting-started" && method === "GET")
+      return json(
+        state.gettingStarted ?? {
+          steps: { canvas: true, studyAid: false, review: false, ask: false, assistant: false },
+          dismissed: true,
+        },
+      );
+    if (p === "/api/v1/me/getting-started/dismiss" && method === "POST") {
+      const steps = state.gettingStarted?.steps ?? {
+        canvas: true,
+        studyAid: false,
+        review: false,
+        ask: false,
+        assistant: false,
+      };
+      state.gettingStarted = { steps, dismissed: true };
+      return json(state.gettingStarted);
     }
     if (p === "/api/v1/me/api-keys" && method === "GET") return json({ keys: state.apiKeys });
     if (p === "/api/v1/me/api-keys" && method === "POST") {

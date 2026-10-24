@@ -26,6 +26,7 @@ import {
   DocumentList,
   DraftResponse,
   FlashcardList,
+  GettingStarted,
   Health,
   HomeworkList,
   type ListAiModels,
@@ -122,6 +123,9 @@ export const api = {
   saveAiKey: (body: SaveAiKey) => request("/v1/me/ai", AiSettings, { method: "PUT", json: body }),
   removeAiKey: () => request("/v1/me/ai", AiSettings, { method: "DELETE" }),
   apiKeys: () => request("/v1/me/api-keys", ApiKeyList),
+  gettingStarted: () => request("/v1/me/getting-started", GettingStarted),
+  dismissGettingStarted: () =>
+    request("/v1/me/getting-started/dismiss", GettingStarted, { method: "POST" }),
   connectedApps: () => request("/v1/me/connected-apps", ConnectedAppList),
   disconnectApp: (clientId: string) =>
     request(`/v1/me/connected-apps/${encodeURIComponent(clientId)}`, z.undefined(), {

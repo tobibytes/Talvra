@@ -120,6 +120,13 @@
       "when": 1792868599546,
       "tag": "0016_oauth_mcp",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792871859481,
+      "tag": "0017_getting_started",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { HomeworkRow } from "@/components/homework/homework-row";
 import { CalendarCheck, FileText, PartyPopper } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncStatusCard } from "@/components/sync/sync-status-card";
+import { GettingStartedCard } from "@/components/today/getting-started";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +50,7 @@ function Today() {
         })}
         title={`${greeting(now.getHours())}, ${me.user.name.split(" ")[0]}`}
       />
+      <GettingStartedCard />
       {today.isPending ? (
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
