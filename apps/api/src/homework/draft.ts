@@ -1,12 +1,15 @@
-import { type DraftFile, DraftModelOutput, type HomeworkDraft } from "@talvra/contracts";
+import type { DraftFile, HomeworkDraft } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
-import { and, eq, schema } from "@talvra/db";
+import { and, eq, inArray, schema } from "@talvra/db";
 import { retrieve } from "../ai/ask.js";
-import type { Structured } from "../ai/claude.js";
+import { GenerationError } from "../ai/claude.js";
+import { type AgentApi, runHomeworkAgent } from "../ai/claude-homework-agent.js";
 import { assignmentPrompt, DO_HOMEWORK_SYSTEM } from "../ai/homework-prompts.js";
 import type { FileStore } from "../ingest/process.js";
 import { type CanvasClient, CanvasError } from "../lib/canvas.js";
+import { linkedFiles } from "../lib/canvas-links.js";
 import { AppError } from "../lib/errors.js";
+import { fileKeys, servedMime } from "../lib/files.js";
 import type { SearchDeps } from "../search/engine.js";
 import { type AttachmentDeps, loadAttachments } from "./attachments.js";
 
@@ -34,9 +37,22 @@ const TYPES: Record<string, string> = {
   csv: "text/csv",
   json: "application/json",
   tex: "text/plain",
+  // Real documents the sandbox can make (python-docx, openpyxl, matplotlib…).
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  zip: "application/zip",
 };
 const MAX_FILES = 10;
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Assignment files copied into the sandbox: count and total size. */
+const MAX_INPUTS = 10;
+const MAX_INPUT_BYTES = 80 * 1024 * 1024;
+/** A run that's been "working" this long was lost (the queue job died). */
+const STUCK_AFTER_MS = 20 * 60_000;
 
 type StoredFile = DraftFile & { key: string };
 type Row = typeof homeworkDrafts.$inferSelect;
@@ -45,6 +61,7 @@ export function toDraft(r: Row): HomeworkDraft {
   return {
     id: r.id,
     status: r.status,
+    progress: r.status === "working" ? r.progress : null,
     files: (r.files as StoredFile[]).map(({ name, contentType, size }) => ({
       name,
       contentType,
@@ -84,101 +101,240 @@ export async function loadDraft(db: Database, userId: string, assignmentId: stri
   return row;
 }
 
-export type DraftDeps = {
-  db: Database;
-  files: FileStore;
-  structured: Structured;
-  attachments: AttachmentDeps;
-  search: SearchDeps;
-};
+export type HomeworkMessage = { type: "homework"; userId: string; assignmentId: string };
 
 /**
- * Writes the files to hand in for an assignment: reads the assignment, its attached files and
- * the most relevant course material, then stores the model's files in R2 (replacing the last
- * version). Owner-only feature; the route checks the gate.
+ * Starts "Do my homework" for an assignment: marks the draft as working (the last files stay
+ * until new ones are ready) and queues the agent. One run at a time per assignment.
  */
-export async function makeDraft(
-  deps: DraftDeps,
-  input: {
-    userId: string;
-    assignment: Parameters<typeof assignmentPrompt>[0] & { id: string; courseId: string };
-    descriptionHtml: string | null;
-    instructions?: string;
-  },
+export async function startDraft(
+  db: Database,
+  input: { userId: string; assignmentId: string; instructions?: string },
+  enqueue: (m: HomeworkMessage) => Promise<void>,
 ): Promise<Row> {
-  const { db, userId } = { db: deps.db, userId: input.userId };
-  const a = input.assignment;
-  const attachments = await loadAttachments(deps.attachments, {
-    userId,
-    courseId: a.courseId,
-    descriptionHtml: input.descriptionHtml,
-  });
-  const question = `${a.name} ${(a.descriptionMd ?? "").split(/\s+/).slice(0, 60).join(" ")}`;
-  const { passages } = await retrieve(deps.search, userId, {
-    question,
-    courseId: a.courseId,
-  }).catch(() => ({ passages: [] as { n: number; documentTitle: string; text: string }[] }));
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const material = passages
-    .slice(0, 6)
-    .map((p) => `<material source="${esc(p.documentTitle)}">\n${esc(p.text)}\n</material>`)
-    .join("\n");
-  const user = [
-    assignmentPrompt({ ...a, attachments }),
-    material,
-    input.instructions ? `<instructions>\n${esc(input.instructions)}\n</instructions>` : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const out = await deps.structured({
-    schema: DraftModelOutput,
-    system: DO_HOMEWORK_SYSTEM,
-    user,
-    maxTokens: 32000,
-    effort: "medium",
-  });
-
-  const previous = await loadDraft(db, userId, a.id);
-  const version = Date.now().toString(36);
-  const taken = new Set<string>();
-  const stored: StoredFile[] = [];
-  for (const f of out.data.files.slice(0, MAX_FILES)) {
-    const name = cleanFileName(f.name, taken);
-    if (!name) continue;
-    const data = new TextEncoder().encode(f.content);
-    if (data.byteLength > MAX_FILE_BYTES) continue;
-    const ext = name.toLowerCase().split(".").pop() ?? "";
-    const contentType = TYPES[ext] ?? "text/plain";
-    const key = `u/${userId}/hw/${a.id}/${version}/${name}`;
-    await deps.files.put(key, data, { httpMetadata: { contentType } });
-    stored.push({ name, contentType, size: data.byteLength, key });
+  const { userId, assignmentId } = input;
+  const previous = await loadDraft(db, userId, assignmentId);
+  if (
+    previous?.status === "working" &&
+    previous.updatedAt.getTime() > Date.now() - STUCK_AFTER_MS
+  ) {
+    throw new AppError("conflict", "Already working on this one.");
   }
-  if (!stored.length) throw new AppError("internal", "The AI didn't produce any files. Try again.");
-
   const values = {
-    status: "ready" as const,
-    files: stored,
-    notes: out.data.notes.trim() || null,
+    status: "working" as const,
+    progress: "Starting",
     instructions: input.instructions ?? null,
     error: null,
-    model: out.model,
-    submittedAt: null,
   };
   const [row] = await db
     .insert(homeworkDrafts)
-    .values({ userId, assignmentId: a.id, ...values })
+    .values({ userId, assignmentId, ...values })
     .onConflictDoUpdate({
       target: [homeworkDrafts.userId, homeworkDrafts.assignmentId],
       set: values,
     })
     .returning();
   if (!row) throw new Error("draft insert returned nothing");
-  if (previous) {
-    const old = (previous.files as StoredFile[]).map((f) => f.key);
-    if (old.length) await deps.files.delete(old).catch(() => {});
-  }
+  await enqueue({ type: "homework", userId, assignmentId });
   return row;
+}
+
+export type DraftJobDeps = {
+  db: Database;
+  files: FileStore;
+  agent: AgentApi;
+  /** The student's Canvas client, to download datasets that weren't extracted (CSV…). */
+  canvas: CanvasClient | null;
+  attachments: AttachmentDeps;
+  search: SearchDeps;
+  model?: string;
+  timeZone?: string;
+  /** Live updates to the page (the row's progress is the source of truth). */
+  notify?: (draft: HomeworkDraft) => Promise<void>;
+};
+
+/** The assignment's linked files, as bytes for the sandbox (originals, not extracted text). */
+async function gatherInputs(
+  deps: Pick<DraftJobDeps, "db" | "files" | "canvas">,
+  userId: string,
+  courseId: string,
+  descriptionHtml: string | null,
+) {
+  const links = linkedFiles(descriptionHtml, MAX_INPUTS);
+  if (!links.length) return { inputs: [], skipped: [] as string[] };
+  const docs = await deps.db
+    .select()
+    .from(schema.documents)
+    .where(
+      and(
+        eq(schema.documents.userId, userId),
+        eq(schema.documents.courseId, courseId),
+        eq(schema.documents.source, "canvas_file"),
+        inArray(
+          schema.documents.canvasId,
+          links.map((l) => l.canvasId),
+        ),
+      ),
+    );
+  const inputs: { name: string; data: Uint8Array; contentType: string }[] = [];
+  const skipped: string[] = [];
+  let total = 0;
+  const taken = new Set<string>();
+  for (const link of links) {
+    const doc = docs.find((d) => d.canvasId === link.canvasId);
+    const name = (doc?.title ?? link.label ?? `file-${link.canvasId}`).replace(/[\\/]/g, "_");
+    let data: Uint8Array | null = null;
+    const stored = doc?.r2Key ? await deps.files.get(fileKeys(userId, doc.id).original) : null;
+    if (stored) data = new Uint8Array(await stored.arrayBuffer());
+    else if (deps.canvas) {
+      const got = await deps.canvas.downloadFile(link.canvasId, 50 * 1024 * 1024).catch(() => null);
+      if (got) data = new Uint8Array(got.data);
+    }
+    if (!data || total + data.byteLength > MAX_INPUT_BYTES || taken.has(name.toLowerCase())) {
+      skipped.push(name);
+      continue;
+    }
+    taken.add(name.toLowerCase());
+    total += data.byteLength;
+    inputs.push({ name, data, contentType: doc?.mimeType ?? servedMime(name) });
+  }
+  return { inputs, skipped };
+}
+
+/**
+ * The queued job: gathers the assignment, its files (copied into the sandbox), related course
+ * passages and the student's instructions, runs the agent, and stores what it hands in.
+ */
+export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Promise<Row | null> {
+  const { db, userId } = { db: deps.db, userId: msg.userId };
+  const row = await loadDraft(db, userId, msg.assignmentId);
+  if (row?.status !== "working") return null; // finished, or replaced by a newer run
+  let last = 0;
+  const update = async (patch: Partial<typeof homeworkDrafts.$inferInsert>) => {
+    const [r] = await db
+      .update(homeworkDrafts)
+      .set(patch)
+      .where(eq(homeworkDrafts.id, row.id))
+      .returning();
+    if (r) await deps.notify?.(toDraft(r)).catch(() => {});
+    return r;
+  };
+  try {
+    const [a] = await db
+      .select({ a: assignments, courseName: courses.name })
+      .from(assignments)
+      .innerJoin(courses, eq(courses.id, assignments.courseId))
+      .where(and(eq(assignments.userId, userId), eq(assignments.id, msg.assignmentId)))
+      .limit(1);
+    if (!a) throw new AppError("not_found", "Assignment not found.");
+    await update({ progress: "Gathering the assignment files" });
+    const { inputs, skipped } = await gatherInputs(deps, userId, a.a.courseId, a.a.descriptionHtml);
+    const attachments = await loadAttachments(deps.attachments, {
+      userId,
+      courseId: a.a.courseId,
+      descriptionHtml: a.a.descriptionHtml,
+    });
+    const { htmlToMarkdown } = await import("../lib/html-to-md.js");
+    const descriptionMd = htmlToMarkdown(a.a.descriptionHtml);
+    const question = `${a.a.name} ${(descriptionMd ?? "").split(/\s+/).slice(0, 60).join(" ")}`;
+    const { passages } = await retrieve(deps.search, userId, {
+      question,
+      courseId: a.a.courseId,
+    }).catch(() => ({ passages: [] as { documentTitle: string; text: string }[] }));
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const prompt = [
+      assignmentPrompt({
+        name: a.a.name,
+        courseName: a.courseName,
+        dueAt: a.a.dueAt?.toISOString() ?? null,
+        pointsPossible: a.a.pointsPossible,
+        submissionTypes: a.a.submissionTypes,
+        descriptionMd,
+        attachments,
+        timeZone: deps.timeZone,
+      }),
+      passages
+        .slice(0, 6)
+        .map((p) => `<material source="${esc(p.documentTitle)}">\n${esc(p.text)}\n</material>`)
+        .join("\n"),
+      skipped.length
+        ? `<note>These linked files couldn't be copied into the sandbox: ${esc(skipped.join(", "))}.</note>`
+        : "",
+      row.instructions ? `<instructions>\n${esc(row.instructions)}\n</instructions>` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const out = await runHomeworkAgent(deps.agent, {
+      system: DO_HOMEWORK_SYSTEM,
+      prompt,
+      inputs,
+      model: deps.model,
+      onProgress: async (text) => {
+        // At most one write every 2 seconds.
+        if (Date.now() - last < 2000) return;
+        last = Date.now();
+        await update({ progress: text });
+      },
+    });
+    console.log(
+      JSON.stringify({
+        msg: "homework agent",
+        ...out.usage,
+        files: out.files.length,
+        model: out.model,
+      }),
+    );
+    return await storeDraftFiles(deps, row, msg.assignmentId, out);
+  } catch (err) {
+    const message =
+      err instanceof GenerationError || err instanceof AppError
+        ? err.message
+        : "Something went wrong doing this one. Try again.";
+    if (!(err instanceof GenerationError || err instanceof AppError))
+      console.error(JSON.stringify({ msg: "homework agent failed", error: String(err) }));
+    return (await update({ status: "failed", progress: null, error: message })) ?? null;
+  }
+}
+
+/** Saves the agent's files to R2 (replacing the last version) and marks the draft ready. */
+async function storeDraftFiles(
+  deps: Pick<DraftJobDeps, "db" | "files" | "notify">,
+  row: Row,
+  assignmentId: string,
+  out: { files: { name: string; data: Uint8Array }[]; notes: string; model: string },
+): Promise<Row> {
+  const version = Date.now().toString(36);
+  const taken = new Set<string>();
+  const stored: StoredFile[] = [];
+  for (const f of out.files.slice(0, MAX_FILES)) {
+    const name = cleanFileName(f.name, taken);
+    if (!name || f.data.byteLength > MAX_FILE_BYTES) continue;
+    const ext = name.toLowerCase().split(".").pop() ?? "";
+    const contentType = TYPES[ext] ?? "application/octet-stream";
+    const key = `u/${row.userId}/hw/${assignmentId}/${version}/${name}`;
+    await deps.files.put(key, f.data, { httpMetadata: { contentType } });
+    stored.push({ name, contentType, size: f.data.byteLength, key });
+  }
+  if (!stored.length) throw new GenerationError(false, "The AI didn't hand in any usable files.");
+  const [done] = await deps.db
+    .update(homeworkDrafts)
+    .set({
+      status: "ready",
+      progress: null,
+      files: stored,
+      notes: out.notes.trim() || null,
+      error: null,
+      model: out.model,
+      submittedAt: null,
+    })
+    .where(eq(homeworkDrafts.id, row.id))
+    .returning();
+  if (!done) throw new Error("draft update returned nothing");
+  const old = (row.files as StoredFile[]).map((f) => f.key);
+  if (old.length) await deps.files.delete(old).catch(() => {});
+  await deps.notify?.(toDraft(done)).catch(() => {});
+  return done;
 }
 
 /** One file of the student's draft, for preview and download. */

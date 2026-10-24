@@ -1,16 +1,102 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { ApiError, DraftResponse, Me } from "@talvra/contracts";
 import { schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
-import type { Structured } from "../src/ai/claude.js";
-import { cleanFileName } from "../src/homework/draft.js";
+import type { AgentApi } from "../src/ai/claude-homework-agent.js";
+import { cleanFileName, runDraftJob } from "../src/homework/draft.js";
+import { CanvasClient } from "../src/lib/canvas.js";
 import { encryptSecret } from "../src/lib/crypto.js";
+import { fileKeys } from "../src/lib/files.js";
 import { fakeR2 } from "./fake-r2.js";
 import { env, harness, signedInUser } from "./helpers.js";
 
 const OWNER = "student@morgan.edu";
 const CANVAS = "https://morganstate.instructure.com";
 const UPLOAD = "https://cdn.inst-fs-iad-prod.inscloudgate.net/upload/abc";
+const CSV_URL = "https://cdn.inst-fs-iad-prod.inscloudgate.net/files/csv";
+
+/** A scripted Anthropic: pause, then hand in a missing file, then hand in the real ones. */
+function fakeAgent() {
+  const uploads: { name: string; text: string }[] = [];
+  const removed: string[] = [];
+  const turns: Anthropic.MessageCreateParamsNonStreaming[] = [];
+  const files: Record<string, { name: string; text: string }> = {
+    file_out_nb: { name: "hw3.ipynb", text: '{"cells":[],"nbformat":4,"nbformat_minor":5}' },
+    file_out_md: { name: "report.md", text: "# HW3\n\nAnswers." },
+  };
+  const msg = (stop: Anthropic.StopReason, content: unknown[]): Anthropic.Message =>
+    ({
+      id: "m",
+      type: "message",
+      role: "assistant",
+      model: "claude-opus-5-5",
+      stop_reason: stop,
+      content,
+      container: { id: "container_1" },
+      usage: { input_tokens: 100, output_tokens: 50 },
+    }) as unknown as Anthropic.Message;
+  const script = [
+    msg("pause_turn", [
+      {
+        type: "server_tool_use",
+        id: "s1",
+        name: "bash_code_execution",
+        input: { command: "python x.py" },
+      },
+      {
+        type: "bash_code_execution_tool_result",
+        tool_use_id: "s1",
+        content: {
+          type: "bash_code_execution_result",
+          stdout: "",
+          stderr: "",
+          return_code: 0,
+          content: [
+            { type: "bash_code_execution_output", file_id: "file_out_nb" },
+            { type: "bash_code_execution_output", file_id: "file_out_md" },
+          ],
+        },
+      },
+    ]),
+    // Stops without handing in: gets nudged.
+    msg("end_turn", [{ type: "text", text: "Done, I think." }]),
+    msg("tool_use", [
+      {
+        type: "tool_use",
+        id: "h1",
+        name: "hand_in",
+        input: { files: ["hw3.ipynb", "missing.md"], notes: "x" },
+      },
+    ]),
+    msg("tool_use", [
+      {
+        type: "tool_use",
+        id: "h2",
+        name: "hand_in",
+        input: { files: ["hw3.ipynb", "report.md"], notes: "Fill in your name at the top." },
+      },
+    ]),
+  ];
+  const api: AgentApi = {
+    upload: async (name, data) => {
+      uploads.push({ name, text: new TextDecoder().decode(data) });
+      return `up_${uploads.length}`;
+    },
+    download: async (id) => new TextEncoder().encode(files[id]?.text ?? ""),
+    filename: async (id) => files[id]?.name ?? id,
+    remove: async (id) => {
+      removed.push(id);
+    },
+    turn: async (params) => {
+      turns.push(structuredClone(params));
+      const next = script[turns.length - 1];
+      if (!next) throw new Error("script ran out");
+      return next;
+    },
+  };
+  return { api, uploads, removed, turns };
+}
 
 /** A fake Canvas that accepts a 3-step file upload and a submission, and records calls. */
 function fakeCanvasSubmissions() {
@@ -26,9 +112,12 @@ function fakeCanvasSubmissions() {
           : "";
     calls.push({ url, method: init?.method ?? "GET", auth, body });
     if (url === UPLOAD) return Response.json({ id: 9001 }, { status: 201 });
+    if (url === CSV_URL) return new Response("size,price\n1000,200000\n");
     if (auth !== "Bearer 1234~good") return new Response("{}", { status: 401 });
     if (url.endsWith("/submissions/self/files"))
       return Response.json({ upload_url: UPLOAD, upload_params: { token: "signed" } });
+    if (url.endsWith("/api/v1/files/702"))
+      return Response.json({ id: 702, size: 30, "content-type": "text/csv", url: CSV_URL });
     if (url.endsWith("/submissions"))
       return Response.json({ id: 1, workflow_state: "submitted", submitted_at: "now" });
     return new Response("not found", { status: 404 });
@@ -40,21 +129,27 @@ async function setup(enabled = true) {
   const db = await createTestDb();
   const r2 = fakeR2();
   const canvas = fakeCanvasSubmissions();
-  const structured = vi.fn(async () => ({
-    data: {
-      files: [
-        { name: "hw3.ipynb", content: '{"cells":[],"nbformat":4,"nbformat_minor":5}' },
-        { name: "../../etc/report.md", content: "# HW3\n\nAnswers." },
-        { name: "virus.exe", content: "MZ" },
-      ],
-      notes: "Fill in your name at the top.",
-    },
-    model: "claude-opus-5-5",
-  })) as unknown as Structured;
+  const agent = fakeAgent();
   const h = await harness({
     db,
     canvasFetch: canvas.fetch,
-    homework: { structured, search: {}, files: r2.store },
+    homework: {
+      search: {},
+      files: r2.store,
+      enqueueHomework: async (m) => {
+        await runDraftJob(
+          {
+            db,
+            files: r2.store,
+            agent: agent.api,
+            canvas: new CanvasClient(CANVAS, "1234~good", canvas.fetch, { sleep: async () => {} }),
+            attachments: { db, files: r2.store },
+            search: { db },
+          },
+          m,
+        );
+      },
+    },
     env: { DO_HOMEWORK_EMAILS: enabled ? ` ${OWNER.toUpperCase()} , someone@morgan.edu` : "" },
   });
   await signedInUser(h, OWNER);
@@ -79,13 +174,40 @@ async function setup(enabled = true) {
       courseId: course?.id ?? "",
       canvasId: "1",
       name: "HW3",
-      descriptionHtml: "<p>Analyze house_price.csv and submit a notebook.</p>",
+      descriptionHtml:
+        '<p>Do the tasks in <a href="/courses/77/files/701">HW3.pdf</a> with <a href="/courses/77/files/702">house_price.csv</a>.</p>',
       submissionTypes: ["online_upload"],
       submissionState: "unsubmitted",
     })
     .returning();
   if (!a) throw new Error("setup");
-  return { h, db, r2, canvas, structured, assignmentId: a.id };
+  const [pdf] = await db
+    .insert(schema.documents)
+    .values({
+      userId: user.id,
+      courseId: course?.id ?? "",
+      source: "canvas_file",
+      canvasId: "701",
+      title: "HW3.pdf",
+      mimeType: "application/pdf",
+      status: "ready",
+      r2Key: "x",
+    })
+    .returning();
+  await db.insert(schema.documents).values({
+    userId: user.id,
+    courseId: course?.id ?? "",
+    source: "canvas_file",
+    canvasId: "702",
+    title: "house_price.csv",
+    mimeType: "text/csv",
+    status: "unsupported",
+  });
+  await r2.store.put(
+    fileKeys(user.id, pdf?.id ?? "").original,
+    new TextEncoder().encode("%PDF hw3"),
+  );
+  return { h, db, r2, canvas, agent, assignmentId: a.id };
 }
 
 describe("do my homework", () => {
@@ -104,7 +226,7 @@ describe("do my homework", () => {
   });
 
   it("writes the files, keeps only safe text files, and serves them as downloads", async () => {
-    const { h, structured, assignmentId } = await setup();
+    const { h, agent, assignmentId } = await setup();
     const me = Me.parse(await (await h.request("/api/v1/me")).json());
     expect(me.features.doHomework).toBe(true);
 
@@ -117,9 +239,29 @@ describe("do my homework", () => {
     expect(draft?.status).toBe("ready");
     expect(draft?.files.map((f) => f.name)).toEqual(["hw3.ipynb", "report.md"]);
     expect(draft?.notes).toBe("Fill in your name at the top.");
-    const prompt = vi.mocked(structured).mock.calls[0]?.[0].user ?? "";
-    expect(prompt).toContain("Analyze house_price.csv");
-    expect(prompt).toContain("<instructions>\nUse seaborn for the plots.\n</instructions>");
+    expect(draft?.progress).toBeNull();
+
+    // The sandbox got the PDF (from R2), the dataset (from Canvas) and the notebook helper.
+    expect(agent.uploads.map((u) => u.name).sort()).toEqual([
+      "HW3.pdf",
+      "house_price.csv",
+      "nbbuild.py",
+    ]);
+    expect(agent.uploads.find((u) => u.name === "house_price.csv")?.text).toContain("1000,200000");
+    const first = agent.turns[0];
+    const prompt = JSON.stringify(first?.messages[0]?.content);
+    expect(prompt).toContain("Use seaborn for the plots.");
+    expect(prompt).toContain("container_upload");
+    // A paused turn was resumed, a stop without hand_in was nudged, and a hand_in naming a
+    // missing file was corrected.
+    expect(agent.turns).toHaveLength(4);
+    expect(agent.turns[1]?.container).toBe("container_1");
+    expect(JSON.stringify(agent.turns[2]?.messages.at(-1))).toContain("call hand_in");
+    expect(JSON.stringify(agent.turns[3]?.messages.at(-1))).toMatch(
+      /Not found in \$OUTPUT_DIR: missing.md/,
+    );
+    // Nothing left on Anthropic's side.
+    expect(agent.removed.sort()).toEqual(["file_out_md", "file_out_nb", "up_1", "up_2", "up_3"]);
 
     const file = await h.request(`/api/v1/homework/${assignmentId}/draft/files/report.md`);
     expect(file.status).toBe(200);
@@ -193,7 +335,9 @@ describe("draft file names", () => {
     expect(cleanFileName("main.py", taken)).toBe("main (2).py");
     expect(cleanFileName("report<script>.md", taken)).toBe("report_script_.md");
     expect(cleanFileName(".bashrc", taken)).toBeNull();
+    expect(cleanFileName("report.docx", taken)).toBe("report.docx");
     expect(cleanFileName("payload.exe", taken)).toBeNull();
+    expect(cleanFileName("run.sh", taken)).toBeNull();
     expect(cleanFileName("noextension", taken)).toBeNull();
   });
 });

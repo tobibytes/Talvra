@@ -22,7 +22,7 @@ describe("do my homework", () => {
     fireEvent.change(await within(card).findByLabelText(/Anything to know first/), {
       target: { value: "Use numpy" },
     });
-    fireEvent.click(within(card).getByRole("button", { name: /Write it/ }));
+    fireEvent.click(within(card).getByRole("button", { name: /Do my homework/ }));
     const files = await within(card).findByRole("list", { name: "Files to hand in" });
     expect(within(files).getByText("lab2.py")).toBeInTheDocument();
     expect(within(card).getByText("Put your name at the top.")).toBeInTheDocument();

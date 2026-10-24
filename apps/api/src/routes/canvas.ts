@@ -8,7 +8,7 @@ import {
   CourseSelection,
 } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
-import { and, asc, eq, inArray, notInArray, schema, sql } from "@talvra/db";
+import { and, asc, eq, inArray, ne, notInArray, schema, sql } from "@talvra/db";
 import type { AppEnv, Bindings } from "../env.js";
 import { CanvasClient, CanvasError, type Fetch } from "../lib/canvas.js";
 import { decryptSecret, encryptSecret } from "../lib/crypto.js";
@@ -24,6 +24,21 @@ const errors = {
   422: { description: "Invalid input or token", content: json(ApiError) },
   503: { description: "Canvas unavailable", content: json(ApiError) },
 };
+
+const alreadyConnected = () =>
+  new AppError(
+    "conflict",
+    "This Canvas account is already connected to another Talvra account. Disconnect it there first.",
+    [{ path: "token", message: "Canvas account already in use" }],
+  );
+
+/** Postgres unique_violation, through drizzle/postgres.js or PGlite. */
+function isUniqueViolation(err: unknown): boolean {
+  for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
+    if (e.code === "23505") return true;
+  }
+  return false;
+}
 
 function canvasFailure(err: unknown): never {
   if (err instanceof CanvasError) {
@@ -121,6 +136,20 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
       const userId = c.get("userId") as string;
       const { baseUrl, token } = c.req.valid("json");
       const self = await new CanvasClient(baseUrl, token, fetchImpl).getSelf().catch(canvasFailure);
+      const canvasUserId = String(self.id);
+      // One Talvra account per Canvas user (per school). Never says which account has it.
+      const [taken] = await c.var.db
+        .select({ userId: canvasConnections.userId })
+        .from(canvasConnections)
+        .where(
+          and(
+            eq(canvasConnections.baseUrl, baseUrl),
+            eq(canvasConnections.canvasUserId, canvasUserId),
+            ne(canvasConnections.userId, userId),
+          ),
+        )
+        .limit(1);
+      if (taken) throw alreadyConnected();
       const { ciphertext, iv } = await encryptSecret(c.env.CANVAS_TOKEN_KEY, token, userId);
       const values = {
         userId,
@@ -128,6 +157,7 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
         tokenCiphertext: ciphertext,
         tokenIv: iv,
         tokenLast4: token.slice(-4),
+        canvasUserId,
         status: "active" as const,
         lastVerifiedAt: new Date(),
       };
@@ -135,7 +165,12 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
         .insert(canvasConnections)
         .values(values)
         .onConflictDoUpdate({ target: canvasConnections.userId, set: values })
-        .returning();
+        .returning()
+        .catch((err) => {
+          // Two accounts connecting the same Canvas user at once: the unique index decides.
+          if (isUniqueViolation(err)) throw alreadyConnected();
+          throw err;
+        });
       if (!conn) throw new Error("upsert returned nothing");
       return c.json({ connection: connectionView(conn), canvasUserName: self.name }, 200);
     })
@@ -148,6 +183,14 @@ export function canvasRoutes(fetchImpl: Fetch = fetch) {
           .set({ status: "active", lastVerifiedAt: new Date() })
           .where(eq(canvasConnections.id, conn.id))
           .returning();
+        if (!conn.canvasUserId) {
+          // Connections made before this was recorded: fill it in (best effort).
+          await c.var.db
+            .update(canvasConnections)
+            .set({ canvasUserId: String(self.id) })
+            .where(eq(canvasConnections.id, conn.id))
+            .catch(() => {});
+        }
         return c.json(
           { connection: connectionView(updated ?? conn), canvasUserName: self.name },
           200,

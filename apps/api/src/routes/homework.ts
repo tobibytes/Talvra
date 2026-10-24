@@ -27,11 +27,18 @@ import {
   localDue,
   PLAN_SYSTEM,
 } from "../ai/homework-prompts.js";
-import { aiEnvOf, fakeImpls, pickAi } from "../ai/resolve.js";
+import { aiEnvOf, fakeImpls, hasOwnKey, LIMITS, pickAi } from "../ai/resolve.js";
 import { studySummary } from "../ai/review.js";
 import type { AppEnv, Bindings } from "../env.js";
 import { type AttachmentDeps, loadAttachments } from "../homework/attachments.js";
-import { draftFile, loadDraft, makeDraft, submitDraft, toDraft } from "../homework/draft.js";
+import {
+  draftFile,
+  type HomeworkMessage,
+  loadDraft,
+  startDraft,
+  submitDraft,
+  toDraft,
+} from "../homework/draft.js";
 import {
   assignmentDetail,
   getPlan,
@@ -45,6 +52,7 @@ import type { Fetch } from "../lib/canvas.js";
 import { AppError } from "../lib/errors.js";
 import { doHomeworkEnabled } from "../lib/features.js";
 import { contentDisposition, sha256Hex } from "../lib/files.js";
+import { meter } from "../lib/usage.js";
 import { requireUser } from "../middleware/auth.js";
 import { getPrefs } from "../reminders/engine.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
@@ -67,6 +75,8 @@ export type HomeworkOptions = {
   ingestNow?: (msg: IngestMessage) => Promise<unknown>;
   /** Tests stub Canvas for "Submit to Canvas". */
   canvasFetch?: Fetch;
+  /** Tests run the homework agent inline; production sends it to AI_QUEUE. */
+  enqueueHomework?: (m: HomeworkMessage) => Promise<void>;
   search?: Omit<SearchDeps, "db">;
 };
 
@@ -507,42 +517,25 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         await requireDoHomework(c);
         const userId = c.get("userId") as string;
         const { assignmentId } = c.req.valid("param");
+        await ownedAssignment(c.var.db, userId, assignmentId);
         const instructions = c.req.valid("json")?.instructions || undefined;
-        const a = await assignmentDetail(c.var.db, userId, assignmentId);
-        const owned = await ownedAssignment(c.var.db, userId, assignmentId);
-        const { timezone } = await getPrefs(c.var.db, userId);
-        const files = opts.files ?? c.env.FILES;
-        if (!files) throw new AppError("internal", "File storage isn't available.");
-        const ai = await pickAi(
-          {
-            db: c.var.db,
-            env: aiEnvOf(c.env),
-            impls: opts.structured ? fakeImpls({ structured: opts.structured }) : undefined,
-          },
-          userId,
-          "homework",
-        );
-        try {
-          const row = await makeDraft(
-            {
-              db: c.var.db,
-              files,
-              structured: ai.structured,
-              attachments: attachmentDeps(c.env, c.var.db, opts),
-              search: { db: c.var.db, ...(opts.search ?? searchDepsFor(c.env)) },
-            },
-            {
-              userId,
-              assignment: { ...a, courseId: owned.a.courseId, timeZone: timezone },
-              descriptionHtml: owned.a.descriptionHtml,
-              instructions,
-            },
-          );
-          return c.json({ draft: toDraft(row) }, 200);
-        } catch (err) {
-          if (err instanceof GenerationError) throw new AppError("internal", err.message);
-          throw err;
+        // Daily cap on Talvra's key; a student's own Anthropic key has none.
+        if (!(await hasOwnKey(c.var.db, userId))) {
+          await meter(c.var.db, userId, LIMITS.homework.kind, {
+            limit: LIMITS.homework.limit,
+            message: `${LIMITS.homework.message} Try again tomorrow.`,
+          });
         }
+        const enqueue =
+          opts.enqueueHomework ??
+          (async (m: HomeworkMessage) => {
+            if (!c.env.AI_QUEUE) throw new AppError("internal", "This isn't available right now.");
+            await c.env.AI_QUEUE.send(m);
+          });
+        await startDraft(c.var.db, { userId, assignmentId, instructions }, enqueue);
+        // Re-read: a test runs the job inline, so it may be finished already.
+        const row = await loadDraft(c.var.db, userId, assignmentId);
+        return c.json({ draft: row ? toDraft(row) : null }, 200);
       })
       .openapi(submitDraftRoute, async (c) => {
         await requireDoHomework(c);
@@ -581,7 +574,9 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
           headers: {
             "content-type": file.contentType.startsWith("text/html")
               ? "text/plain; charset=utf-8"
-              : `${file.contentType}; charset=utf-8`,
+              : /^(text\/|application\/(json|x-ipynb))/.test(file.contentType)
+                ? `${file.contentType}; charset=utf-8`
+                : file.contentType,
             "content-disposition": contentDisposition(file.name),
             "x-content-type-options": "nosniff",
             "cache-control": "private, no-store",

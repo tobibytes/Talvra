@@ -151,7 +151,9 @@ export type DraftFile = z.infer<typeof DraftFile>;
 
 export const HomeworkDraft = z.object({
   id: Id,
-  status: z.enum(["ready", "failed", "submitted"]),
+  status: z.enum(["working", "ready", "failed", "submitted"]),
+  /** While working: what it's doing now. */
+  progress: z.string().nullable(),
   files: z.array(DraftFile),
   notes: z.string().nullable(),
   instructions: z.string().nullable(),
@@ -170,23 +172,3 @@ export const MakeDraft = z.object({
   instructions: z.string().trim().max(2000).optional(),
 });
 export type MakeDraft = z.infer<typeof MakeDraft>;
-
-/** What the model returns: the files to hand in, and notes for the student. */
-export const DraftModelOutput = z.object({
-  files: z
-    .array(
-      z.object({
-        name: z
-          .string()
-          .describe("File name with extension, e.g. hw3.ipynb, report.md, main.py, answers.txt."),
-        content: z.string().describe("The complete file contents."),
-      }),
-    )
-    .describe("Every file to hand in, complete and ready to submit."),
-  notes: z
-    .string()
-    .describe(
-      "For the student: what each file contains, assumptions made, and anything to check or fill in (name, data paths) before submitting.",
-    ),
-});
-export type DraftModelOutput = z.infer<typeof DraftModelOutput>;

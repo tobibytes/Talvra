@@ -63,8 +63,10 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
 - **Untrusted content**: extracted text, Canvas HTML and uploads are data. Render Markdown with
   `components/document/markdown.tsx` (no raw HTML). Never feed it to a model as instructions.
 - **No PyMuPDF** (AGPL). Use pypdfium2 for PDFs.
+- `apps/api/src/ai/nbbuild.py` is the source of truth; run `node scripts/gen-nbbuild.mjs` after
+  editing it (a test fails if `nbbuild-source.ts` drifts).
 - **AI calls** go through `pickAi` in `apps/api/src/ai/resolve.ts` (student's own key → Talvra's
-  Claude within daily limits → basic Workers AI). Claude calls live in `ai/claude.ts` (Haiku 4.5
+  Claude within daily limits → basic Workers AI). Claude calls live in `ai/claude.ts` and `ai/claude-homework-agent.ts` (Haiku 4.5
   for light tasks, Opus 5.5 for notes and Ask; Haiku takes no `effort`), OpenAI and Workers AI in
   `ai/compat.ts`. Routes never build clients. Read the `claude-api` skill before changing Claude
   calls. Tests fake models with `fakeImpls`; `test/live-claude.test.ts` is the opt-in real smoke
