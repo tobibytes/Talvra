@@ -1,6 +1,5 @@
 import type { DocumentStatus } from "@talvra/contracts";
-import { LoaderCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "@/components/blocks";
 
 export const statusText: Record<DocumentStatus, string> = {
   pending: "Waiting",
@@ -14,21 +13,15 @@ export const statusText: Record<DocumentStatus, string> = {
 export const isProcessing = (s: DocumentStatus) =>
   s === "pending" || s === "downloading" || s === "extracting";
 
+/** Dot + word: ready is ok, failed is stop, in progress uses the accent. */
 export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
-  const variant =
+  const tone =
     status === "ready"
-      ? "success"
+      ? "ok"
       : status === "failed"
-        ? "destructive"
+        ? "stop"
         : status === "unsupported"
-          ? "secondary"
-          : "outline";
-  return (
-    <Badge variant={variant}>
-      {isProcessing(status) && status !== "pending" ? (
-        <LoaderCircle className="animate-spin" aria-hidden />
-      ) : null}
-      {statusText[status]}
-    </Badge>
-  );
+          ? "neutral"
+          : "accent";
+  return <StatusPill tone={tone}>{statusText[status]}</StatusPill>;
 }

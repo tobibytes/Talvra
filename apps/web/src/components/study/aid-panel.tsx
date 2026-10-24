@@ -1,6 +1,14 @@
 import type { AidSlot, StudyAid, StudyAidKind } from "@talvra/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CircleAlert, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
+import {
+  CircleAlert,
+  Layers,
+  ListChecks,
+  LoaderCircle,
+  NotebookText,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { modelLabel } from "@/lib/model-label";
 import { relativeTime } from "@/lib/time";
@@ -39,6 +48,8 @@ const copy: Record<StudyAidKind, { noun: string; make: string; pitch: string; wo
     working: "Writing questions…",
   },
 };
+
+const icons = { notes: NotebookText, flashcards: Layers, quiz: ListChecks } as const;
 
 const inFlight = (a: StudyAid | null) => a?.status === "queued" || a?.status === "generating";
 
@@ -75,24 +86,31 @@ export function AidPanel({
 
   if (!current) {
     if (working) return <Working text={c.working} />;
+    const Icon = icons[kind];
     return (
-      <Card className="mx-auto max-w-lg items-center gap-4 p-8 text-center">
-        <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Sparkles className="size-6" aria-hidden />
+      <Card className="relative mx-auto max-w-lg items-center gap-4 overflow-hidden p-8 text-center sm:p-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_0_0,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_60%)]"
+        />
+        <span className="relative grid size-14 place-items-center rounded-2xl bg-primary/14 text-primary">
+          <Icon className="size-7" aria-hidden />
         </span>
-        <div className="space-y-1">
-          <h2 className="font-semibold">{c.make}</h2>
+        <div className="relative space-y-1">
+          <h2 className="text-xl font-bold">{c.make}</h2>
           <p className="text-sm text-muted-foreground">{c.pitch}</p>
         </div>
         {failedNewer ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="relative text-sm text-destructive">
             {failedNewer.error ?? "The last try didn't work."}
           </p>
         ) : null}
-        <Button onClick={() => generate.mutate(false)}>
+        <Button size="lg" className="relative" onClick={() => generate.mutate(false)}>
           <Sparkles /> {failedNewer ? "Try again" : c.make}
         </Button>
-        <p className="text-xs text-muted-foreground">Made by AI from this document only.</p>
+        <p className="relative font-mono text-[11px] tracking-[0.08em] text-muted-foreground uppercase">
+          From this document only
+        </p>
       </Card>
     );
   }
@@ -111,7 +129,7 @@ export function AidPanel({
       ) : null}
       {children(current)}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground">
-        <span>
+        <span className="font-mono">
           Version {current.version}, made {relativeTime(current.updatedAt)} by{" "}
           {modelLabel(current.model)}
         </span>
@@ -147,23 +165,36 @@ export function AidPanel({
 }
 
 function Working({ text, compact }: { text: string; compact?: boolean }) {
+  if (compact) {
+    return (
+      <Card className="flex-row items-center gap-3 p-4">
+        <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden />
+        <p className="text-sm" role="status" aria-live="polite">
+          {text}
+        </p>
+      </Card>
+    );
+  }
   return (
-    <Card
-      className={
-        compact
-          ? "flex-row items-center gap-3 p-4"
-          : "mx-auto max-w-lg items-center gap-3 p-8 text-center"
-      }
-    >
-      <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden />
-      <p className="text-sm" role="status" aria-live="polite">
-        {text}
-        {compact ? null : (
-          <span className="mt-1 block text-xs text-muted-foreground">
+    <Card className="mx-auto max-w-lg gap-5 p-8">
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-primary/14 text-primary">
+          <LoaderCircle className="size-5 animate-spin" aria-hidden />
+        </span>
+        <p className="text-sm" role="status" aria-live="polite">
+          <span className="font-semibold">{text}</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
             Usually under a minute. It keeps going if you leave.
           </span>
-        )}
-      </p>
+        </p>
+      </div>
+      {/* A sketch of what's coming, so the wait has a shape. */}
+      <div aria-hidden className="space-y-2.5">
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-11/12" />
+        <Skeleton className="h-3 w-4/5" />
+      </div>
     </Card>
   );
 }
