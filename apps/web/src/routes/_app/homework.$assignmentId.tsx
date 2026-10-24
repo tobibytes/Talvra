@@ -120,7 +120,7 @@ function Workspace() {
           <span className="flex flex-wrap items-center gap-2">
             <HomeworkStatusBadge status={d.status} />
             <span>{dueText(d)}</span>
-            {d.pointsPossible ? <span>· {d.pointsPossible} points</span> : null}
+            {d.pointsPossible ? <span>{d.pointsPossible} points</span> : null}
             {d.late ? <Badge variant="warning">Submitted late</Badge> : null}
           </span>
         }
@@ -228,18 +228,14 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
         <CardTitle>
           <h2>What's being asked</h2>
         </CardTitle>
-        <CardDescription>
-          A plain-language read of the assignment and its attached files by AI. Check it against
-          Canvas.
-        </CardDescription>
+        <CardDescription>An AI summary. Check it against Canvas.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {brief.isPending ? (
           <ListSkeleton rows={2} />
         ) : make.isPending ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Reading the assignment and
-            its attached files…
+            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Reading the assignment…
           </p>
         ) : content ? (
           <>
@@ -297,9 +293,7 @@ function DescriptionCard({ detail }: { detail: AssignmentDetail }) {
             <Markdown>{detail.descriptionMd}</Markdown>
           </details>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            This assignment has no description in Canvas. Check the syllabus or ask your instructor.
-          </p>
+          <p className="text-sm text-muted-foreground">No description in Canvas.</p>
         )}
       </CardContent>
     </Card>
@@ -317,7 +311,6 @@ function ResourcesCard({ assignmentId }: { assignmentId: string }) {
         <CardTitle>
           <h2>Related material</h2>
         </CardTitle>
-        <CardDescription>From your course files, by relevance.</CardDescription>
       </CardHeader>
       <CardContent>
         {res.isPending ? (
@@ -346,9 +339,7 @@ function ResourcesCard({ assignmentId }: { assignmentId: string }) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Nothing related yet. Material shows up here once your course files are processed.
-          </p>
+          <p className="text-sm text-muted-foreground">Nothing related yet.</p>
         )}
       </CardContent>
     </Card>
@@ -440,8 +431,8 @@ function PlanCard({ assignment }: { assignment: AssignmentDetail }) {
         </CardTitle>
         <CardDescription>
           {steps.length
-            ? `${done} of ${steps.length} done${total ? ` · about ${duration(total)} total` : ""}`
-            : "Break the work into steps and give each a day."}
+            ? `${done} of ${steps.length} done${total ? `, about ${duration(total)} total` : ""}`
+            : "Break it into steps, each with a day."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -618,9 +609,7 @@ function SuggestionDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Suggested steps</DialogTitle>
-          <DialogDescription>
-            Keep the ones that fit how you work. You can edit them after.
-          </DialogDescription>
+          <DialogDescription>Keep the ones that fit. You can edit them later.</DialogDescription>
         </DialogHeader>
         <ul className="space-y-2">
           {(steps ?? []).map((s, i) => (

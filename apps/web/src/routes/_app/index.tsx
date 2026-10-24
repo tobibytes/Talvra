@@ -89,7 +89,7 @@ function Agenda({ data, date }: { data: TodayData; date: string }) {
       <EmptyState
         icon={PartyPopper}
         title="Nothing due in the next two weeks"
-        description="Enjoy it, or get ahead: review flashcards or skim this week's material."
+        description="A good time to review flashcards."
         action={
           <Button render={<Link to="/homework" search={{ scope: "all" }} />}>
             See all homework
@@ -132,8 +132,10 @@ function Agenda({ data, date }: { data: TodayData; date: string }) {
                     className="text-xs text-muted-foreground underline-offset-4 hover:underline"
                   >
                     {s.assignmentName}
-                    {s.plannedFor && s.plannedFor < date ? " · carried over" : ""}
                   </Link>
+                  {s.plannedFor && s.plannedFor < date ? (
+                    <span className="ms-2 text-xs text-muted-foreground">Carried over</span>
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -176,8 +178,8 @@ function Agenda({ data, date }: { data: TodayData; date: string }) {
         ) : (
           <EmptyState
             icon={CalendarCheck}
-            title="Nothing else due in the next two weeks"
-            description="New assignments show up here after each sync."
+            title="Nothing else due soon"
+            description="New work shows up after each sync."
           />
         )}
       </section>

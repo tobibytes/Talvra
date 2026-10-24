@@ -63,10 +63,7 @@ function Homework() {
 
   return (
     <>
-      <PageHeader
-        title="Homework"
-        description="Everything due across your courses, with a plan for each."
-      />
+      <PageHeader title="Homework" description="What's due, with a plan for each." />
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={scope} onValueChange={(v) => set({ scope: v as "open" | "all" })}>
           <TabsList>
@@ -108,7 +105,7 @@ function Homework() {
           <EmptyState
             icon={ClipboardCheck}
             title="Nothing to do right now"
-            description="No open assignments in the courses you follow. New ones appear after each sync."
+            description="New assignments appear after each sync."
             action={
               <Button variant="outline" onClick={() => set({ scope: "all" })}>
                 Show everything
@@ -119,7 +116,7 @@ function Homework() {
           <EmptyState
             icon={ClipboardList}
             title="No assignments yet"
-            description="Assignments come from Canvas. Pick your courses and sync."
+            description="Pick your courses and sync."
             action={<Button render={<Link to="/courses" />}>Your courses</Button>}
           />
         )

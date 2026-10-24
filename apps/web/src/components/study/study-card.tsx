@@ -21,9 +21,9 @@ export function StudyCard() {
           {summary.isPending ? (
             <Skeleton className="h-4 w-32" />
           ) : !s || (s.dueNow === 0 && s.newCards === 0 && s.reviewedToday === 0) ? (
-            "Make flashcards from any document to start reviewing."
+            "Make some from any document."
           ) : s.dueNow ? (
-            `${plural(s.dueNow, "card")} due now${s.reviewedToday ? ` · ${s.reviewedToday} reviewed today` : ""}.`
+            `${plural(s.dueNow, "card")} due now.`
           ) : (
             `All caught up${s.reviewedToday ? `: ${plural(s.reviewedToday, "card")} reviewed today` : ""}.`
           )}

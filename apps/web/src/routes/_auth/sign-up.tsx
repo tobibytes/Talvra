@@ -57,7 +57,7 @@ function SignUp() {
   return (
     <AuthCard
       title="Create your account"
-      description={`For Morgan State students. You'll need your @${domains[0]} email.`}
+      description="For Morgan State students."
       footer={
         <>
           Already have an account?{" "}
@@ -112,7 +112,7 @@ function SignUp() {
             aria-describedby="password-help"
           />
           <FieldDescription id="password-help">
-            At least {MIN_PASSWORD} characters. A short phrase works well.
+            At least {MIN_PASSWORD} characters.
           </FieldDescription>
           <FieldError errors={[{ message: errors.password }]} />
         </Field>

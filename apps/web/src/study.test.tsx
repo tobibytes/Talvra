@@ -13,7 +13,7 @@ describe("study aids on the document page", () => {
       "href",
       `/documents/${DOC_ID}?tab=read#page-1`,
     );
-    expect(screen.getByText(/version 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Version 1/)).toBeInTheDocument();
     expect(
       api.mock.calls.some(
         ([u, init]) => String(u).endsWith(`/documents/${DOC_ID}/aids`) && init?.method === "POST",

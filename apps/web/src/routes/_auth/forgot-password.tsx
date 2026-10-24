@@ -32,7 +32,7 @@ function ForgotPassword() {
   return (
     <AuthCard
       title="Reset your password"
-      description={sent ? undefined : "We'll email you a link to choose a new one."}
+      description={sent ? undefined : "We'll email you a reset link."}
       footer={
         <Link to="/sign-in" className="text-primary underline-offset-4 hover:underline">
           Back to sign in

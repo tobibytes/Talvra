@@ -55,10 +55,7 @@ function SearchPage() {
 
   return (
     <>
-      <PageHeader
-        title="Search"
-        description="Find anything in your course material, or ask a question and get an answer with sources."
-      />
+      <PageHeader title="Search" description="Find it in your material, or ask a question." />
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={mode} onValueChange={(v) => set({ mode: v as "search" | "ask" })}>
           <TabsList>
@@ -161,7 +158,7 @@ function SearchMode({
         <EmptyState
           icon={SearchIcon}
           title="Search everything you've synced"
-          description="Words are matched as you type, and similar ideas are found too. Results link to the exact page or slide."
+          description="Results link to the exact page or slide."
         />
       ) : results.isPending ? (
         <ListSkeleton rows={4} />
@@ -171,7 +168,7 @@ function SearchMode({
         <EmptyState
           icon={SearchIcon}
           title="No matches"
-          description="Try fewer or different words, or ask it as a question."
+          description="Try other words, or ask it as a question."
           action={
             <Button variant="outline" onClick={() => onAsk(debounced)}>
               <MessageCircleQuestion /> Ask instead
@@ -380,7 +377,7 @@ function AskMode({ courseId, initial }: { courseId?: string; initial?: string })
         <EmptyState
           icon={MessageCircleQuestion}
           title="Ask about your material"
-          description="Answers come from your synced files and pages, with numbered sources. Talvra helps you understand; it won't do graded work for you."
+          description="Answers cite your synced files and pages."
         />
       )}
       <div ref={endRef} />
@@ -409,9 +406,7 @@ function AskMode({ courseId, initial }: { courseId?: string; initial?: string })
           className="resize-none border-0 shadow-none focus-visible:ring-0"
         />
         <div className="flex items-center justify-between gap-2 px-1">
-          <span className="text-xs text-muted-foreground">
-            Enter to send · Shift+Enter for a new line
-          </span>
+          <span className="text-xs text-muted-foreground">Shift+Enter for a new line</span>
           {busy ? (
             <Button
               type="button"
@@ -464,7 +459,7 @@ function Sources({ sources }: { sources: AskSource[] }) {
               hash={slugify(s.heading)}
               className="min-w-0 underline-offset-4 hover:underline"
             >
-              {s.documentTitle} · {anchorLabel(s.anchor)}
+              {s.documentTitle}, {anchorLabel(s.anchor)}
             </Link>
           </li>
         ))}

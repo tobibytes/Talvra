@@ -23,22 +23,20 @@ const copy: Record<StudyAidKind, { noun: string; make: string; pitch: string; wo
   notes: {
     noun: "study notes",
     make: "Make study notes",
-    pitch: "A structured summary with key terms. Every point links back to the page it came from.",
-    working: "Reading the document and writing your notes…",
+    pitch: "A summary with key terms, linked to the source pages.",
+    working: "Writing your notes…",
   },
   flashcards: {
     noun: "flashcards",
     make: "Make flashcards",
-    pitch:
-      "10–30 cards for spaced repetition. Talvra schedules reviews so you remember them longer.",
-    working: "Picking out what's worth remembering…",
+    pitch: "Cards scheduled for review so they stick.",
+    working: "Picking what's worth remembering…",
   },
   quiz: {
     noun: "practice quiz",
     make: "Make a practice quiz",
-    pitch:
-      "Multiple-choice and short-answer questions with explanations. For practice only, never graded.",
-    working: "Writing questions that check your understanding…",
+    pitch: "Practice questions with explanations.",
+    working: "Writing questions…",
   },
 };
 
@@ -114,8 +112,8 @@ export function AidPanel({
       {children(current)}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground">
         <span>
-          Made by {modelLabel(current.model)} {relativeTime(current.updatedAt)} · version{" "}
-          {current.version}. Check important points against the source.
+          Version {current.version}, made {relativeTime(current.updatedAt)} by{" "}
+          {modelLabel(current.model)}
         </span>
         <Button variant="ghost" size="sm" onClick={() => setConfirm(true)} disabled={working}>
           <RefreshCw /> Make a new version
@@ -127,8 +125,8 @@ export function AidPanel({
             <DialogTitle>Make new {c.noun}?</DialogTitle>
             <DialogDescription>
               {kind === "flashcards"
-                ? "You'll get a fresh deck. Your current cards are retired, but your review history is kept."
-                : "A fresh version will be written. The current one stays until the new one is ready."}
+                ? "A fresh deck replaces these cards. Your review history stays."
+                : "The current one stays until the new one is ready."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -162,7 +160,7 @@ function Working({ text, compact }: { text: string; compact?: boolean }) {
         {text}
         {compact ? null : (
           <span className="mt-1 block text-xs text-muted-foreground">
-            Usually under a minute. You can leave this page; it'll be here when you're back.
+            Usually under a minute. It keeps going if you leave.
           </span>
         )}
       </p>

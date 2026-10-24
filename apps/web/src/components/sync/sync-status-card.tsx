@@ -86,15 +86,13 @@ export function SyncStatusCard({ headingLevel = 2 }: { headingLevel?: 2 | 3 }) {
         ) : null}
         {r?.status === "succeeded" && (r.stats.failedCourses ?? 0) > 0 ? (
           <p className="text-sm text-muted-foreground">
-            {r.stats.failedCourses} {r.stats.failedCourses === 1 ? "course" : "courses"} couldn't be
-            synced. They'll be retried next time.
+            {plural(r.stats.failedCourses ?? 0, "course")} didn't sync. Retrying next time.
           </p>
         ) : null}
         {r?.status === "succeeded" && !r.stats.failedCourses ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <CircleCheck className="size-4 text-success" aria-hidden />
-            {plural(r.stats.assignments ?? 0, "assignment")}, {plural(r.stats.files ?? 0, "file")}{" "}
-            and {plural(r.stats.pages ?? 0, "page")} up to date.
+            Everything is up to date.
           </p>
         ) : null}
         <SyncNowButton />

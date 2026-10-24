@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiRequestError, api } from "@/lib/api";
@@ -94,9 +94,8 @@ export function ApiKeysCard() {
           <h2>AI assistants (MCP)</h2>
         </CardTitle>
         <CardDescription>
-          Use Talvra from Claude or any app that supports MCP. A key lets the app read your courses,
-          assignments and material, answer questions from them, make study aids and record flashcard
-          reviews. It can't change your account, Canvas or homework submissions.
+          Connect Claude or another MCP app. Keys can read your material and make study aids, but
+          can't change your account or Canvas.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,16 +111,13 @@ export function ApiKeysCard() {
                 <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{k.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-mono">…{k.last4}</span> · made{" "}
-                    <span title={dateTime(k.createdAt)}>{relativeTime(k.createdAt)}</span> ·{" "}
+                  <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    <span className="font-mono">…{k.last4}</span>
+                    <span title={dateTime(k.createdAt)}>Made {relativeTime(k.createdAt)}</span>
                     {k.lastUsedAt ? (
-                      <>
-                        used{" "}
-                        <span title={dateTime(k.lastUsedAt)}>{relativeTime(k.lastUsedAt)}</span>
-                      </>
+                      <span title={dateTime(k.lastUsedAt)}>Used {relativeTime(k.lastUsedAt)}</span>
                     ) : (
-                      "never used"
+                      <span>Never used</span>
                     )}
                   </p>
                 </div>
@@ -138,9 +134,7 @@ export function ApiKeysCard() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No keys yet. Make one for each app you connect, so you can revoke them separately.
-          </p>
+          <p className="text-sm text-muted-foreground">No keys yet. Make one per app.</p>
         )}
         <Button onClick={() => setCreating(true)}>
           <Plus />
@@ -163,8 +157,7 @@ export function ApiKeysCard() {
           <DialogHeader>
             <DialogTitle>Copy your key now</DialogTitle>
             <DialogDescription>
-              This is the only time it's shown. Treat it like a password: anyone with it can read
-              your course material.
+              It's shown only once. Anyone with it can read your material.
             </DialogDescription>
           </DialogHeader>
           {created ? (
@@ -175,7 +168,7 @@ export function ApiKeysCard() {
                 value={`claude mcp add --transport http talvra ${mcpUrl()} --header "Authorization: Bearer ${created.secret}"`}
               />
               <p className="text-xs text-muted-foreground">
-                Other apps: add a remote MCP server with the server URL and the header{" "}
+                Other apps: the server URL plus the header{" "}
                 <span className="font-mono">Authorization: Bearer &lt;key&gt;</span>.
               </p>
             </div>
@@ -190,9 +183,7 @@ export function ApiKeysCard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Revoke {revoking?.name}?</DialogTitle>
-            <DialogDescription>
-              Apps using this key stop working with Talvra right away. This can't be undone.
-            </DialogDescription>
+            <DialogDescription>Apps using it stop working right away.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -243,7 +234,7 @@ function NewKeyDialog({
         >
           <DialogHeader>
             <DialogTitle>New API key</DialogTitle>
-            <DialogDescription>Name it after the app you'll use it in.</DialogDescription>
+            <DialogDescription>Name it after the app that will use it.</DialogDescription>
           </DialogHeader>
           <Field data-invalid={!!error}>
             <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
@@ -255,13 +246,7 @@ function NewKeyDialog({
               onChange={(e) => setName(e.target.value)}
               aria-invalid={!!error}
             />
-            {error ? (
-              <FieldError>{error}</FieldError>
-            ) : (
-              <FieldDescription>
-                Shown in this list so you know which key is which.
-              </FieldDescription>
-            )}
+            {error ? <FieldError>{error}</FieldError> : null}
           </Field>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>

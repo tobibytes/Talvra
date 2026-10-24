@@ -49,7 +49,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiRequestError, api } from "@/lib/api";
 import { courseLabel } from "@/lib/course-label";
-import { fileSize, plural, relativeTime } from "@/lib/time";
+import { fileSize, plural } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const tabs = ["read", "notes", "flashcards", "quiz", "video"] as const;
@@ -131,7 +131,7 @@ function DocumentPage() {
           <ScanText />
           <AlertTitle>This looks like a scan</AlertTitle>
           <AlertDescription>
-            Very little text could be read, so notes and search may miss things. Check the original.
+            Little text could be read, so notes and search may miss things.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -233,15 +233,13 @@ function Meta({ doc }: { doc: DocumentDetail }) {
     doc.source === "upload" ? "Your upload" : kindOf(doc),
     doc.sizeBytes ? fileSize(doc.sizeBytes) : null,
     doc.pageCount ? plural(doc.pageCount, kindOf(doc) === "Slides" ? "slide" : "page") : null,
-    doc.wordCount ? `${doc.wordCount.toLocaleString()} words` : null,
   ].filter(Boolean);
   return (
-    <span className="flex flex-wrap items-center gap-2">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <DocumentStatusBadge status={doc.status} />
-      <span>{parts.join(" · ")}</span>
-      {doc.extractedAt ? (
-        <span className="text-muted-foreground">· read {relativeTime(doc.extractedAt)}</span>
-      ) : null}
+      {parts.map((p) => (
+        <span key={p}>{p}</span>
+      ))}
     </span>
   );
 }
@@ -306,7 +304,7 @@ function Actions({ doc }: { doc: DocumentDetail }) {
           <DialogHeader>
             <DialogTitle>Delete this upload?</DialogTitle>
             <DialogDescription>
-              {doc.title} and everything Talvra made from it will be removed. This can't be undone.
+              {doc.title} and everything made from it are deleted for good.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -340,8 +338,7 @@ function Processing({ doc }: { doc: DocumentDetail }) {
       <div className="space-y-1">
         <h2 className="font-semibold">Getting this ready</h2>
         <p className="text-sm text-muted-foreground">
-          Talvra is turning this into text you can read, search and study. It usually takes under a
-          minute; this page updates on its own.
+          Usually under a minute. This page updates on its own.
         </p>
       </div>
       <ol className="space-y-3" aria-live="polite">
