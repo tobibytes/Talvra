@@ -11,14 +11,9 @@ import { eq, schema } from "@talvra/db";
 import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
 import { GenerationError, type Generator } from "../src/ai/claude.js";
-import {
-  type AidDeps,
-  type AidMessage,
-  cleanContent,
-  DAILY_AID_LIMIT,
-  generateAid,
-} from "../src/ai/generate.js";
+import { type AidDeps, type AidMessage, cleanContent, generateAid } from "../src/ai/generate.js";
 import { documentXml } from "../src/ai/prompts.js";
+import { LIMITS } from "../src/ai/resolve.js";
 import { fileKeys } from "../src/lib/files.js";
 import { fakeR2 } from "./fake-r2.js";
 import { harness, signedInUser } from "./helpers.js";
@@ -227,7 +222,7 @@ describe("study aids", () => {
       .where(eq(schema.documents.id, docId));
     await db
       .insert(schema.usageEvents)
-      .values(Array.from({ length: DAILY_AID_LIMIT }, () => ({ userId, kind: "aid" })));
+      .values(Array.from({ length: LIMITS.notes.limit }, () => ({ userId, kind: "aid" })));
     const res = await make(h, docId, "notes");
     expect(res.status).toBe(429);
     expect(ApiError.parse(await res.json()).error.code).toBe("rate_limited");

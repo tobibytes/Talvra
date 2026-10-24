@@ -12,8 +12,14 @@ MAX_PAGES = 2000
 PAGE_NUMBER = re.compile(r"^\s*(page\s*)?\d+(\s*(of|/)\s*\d+)?\s*$", re.I)
 
 
+# Slide decks draw bullets with symbol fonts (Wingdings, Symbol), which come out as
+# private-use characters like U+F0A7. Turn them into Markdown list items.
+PRIVATE_USE_BULLET = re.compile(r"[ \t]*[\ue000-\uf8ff][ \t]*")
+
+
 def _clean(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
+    text = PRIVATE_USE_BULLET.sub("\n- ", text)
     # Re-join words hyphenated across line breaks: "exam-\nple" -> "example".
     text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
     lines = [ln.rstrip() for ln in text.split("\n")]

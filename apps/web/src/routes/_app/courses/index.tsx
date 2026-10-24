@@ -5,9 +5,9 @@ import { DocumentStatusBadge } from "@/components/document/status";
 import { UploadButton } from "@/components/document/upload-dialog";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { courseLabel } from "@/lib/course-label";
 import { dateTime, relativeTime } from "@/lib/time";
 
 export const Route = createFileRoute("/_app/courses/")({ component: Courses });
@@ -51,11 +51,12 @@ function Courses() {
                   <BookOpen className="size-5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-medium leading-snug">{c.name}</p>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    {c.courseCode ? <Badge variant="secondary">{c.courseCode}</Badge> : null}
-                    {c.term ? <span>{c.term}</span> : null}
-                  </div>
+                  <p className="font-medium leading-snug">{courseLabel(c.courseCode, c.name)}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[c.name, c.term && !c.name.includes(c.term) ? c.term : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {c.lastSyncedAt ? (
                       <span title={dateTime(c.lastSyncedAt)}>

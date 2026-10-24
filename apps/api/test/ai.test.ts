@@ -394,3 +394,13 @@ describe("citation normalizing", () => {
     expect(out).toBe("FIFO order [1] and LIFO [2].");
   });
 });
+
+describe("due dates in prompts", () => {
+  it("shows the due time in the student's time zone, not UTC", async () => {
+    const { localDue } = await import("../src/ai/homework-prompts.js");
+    expect(localDue("2026-10-31T03:59:59Z", "America/New_York")).toBe(
+      "Fri, Oct 30, 2026, 11:59 PM EDT",
+    );
+    expect(localDue("2026-10-31T03:59:59Z", "Not/AZone")).toMatch(/UTC$/);
+  });
+});

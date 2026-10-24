@@ -1,7 +1,7 @@
 # Talvra v2 roadmap and handoff
 
-Last updated at the end of session 11. Whoever picks this up: read this file, then
-`CLAUDE.md`, then start the next session at the top of "Next up".
+Last updated 2026-10-24, after launch. Talvra is live at https://hwrk.help. Whoever picks this
+up: read this file, then `CLAUDE.md`, then `ARCHITECTURE.md`; next work is under "Next up".
 
 ## Status
 
@@ -10,17 +10,25 @@ Last updated at the end of session 11. Whoever picks this up: read this file, th
 | 1 | Foundation: monorepo, CI, Postgres schema (user-scoped), migrations, contracts, Hono skeleton | ✅ Done |
 | 2 | Design system: shadcn on Base UI, tokens/themes, app shell, ⌘K palette (the gallery was removed after launch) | ✅ Done |
 | 3 | Auth and onboarding: Better Auth, @morgan.edu only, sessions, guards, onboarding, account settings, Canvas connect | ✅ Done |
-| 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (one check left for the owner, see below) |
+| 4 | Canvas sync: Workflows, live progress (Durable Object), scheduled incremental sync | ✅ Done (verified with a real Morgan State account) |
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
-| 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live Claude check left for the owner) |
-| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (semantic + live Ask need prod bindings / key) |
+| 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live in production) |
+| 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (live in production) |
 | 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed (the only session left) |
-| 9 | Homework workspace + real Today dashboard | ✅ Done (brief/plan suggestions need a valid Claude key) |
-| 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done |
+| 9 | Homework workspace + real Today dashboard | ✅ Done (breakdowns read attached files) |
+| 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done (videos show lecture pages) |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done. Live at https://hwrk.help (Sentry waits on a DSN) |
 
-Each session is realistically 2-3 working sessions of effort, especially 4 and 6.
-If you want something usable sooner, the shortest useful path is 4 → 5 → the Today part of 9.
+## Next up
+
+Candidates, roughly in order of value (none started):
+
+1. **Video: bullets appear in time with the narration** (the caption timings already exist).
+2. **Video: a pause-and-think question** near the end of each video.
+3. **Breakdowns: peek at datasets** (CSV column names and a few rows) instead of only naming them.
+4. **Lecture pages for PowerPoint** (needs LibreOffice in the media image to render slides).
+5. **Session 8, the MCP server**, once the owner confirms (see Open items).
+6. **Sentry** for the Worker and web, once there's a DSN.
 
 ## Decisions already made (don't revisit without asking)
 
@@ -29,8 +37,11 @@ If you want something usable sooner, the shortest useful path is 4 → 5 → the
   the fallback with the same code).
 - **Data**: Neon Postgres via Hyperdrive, Drizzle ORM (replaces the old "no ORM" rule), R2 for
   files, Vectorize for embeddings, Queues + Workflows for the pipeline, Durable Objects per user.
-- **AI**: Claude for generation with validated structured output; Workers AI or Voyage for
-  embeddings. Study-help only, never writes graded work.
+- **AI**: Claude by default (Haiku 4.5 for light tasks, Opus 5.5 for notes and Ask), students may
+  bring their own Anthropic or OpenAI key, and Workers AI `gpt-oss-120b` is the free fallback.
+  Workers AI `bge-m3` for embeddings and Aura for narration. Study-help only, never writes
+  graded work.
+- **Domain**: hwrk.help on the same Cloudflare account (`www` redirects to the bare domain).
 - **Auth**: Better Auth, email/password + Google, limited to `@morgan.edu`. Canvas personal
   access token first; Canvas OAuth later.
 - **UI**: shadcn (`base-nova`, Base UI primitives) + free registries: `@coss` (formerly
@@ -387,19 +398,3 @@ deleted, and there is no backup tag (the owner didn't want one). Only git histor
   Narration is held to 750 words a video (`fitBudget`); infra errors from the container (e.g. a
   rollout restart) are retried, only its 400/413/422 answers are final. Each job logs
   `video timing` (visible in `wrangler tail`).
-
-## Original session 11 plan (for reference)
-
-1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on
-   auth, sync, uploads, Ask, aids.
-2. **Errors/observability**: Sentry (`@sentry/cloudflare`) for the Worker and web, request ids
-   already flow; structured logs are in place.
-3. **Account data**: GDPR-style export (JSON + files zip from R2) and delete account (cascade + R2
-   prefix purge + Vectorize ids).
-4. **Security review** of the whole v2 diff; CSP for the SPA; `secureHeaders` tuning.
-5. **Playwright e2e** against `wrangler dev` (sign up → connect fake Canvas → sync → study).
-6. **Deploy**: provision Neon, Hyperdrive, R2, Queues, Vectorize, secrets; `wrangler deploy --env
-   production`; smoke test. Needs the owner's accounts/keys (see Open items).
-7. **Cutover**: delete legacy v1 (`frontend/`, `lovable-frontend/`, `services/`, `deploy/`,
-   `migrations/`, old `docs/*`, `infra/docker-compose.yml`, `talvra.zip`, scripts) after tagging
-   `legacy-v1`.

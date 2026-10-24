@@ -8,7 +8,7 @@ import {
   SaveAiKey,
 } from "@talvra/contracts";
 import { eq, schema } from "@talvra/db";
-import { GenerationError, HAIKU, KeyError, listClaudeModels, OPUS } from "../ai/claude.js";
+import { GenerationError, KeyError, listClaudeModels } from "../ai/claude.js";
 import { listOpenAiModels } from "../ai/compat.js";
 import { BASIC_MODEL } from "../ai/resolve.js";
 import type { AppEnv, Bindings } from "../env.js";
@@ -161,6 +161,3 @@ export function aiRoutes(opts: AiRoutesOptions = {}) {
       return c.json(view(c.env, undefined), 200);
     });
 }
-
-// Talvra's own model ids, for logs and docs.
-export const TALVRA_MODELS = { standard: HAIKU, advanced: OPUS };

@@ -22,6 +22,7 @@ import {
   assignmentPrompt,
   BRIEF_SYSTEM,
   HOMEWORK_PROMPT_VERSION,
+  localDue,
   PLAN_SYSTEM,
 } from "../ai/homework-prompts.js";
 import { aiEnvOf, fakeImpls, pickAi } from "../ai/resolve.js";
@@ -40,6 +41,7 @@ import { type FileStore, type IngestMessage, processDocument } from "../ingest/p
 import { AppError } from "../lib/errors.js";
 import { sha256Hex } from "../lib/files.js";
 import { requireUser } from "../middleware/auth.js";
+import { getPrefs } from "../reminders/engine.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
 import { toCourseDocument } from "./documents.js";
 import { searchDepsFor } from "./search.js";
@@ -252,7 +254,8 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         courseId: owned.a.courseId,
         descriptionHtml: owned.a.descriptionHtml,
       });
-      const prompt = assignmentPrompt({ ...a, attachments });
+      const { timezone } = await getPrefs(c.var.db, userId);
+      const prompt = assignmentPrompt({ ...a, attachments, timeZone: timezone });
       const sha = await sha256Hex(
         new TextEncoder().encode(`${HOMEWORK_PROMPT_VERSION}\n${prompt}`).buffer as ArrayBuffer,
       );
@@ -404,6 +407,7 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
       const { assignmentId } = c.req.valid("param");
       const a = await assignmentDetail(c.var.db, userId, assignmentId);
       const brief = await loadBrief(c.var.db, userId, assignmentId);
+      const { timezone } = await getPrefs(c.var.db, userId);
       const structured = await structuredFor(c, opts, userId, "plan");
       // JSON can't contain a raw "<" here, so it can't close the <brief> tag.
       const context = brief?.content
@@ -413,7 +417,7 @@ export function homeworkRoutes(opts: HomeworkOptions = {}) {
         const out = await structured({
           schema: PlanSuggestion,
           system: PLAN_SYSTEM,
-          user: `${assignmentPrompt(a)}${context}\n\nToday is ${new Date().toISOString().slice(0, 10)}.`,
+          user: `${assignmentPrompt({ ...a, timeZone: timezone })}${context}\n\nToday is ${localDue(new Date().toISOString(), timezone)}.`,
           maxTokens: 3000,
         });
         const steps = out.data.steps

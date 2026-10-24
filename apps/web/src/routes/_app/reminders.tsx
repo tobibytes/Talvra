@@ -260,7 +260,7 @@ function Reminders() {
                       {u.assignmentName}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      <span title={dateTime(u.remindAt)}>{relativeTime(u.remindAt)}</span> ·{" "}
+                      {dateTime(u.remindAt)} · {relativeTime(u.remindAt)} ·{" "}
                       {offsetLabel(u.offsetMinutes)}
                     </p>
                   </li>

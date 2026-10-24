@@ -1,14 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AskInput, AskSource, SearchHit } from "@talvra/contracts";
-import type { Database } from "@talvra/db";
 import { and, eq, inArray, schema } from "@talvra/db";
-import { meter } from "../lib/usage.js";
 import { type SearchDeps, searchChunks } from "../search/engine.js";
 import { type ClaudeOptions, claudeParams, toGenerationError } from "./claude.js";
 
 const { chunks } = schema;
-
-export const DAILY_ASK_LIMIT = 150;
 
 export type AnswerInput = {
   question: string;
@@ -72,14 +68,6 @@ export function claudeAnswerer(apiKey: string, opts: ClaudeOptions = {}): Answer
       yield "\n\nI can't help with that one. Try asking about a concept from your material instead.";
     }
   };
-}
-
-/** Counts this request against the daily limit (throws when over). */
-export async function meterAsk(db: Database, userId: string) {
-  await meter(db, userId, "ask", {
-    limit: DAILY_ASK_LIMIT,
-    message: "You've asked a lot today. Try again tomorrow.",
-  });
 }
 
 const location = (h: Pick<SearchHit, "anchor">) =>

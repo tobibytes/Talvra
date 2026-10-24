@@ -274,8 +274,6 @@ export async function hasOwnKey(db: Database, userId: string) {
   return Boolean(row);
 }
 
-export const isGenerationError = (e: unknown): e is GenerationError => e instanceof GenerationError;
-
 /** The AI settings a Worker request or queue job runs with. */
 export function aiEnvOf(env: Bindings): AiEnv {
   return {

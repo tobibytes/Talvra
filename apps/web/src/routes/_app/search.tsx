@@ -30,6 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ApiRequestError, api } from "@/lib/api";
+import { courseLabel } from "@/lib/course-label";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/search")({
@@ -87,7 +88,7 @@ function SearchPage() {
               <SelectItem value={ALL}>All courses</SelectItem>
               {selected.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+                  {courseLabel(c.courseCode, c.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -216,7 +217,7 @@ function TitleMatches({ titles }: { titles: TitleMatch[] }) {
               <span className="truncate">{t.title}</span>
               {t.kind !== "course" && t.courseName ? (
                 <span className="hidden truncate text-xs text-muted-foreground sm:inline">
-                  {t.courseName}
+                  {courseLabel(t.courseName)}
                 </span>
               ) : null}
             </>
@@ -263,7 +264,9 @@ function HitRow({ hit }: { hit: SearchHit }) {
           <span className="font-medium">{hit.documentTitle}</span>
           <Badge variant="outline">{anchorLabel(hit.anchor)}</Badge>
           {hit.courseName ? (
-            <span className="text-xs text-muted-foreground">{hit.courseName}</span>
+            <span className="text-xs text-muted-foreground" title={hit.courseName}>
+              {courseLabel(hit.courseName)}
+            </span>
           ) : null}
         </div>
         <p className="text-sm leading-6 text-muted-foreground">

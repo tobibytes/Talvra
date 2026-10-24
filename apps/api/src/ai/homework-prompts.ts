@@ -1,5 +1,5 @@
 /** Bump when these prompts change (cached briefs are keyed on it). */
-export const HOMEWORK_PROMPT_VERSION = "2026-10-24.1";
+export const HOMEWORK_PROMPT_VERSION = "2026-10-24.2";
 
 export const BRIEF_SYSTEM = `You help a university student understand what an assignment is asking, so they can plan and do it themselves.
 
@@ -29,7 +29,10 @@ export function assignmentPrompt(a: {
   submissionTypes: string[];
   descriptionMd: string | null;
   attachments?: { title: string; text: string | null; note: string | null }[];
+  /** The student's time zone, so the due date reads the way they'd say it. */
+  timeZone?: string;
 }) {
+  const due = a.dueAt ? localDue(a.dueAt, a.timeZone) : "not set";
   const attachments = (a.attachments ?? [])
     .map((f) =>
       f.text
@@ -37,10 +40,30 @@ export function assignmentPrompt(a: {
         : `<attachment title="${esc(f.title)}" read="no" reason="${esc(f.note ?? "not readable")}" />`,
     )
     .join("\n");
-  return `<assignment course="${esc(a.courseName)}" due="${a.dueAt ?? "not set"}" points="${a.pointsPossible ?? "not set"}" submit_as="${a.submissionTypes.join(", ") || "not stated"}">
+  return `<assignment course="${esc(a.courseName)}" due="${esc(due)}" points="${a.pointsPossible ?? "not set"}" submit_as="${a.submissionTypes.join(", ") || "not stated"}">
 <title>${esc(a.name)}</title>
 <description>
 ${esc(a.descriptionMd ?? "(No description in Canvas.)")}
 </description>${attachments ? `\n${attachments}` : ""}
 </assignment>`;
+}
+
+/** "Fri, Oct 30, 2026, 11:59 PM EDT" in the student's time zone (UTC if it's unknown or invalid). */
+export function localDue(iso: string, timeZone = "America/New_York") {
+  const fmt = (tz: string) =>
+    new Date(iso).toLocaleString("en-US", {
+      timeZone: tz,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  try {
+    return fmt(timeZone);
+  } catch {
+    return fmt("UTC");
+  }
 }

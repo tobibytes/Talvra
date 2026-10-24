@@ -7,5 +7,8 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 # Optional in development: without it, verification/reset emails print to the terminal.
 RESEND_API_KEY=
-# Claude, for study aids (notes, flashcards, quizzes).
+# Claude (Talvra's own AI). Without it, AI features use Workers AI's basic model.
 ANTHROPIC_API_KEY=
+# Optional: Azure voices for videos (Workers AI narration otherwise).
+# AZURE_SPEECH_KEY=
+# AZURE_SPEECH_REGION=

@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSignOut } from "@/components/user-menu";
 import { api } from "@/lib/api";
 import { authClient, authErrorMessage, meQuery } from "@/lib/auth";
+import { dateTime, relativeTime } from "@/lib/time";
 
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 
@@ -169,7 +170,13 @@ function CanvasCard() {
               <dd className="font-mono">••••{canvas.tokenLast4}</dd>
               <dt className="text-muted-foreground">Last checked</dt>
               <dd>
-                {canvas.lastVerifiedAt ? new Date(canvas.lastVerifiedAt).toLocaleString() : "Never"}
+                {canvas.lastVerifiedAt ? (
+                  <span title={dateTime(canvas.lastVerifiedAt)}>
+                    {relativeTime(canvas.lastVerifiedAt)}
+                  </span>
+                ) : (
+                  "Never"
+                )}
               </dd>
             </dl>
             <div className="flex flex-wrap gap-2">

@@ -53,6 +53,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiRequestError, api } from "@/lib/api";
+import { courseLabel } from "@/lib/course-label";
 import { duration, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +106,7 @@ function Workspace() {
                 />
               }
             >
-              {d.courseCode ?? d.courseName}
+              {courseLabel(d.courseCode, d.courseName)}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
