@@ -66,8 +66,9 @@ Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
 - [x] Neon project + Hyperdrive (`talvra-db`).
 - [x] Valid `ANTHROPIC_API_KEY` in production (verified by `pnpm prod:env`). To smoke-test real
       generation: `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`.
-- [x] MCP server (session 8) confirmed and built 2026-10-24: personal API keys first, OAuth
-      later. Do my homework (drafts, Canvas submission) is deliberately not exposed over MCP yet.
+- [x] MCP server (session 8) confirmed and built 2026-10-24: personal API keys, then OAuth.
+      Homework over MCP: `get_homework_draft` and `submit_homework` (hands the ready draft in to
+      Canvas; the endpoint's version check and atomic claim apply). Starting a draft isn't exposed.
 
 ## Known limitations (by design for now)
 

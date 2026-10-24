@@ -215,6 +215,7 @@ describe("MCP server", () => {
       "due_flashcards",
       "generate_study_aid",
       "get_assignment",
+      "get_homework_draft",
       "get_study_aid",
       "homework_brief",
       "list_assignments",
@@ -224,6 +225,7 @@ describe("MCP server", () => {
       "review_flashcard",
       "search_material",
       "study_aids",
+      "submit_homework",
       "upcoming_work",
     ]);
   });
