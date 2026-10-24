@@ -22,8 +22,16 @@ test("a student signs up, studies an upload, searches it, and deletes their acco
   await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
   await expectAccessible(page);
   await sql`update users set onboarded_at = now() where email = ${email}`;
+  // Long titles must truncate, not widen the page (a real overflow bug on phones).
+  const [user] = await sql`select id from users where email = ${email}`;
+  const [course] = await sql`insert into courses (user_id, canvas_id, name, course_code, selected)
+    values (${user?.id}, 'e2e', 'COSC332.001_Fall 2026', 'COSC332.001_Fall 2026', true) returning id`;
+  await sql`insert into assignments (user_id, course_id, canvas_id, name, due_at, submission_types, published)
+    values (${user?.id}, ${course?.id}, 'e2e-1', ${"Lab 3 (FINAL): Sound and Effects, Gameplay Mechanics, and User Interface"},
+      now() - interval '2 days', '{online_upload}', true)`;
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /E2E/ })).toBeVisible();
+  await expect(page.getByText(/Lab 3 \(FINAL\)/).first()).toBeVisible();
   await expectAccessible(page);
 
   // Upload a document and read it once extracted (queue + extract container).

@@ -144,7 +144,7 @@ function Workspace() {
           you submit in Canvas yourself.
         </AlertDescription>
       </Alert>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
           <BriefCard assignmentId={d.id} />
           <DescriptionCard detail={d} />

@@ -417,7 +417,7 @@ function Reader({ markdown, sections }: { markdown: string; sections: DocSection
     );
   }
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]">
       <article
         className="min-w-0 rounded-xl border bg-card px-5 py-2 sm:px-8 lg:order-1"
         aria-label="Document text"
