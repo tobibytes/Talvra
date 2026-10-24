@@ -147,6 +147,26 @@ describe("ingestion", () => {
     expect(extract.mock.calls[0]?.[1].mimeType).toBe("text/html");
   });
 
+  it("downloads through Instructure File Service hosts (inst-fs on inscloudgate.net)", async () => {
+    const state = defaultState();
+    const { deps, canvas, byTitle } = await setup(state);
+    const msg = byTitle("Lecture 1.pdf");
+    const [file] = Object.values(state.byCourse).flatMap((c) => c.files);
+    state.downloadRedirect = `https://cdn.inst-fs-iad-prod.inscloudgate.net/files/${file?.id}?token=signed`;
+    expect(await processDocument(deps, msg)).toBe("ready");
+    const call = canvas.fetch.mock.calls.find(([u]) => String(u).includes("inscloudgate"));
+    expect(new Headers(call?.[1]?.headers).get("authorization")).toBeNull();
+  });
+
+  it("refuses look-alike storage hosts", async () => {
+    const state = defaultState();
+    state.downloadRedirect = "https://cdn.inscloudgate.net.evil.example/files/1";
+    const { db, deps, byTitle } = await setup(state);
+    const msg = byTitle("Lecture 1.pdf");
+    expect(await processDocument(deps, msg)).toBe("failed");
+    expect((await statusOf(db, msg.documentId))?.error).toMatch(/Refusing to download/);
+  });
+
   it("refuses to follow a download redirect to a non-allowlisted host", async () => {
     const state = defaultState();
     state.downloadRedirect = "https://169.254.169.254/latest/meta-data";

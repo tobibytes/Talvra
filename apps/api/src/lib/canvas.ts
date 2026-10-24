@@ -91,7 +91,8 @@ export type Fetch = typeof fetch;
 const FILE_HOSTS = [
   CANVAS_HOST_PATTERN,
   /^instructure-uploads[a-z0-9-]*\.s3[a-z0-9.-]*\.amazonaws\.com$/,
-  /^[a-z0-9-]+\.inscloudgate\.net$/,
+  // Instructure File Service, e.g. cdn.inst-fs-iad-prod.inscloudgate.net
+  /^([a-z0-9-]+\.)+inscloudgate\.net$/,
   /^[a-z0-9-]+(\.[a-z0-9-]+)*\.canvas-user-content\.com$/,
 ];
 
