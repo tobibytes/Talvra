@@ -14,7 +14,7 @@ up: read this file, then `CLAUDE.md`, then `ARCHITECTURE.md`; next work is under
 | 5 | Ingestion: Python extract container, R2, uploads, processing status, Document page | ✅ Done |
 | 6 | AI study aids: notes, flashcards (FSRS), quizzes with Claude; versions; citations | ✅ Done (live in production) |
 | 7 | Search and Ask: chunking, embeddings (Vectorize), hybrid search with Postgres FTS, cited chat | ✅ Done (live in production) |
-| 8 | Talvra MCP server (proposed, not yet confirmed by the owner; see below) | Proposed (the only session left) |
+| 8 | Talvra MCP server: personal API keys + 14 tools at `/api/mcp` | ✅ Built (2026-10-24), deploy pending |
 | 9 | Homework workspace + real Today dashboard | ✅ Done (breakdowns read attached files) |
 | 10 | Reminders + video (media container: script → TTS → MP4 in R2) | ✅ Done (videos show lecture pages) |
 | 11 | Hardening and cutover: rate limits, Sentry, Playwright e2e, a11y/perf pass, security review, GDPR export/delete, deploy, remove legacy code | ✅ Done. Live at https://hwrk.help (Sentry waits on a DSN) |
@@ -29,7 +29,6 @@ Candidates, roughly in order of value (none started):
 3. **Video: a pause-and-think question** near the end of each video.
 4. **Breakdowns: peek at datasets** (CSV column names and a few rows) instead of only naming them.
 5. **Lecture pages for PowerPoint** (needs LibreOffice in the media image to render slides).
-6. **Session 8, the MCP server**, once the owner confirms (see Open items).
 7. **Sentry** for the Worker and web, once there's a DSN.
 
 ## Decisions already made (don't revisit without asking)
@@ -67,9 +66,8 @@ Supabase, Azure Flexible Server, ...); the deploy points Hyperdrive at it.
 - [x] Neon project + Hyperdrive (`talvra-db`).
 - [x] Valid `ANTHROPIC_API_KEY` in production (verified by `pnpm prod:env`). To smoke-test real
       generation: `cd apps/api && LIVE_CLAUDE=1 ANTHROPIC_API_KEY=… pnpm exec vitest run test/live-claude.test.ts`.
-- [ ] Confirm the MCP server session (8). The proposal: personal API keys first, OAuth later. Tools:
-      `list_courses`, `upcoming_due`, `search_material`, `get_document`, `generate_study_aid`,
-      `review_flashcards`, `homework_brief`. Same integrity rule.
+- [x] MCP server (session 8) confirmed and built 2026-10-24: personal API keys first, OAuth
+      later. Do my homework (drafts, Canvas submission) is deliberately not exposed over MCP yet.
 
 ## Known limitations (by design for now)
 
@@ -467,3 +465,23 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
   SANDBOX.md.
 - **Next: phase 3**, `SandboxContainer` + the Worker-side `Sandbox` + browser tools, behind
   `HOMEWORK_SANDBOX` (default `anthropic`).
+
+## MCP server (2026-10-24)
+
+- `POST /api/mcp` (MCP Streamable HTTP, stateless, JSON responses) via
+  `@modelcontextprotocol/sdk`'s `WebStandardStreamableHTTPServerTransport` (`src/mcp/server.ts`).
+- Auth: personal API keys only (`tlv_` + 256 random bits; SHA-256 hash in `api_keys`, migration
+  0015). Settings → "AI assistants (MCP)" makes (shown once, with a `claude mcp add` command),
+  lists and revokes them (10 per account). The session cookie is never accepted at `/api/mcp`.
+- Tools: list_courses, upcoming_work, list_assignments, get_assignment, homework_brief,
+  search_material, ask, list_documents, read_document (40k-character pages), study_aids,
+  generate_study_aid, get_study_aid, due_flashcards, review_flashcard. Each calls an existing
+  `/api/v1` route in-process as the key's owner (`AS_USER` Symbol on `env` in `app.ts`), so scoping,
+  validation and rate limits (`RL_API`, `RL_HEAVY`) match the app.
+- Verified: 7 API tests (`test/mcp.test.ts`), the Settings flow (`api-keys.test.tsx`), real HTTP
+  against `wrangler dev`, the official MCP Inspector CLI (lists and calls tools), and the Settings
+  card in Chrome (light/dark, 390px).
+- **Deploy (owner):** migration 0015 first, then the Worker. Then add it to Claude with the
+  command shown when making a key.
+- Next: OAuth (so claude.ai connectors work without pasting a key), and maybe homework tools.
+

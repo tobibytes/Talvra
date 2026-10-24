@@ -240,12 +240,20 @@ export function fakeApi(state: {
   cards?: Flashcard[];
   ai?: Record<string, unknown>;
   draft?: Record<string, unknown>;
+  apiKeys?: {
+    id: string;
+    name: string;
+    last4: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+  }[];
 }) {
   state.documents ??= [];
   state.aids ??= [];
   state.cards ??= [];
   state.runs ??= [];
   state.courses ??= [];
+  state.apiKeys ??= [];
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const apiError = (status: number, code: string, message: string, details?: unknown) =>
@@ -331,6 +339,23 @@ export function fakeApi(state: {
     const me = state.me;
 
     if (p === "/api/v1/me" && method === "GET") return json(me);
+    if (p === "/api/v1/me/api-keys" && method === "GET") return json({ keys: state.apiKeys });
+    if (p === "/api/v1/me/api-keys" && method === "POST") {
+      const secret = `tlv_${"x".repeat(39)}abcd`;
+      const key = {
+        id: crypto.randomUUID(),
+        name: String(body?.name),
+        last4: "abcd",
+        createdAt: new Date().toISOString(),
+        lastUsedAt: null,
+      };
+      state.apiKeys = [key, ...(state.apiKeys ?? [])];
+      return json({ key, secret }, 201);
+    }
+    if (p.startsWith("/api/v1/me/api-keys/") && method === "DELETE") {
+      state.apiKeys = (state.apiKeys ?? []).filter((k) => !p.endsWith(k.id));
+      return new Response(null, { status: 204 });
+    }
     if (p.startsWith("/api/v1/me/ai")) {
       const talvra = {
         source: "talvra",
