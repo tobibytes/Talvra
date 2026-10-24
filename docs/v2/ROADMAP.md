@@ -41,8 +41,7 @@ Candidates, roughly in order of value (none started):
   files, Vectorize for embeddings, Queues + Workflows for the pipeline, Durable Objects per user.
 - **AI**: Claude by default (Haiku 4.5 for light tasks, Opus 5.5 for notes and Ask), students may
   bring their own Anthropic or OpenAI key, and Workers AI `gpt-oss-120b` is the free fallback.
-  Workers AI `bge-m3` for embeddings and Aura for narration. Study-help only, never writes
-  graded work.
+  Workers AI `bge-m3` for embeddings and Aura for narration. Study aids support learning; Do my homework completes assignments for all signed-in accounts.
 - **Domain**: hwrk.help on the same Cloudflare account (`www` redirects to the bare domain).
 - **Auth**: Better Auth, email/password + Google, limited to `@morgan.edu`. Canvas personal
   access token first; Canvas OAuth later.
@@ -400,3 +399,53 @@ deleted, and there is no backup tag (the owner didn't want one). Only git histor
   Narration is held to 750 words a video (`fitBudget`); infra errors from the container (e.g. a
   rollout restart) are retried, only its 400/413/422 answers are final. Each job logs
   `video timing` (visible in `wrangler tail`).
+
+
+## Homework access and sandbox completion (2026-10-24)
+
+- Removed the email allowlist: every signed-in account can generate, preview, download and submit
+  its own homework files. Removed the homework workspace's study-only warning.
+- Finished the existing Anthropic sandbox download tool: public HTTPS files are downloaded by the
+  Worker and uploaded into the continuing sandbox conversation. Redirects, download errors and
+  file-size limits return useful tool results so the agent can recover.
+- Updated the prompt for downloads and per-command output capture. Cleanup tracks every generated
+  file ID, including replaced filenames, without hiding a successful result if cleanup fails.
+- The runtime remains Anthropic code execution on the Cloudflare AI queue. Java/C/R execution and
+  browser automation remain separate future work; this change does not provision Vercel infrastructure.
+
+Verification: `pnpm check` passed (265 tests, lint, typechecks, SPA build and Worker/container
+build). The opt-in live homework test passed against Anthropic: an executed notebook with a
+plot and no error outputs. Browser layout checks used mocked API responses at 1280px and 390px,
+light and dark. Download/tool-loop regression tests passed again after the final message-order
+fix. No real Canvas submission or production deployment was performed in this session.
+
+
+## Homework follow-ups, verification and submission (2026-10-24)
+
+- Homework drafts now keep a conversation. Send follow-up questions or revision instructions;
+  each run restores the current deliverables, assignment inputs and saved conversation into a
+  fresh Anthropic sandbox. Questions can return an answer without replacing the files.
+- Rename each file directly in the UI; stored bytes stay unchanged, while downloads and Canvas
+  uploads use the new name. Renaming and successful revisions clear the old verification report.
+- Verify work runs a check-only agent that returns a structured report with passed, issue and
+  not_checked results, with evidence. It never replaces the current files or blocks submission.
+- The explicit Submit to Canvas action shows the current filenames in a confirmation dialog.
+  The API checks the displayed version and atomically claims submission so overlapping clicks
+  cannot send it twice. Editing and verification cannot run while submission is in progress.
+- Queued requests carry a run ID to ignore stale deliveries. A failed follow-up or queue send
+  preserves the last usable files and returns the draft to ready.
+- **Deployment prerequisite:** apply `0014_homework_followups.sql` before deploying the updated
+  Worker. It adds conversation, verification, operation/run ID and the submitting state.
+- No production migration, deployment or real Canvas submission was performed in this session.
+
+Verification: `pnpm check` passed with 273 tests, lint, typechecks and builds. The new opt-in
+live test passed: revised and renamed a Python deliverable, then executed it in a fresh sandbox
+and checked output 15 in the verification report. Browser checks with mocked API responses
+exercised follow-up → rename → verify → submit at 1280px/390px in light/dark mode. The focused
+UI suite was rerun after adding automatic scrolling to the latest conversation message.
+
+**Deploying the homework changes** (owner, not yet done): apply the migration, then deploy, as
+in ARCHITECTURE.md → Deploying. Migration first: the new Worker reads `messages`, `run_id` and
+`operation`, and the old Worker ignores them, so the migration is safe before the deploy. After the
+deploy, remove the retired allowlist secret: `wrangler secret delete DO_HOMEWORK_EMAILS --env
+production` (it was dropped from `.prod.vars`; `prod:env --check` now flags retired keys).

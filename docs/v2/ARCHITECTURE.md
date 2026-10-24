@@ -79,8 +79,8 @@ apps/media     Python container: slides + narration + lecture pages → MP4 (no 
    number of uses again, labeled in the UI. Then a 429 that suggests adding a key.
 
 Rules: model calls go through `pickAi` (routes never build clients). Prompts treat course
-material as data (escaped, inside tags). Every feature helps a student study and never writes
-or submits graded work. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
+material as data (escaped, inside tags). Study aids support learning; Do my homework completes assignments and supports Canvas submission
+for every signed-in account. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
 Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take it.
 
 ## Pipelines
@@ -94,20 +94,23 @@ Haiku 4.5 rejects `effort`, so `claudeParams` only sends it to models that take 
 - **Study aids** (queue): notes, flashcards (FSRS review), quizzes, with page citations.
 - **Homework breakdown**: reads the assignment and the text of files it links (up to 6, read on
   the spot if unprocessed), never guesses at datasets or media it can't read.
-- **Do my homework** (owner-only, `DO_HOMEWORK_EMAILS`), an agent on the AI queue:
+- **Do my homework** (all signed-in accounts), an agent on the AI queue:
   - Gathers the assignment, its attachments' text, related course passages and the student's
     instructions; copies the assignment's files (PDFs from R2, datasets downloaded from Canvas)
     into **Anthropic's code-execution sandbox** (a fresh, isolated container per run; no
     internet; Python data stack, Node, sqlite3, pandoc, LibreOffice; no Java/C/R).
   - Claude Opus (or the student's own Anthropic key) works in turns with code execution, web
-    search (≤ 8) and web fetch (≤ 10), builds executed notebooks with `nbbuild.py` (uploaded
+    search (≤ 8), web fetch (≤ 10), and public file downloads (≤ 10, 20 MB each), builds executed notebooks with `nbbuild.py` (uploaded
     each run; `scripts/gen-nbbuild.mjs` keeps `nbbuild-source.ts` in sync), and calls
     `hand_in` with the files in `$OUTPUT_DIR`. ≤ 30 turns, 12-minute deadline; progress is
     written to the draft row and the page polls it. Uploaded and output files are deleted from
     Anthropic afterwards. Never retried (it spends tokens).
   - Files go to R2 under `u/<user>/hw/` → preview (text, rendered notebooks) / download → a
     separate "Submit to Canvas" (3-step upload to an allowlisted storage host without the token,
-    then one submission; never twice).
+    then one submission; never twice). Follow-ups restore the latest files and saved conversation
+    into a fresh sandbox. Verify uses a separate `verification_result` tool and leaves file bytes
+    unchanged. Rename updates file metadata; revisions/renames invalidate the verification report.
+    Each job carries a run ID; submission claims the row atomically and checks the UI's version.
 - **Canvas accounts**: one Talvra account per Canvas user per school (`canvas_user_id`, unique
   with `base_url`; filled in on connect and on "Check connection").
 - **Video** (queue): a 3-5 minute script (≤ 750 words, one source page per slide) → narration
@@ -141,7 +144,6 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in (optional). Redirect URI: `https://hwrk.help/api/auth/callback/google` (and `http://localhost:5173/...` locally) |
 | `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` | Optional Azure voices for videos |
 | `BASIC_MODEL` (var) | Optional override for the basic-mode model |
-| `DO_HOMEWORK_EMAILS` | Accounts allowed to use the owner-only "Do my homework" feature (comma-separated). Unset: off for everyone |
 | `EXTRACT_URL` + `EXTRACT_SECRET`, `MEDIA_URL` + `MEDIA_SECRET` | Optional: run the same container images elsewhere (e.g. Azure Container Apps) instead of Cloudflare Containers. A URL without its secret refuses to start |
 
 Production secrets live in `apps/api/.prod.vars` (gitignored, written by `pnpm prod:env`, which
@@ -163,6 +165,9 @@ pnpm --filter @talvra/web build
 grep -v -E '^(DATABASE_URL=|#)' apps/api/.prod.vars > /tmp/s.env
 (cd apps/api && pnpm exec wrangler deploy --env production --secrets-file /tmp/s.env); rm /tmp/s.env
 ```
+
+`prod:env --check` also fails on keys the app no longer reads (the deploy uploads every line as
+a secret). Remove the line, deploy, then `wrangler secret delete <KEY> --env production`.
 
 Container image pushes can time out on a slow upload; rerun, finished layers are kept. A deploy
 that changes a container image rolls out over a few minutes; videos rendering during the rollout

@@ -140,7 +140,7 @@ export const Today = z.object({
 });
 export type Today = z.infer<typeof Today>;
 
-// --- "Do my homework" (owner-only feature, gated by the server) -------------------
+// --- "Do my homework" (all signed-in accounts) -------------------
 
 export const DraftFile = z.object({
   name: z.string(),
@@ -149,9 +149,33 @@ export const DraftFile = z.object({
 });
 export type DraftFile = z.infer<typeof DraftFile>;
 
+export const DraftMessage = z.object({
+  id: z.string(),
+  role: z.enum(["user", "assistant"]),
+  text: z.string(),
+  createdAt: Timestamp,
+});
+export type DraftMessage = z.infer<typeof DraftMessage>;
+
+export const VerificationResult = z.object({
+  summary: z.string().min(1),
+  checks: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        status: z.enum(["passed", "issue", "not_checked"]),
+        detail: z.string().min(1),
+      }),
+    )
+    .min(1),
+});
+export type VerificationResult = z.infer<typeof VerificationResult>;
+export const DraftVerification = VerificationResult.extend({ checkedAt: Timestamp });
+export type DraftVerification = z.infer<typeof DraftVerification>;
+
 export const HomeworkDraft = z.object({
   id: Id,
-  status: z.enum(["working", "ready", "failed", "submitted"]),
+  status: z.enum(["working", "ready", "failed", "submitting", "submitted"]),
   /** While working: what it's doing now. */
   progress: z.string().nullable(),
   files: z.array(DraftFile),
@@ -161,14 +185,29 @@ export const HomeworkDraft = z.object({
   model: z.string().nullable(),
   submittedAt: Timestamp.nullable(),
   updatedAt: Timestamp,
+  messages: z.array(DraftMessage).default([]),
+  verification: DraftVerification.nullable().default(null),
 });
 export type HomeworkDraft = z.infer<typeof HomeworkDraft>;
 
 export const DraftResponse = z.object({ draft: HomeworkDraft.nullable() });
 export type DraftResponse = z.infer<typeof DraftResponse>;
 
-export const MakeDraft = z.object({
-  /** Extra instructions for this version ("use matplotlib", "shorter report"). */
-  instructions: z.string().trim().max(2000).optional(),
-});
+export const MakeDraft = z
+  .object({
+    /** Extra instructions for this version ("use matplotlib", "shorter report"). */
+    instructions: z.string().trim().max(4000).optional(),
+    operation: z.enum(["generate", "revise", "verify"]).default("generate"),
+  })
+  .refine((v) => v.operation !== "revise" || Boolean(v.instructions), {
+    message: "Write a follow-up message.",
+    path: ["instructions"],
+  });
 export type MakeDraft = z.infer<typeof MakeDraft>;
+
+export const RenameDraftFile = z.object({
+  name: z.string().min(1).max(100),
+  newName: z.string().trim().min(1).max(80),
+});
+
+export const SubmitDraft = z.object({ updatedAt: Timestamp.optional() });

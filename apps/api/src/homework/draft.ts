@@ -1,9 +1,9 @@
-import type { DraftFile, HomeworkDraft } from "@talvra/contracts";
+import type { DraftFile, DraftMessage, DraftVerification, HomeworkDraft } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
-import { and, eq, inArray, schema } from "@talvra/db";
+import { and, eq, inArray, schema, sql } from "@talvra/db";
 import { retrieve } from "../ai/ask.js";
 import { GenerationError } from "../ai/claude.js";
-import { type AgentApi, runHomeworkAgent } from "../ai/claude-homework-agent.js";
+import { type AgentApi, type AgentInput, runHomeworkAgent } from "../ai/claude-homework-agent.js";
 import { assignmentPrompt, DO_HOMEWORK_SYSTEM } from "../ai/homework-prompts.js";
 import type { FileStore } from "../ingest/process.js";
 import { type CanvasClient, CanvasError } from "../lib/canvas.js";
@@ -12,6 +12,7 @@ import { AppError } from "../lib/errors.js";
 import { fileKeys, servedMime } from "../lib/files.js";
 import type { SearchDeps } from "../search/engine.js";
 import { type AttachmentDeps, loadAttachments } from "./attachments.js";
+import { downloadHomeworkFile } from "./download.js";
 
 const { homeworkDrafts, assignments, courses } = schema;
 
@@ -73,6 +74,8 @@ export function toDraft(r: Row): HomeworkDraft {
     model: r.model,
     submittedAt: r.submittedAt?.toISOString() ?? null,
     updatedAt: r.updatedAt.toISOString(),
+    messages: r.messages as DraftMessage[],
+    verification: r.verification as DraftVerification | null,
   };
 }
 
@@ -101,7 +104,19 @@ export async function loadDraft(db: Database, userId: string, assignmentId: stri
   return row;
 }
 
-export type HomeworkMessage = { type: "homework"; userId: string; assignmentId: string };
+export type HomeworkMessage = {
+  type: "homework";
+  userId: string;
+  assignmentId: string;
+  runId?: string;
+};
+type Operation = "generate" | "revise" | "verify";
+const entry = (role: DraftMessage["role"], text: string): DraftMessage => ({
+  id: crypto.randomUUID(),
+  role,
+  text,
+  createdAt: new Date().toISOString(),
+});
 
 /**
  * Starts "Do my homework" for an assignment: marks the draft as working (the last files stay
@@ -109,7 +124,7 @@ export type HomeworkMessage = { type: "homework"; userId: string; assignmentId: 
  */
 export async function startDraft(
   db: Database,
-  input: { userId: string; assignmentId: string; instructions?: string },
+  input: { userId: string; assignmentId: string; instructions?: string; operation?: Operation },
   enqueue: (m: HomeworkMessage) => Promise<void>,
 ): Promise<Row> {
   const { userId, assignmentId } = input;
@@ -120,9 +135,36 @@ export async function startDraft(
   ) {
     throw new AppError("conflict", "Already working on this one.");
   }
+  if (previous?.status === "submitting")
+    throw new AppError("conflict", "Submission is in progress.");
+  const operation = input.operation ?? "generate";
+  if (operation !== "generate" && !(previous?.files as StoredFile[] | undefined)?.length)
+    throw new AppError("conflict", "Make the files first.");
+  const runId = crypto.randomUUID();
+  const messages = operation === "generate" ? [] : ((previous?.messages as DraftMessage[]) ?? []);
+  if (operation !== "generate" && !messages.length && previous) {
+    if (previous.instructions) messages.push(entry("user", previous.instructions));
+    if (previous.notes) messages.push(entry("assistant", previous.notes));
+  }
+  messages.push(
+    entry(
+      "user",
+      operation === "verify"
+        ? "Verify the current files against the assignment and rubric."
+        : input.instructions || "Do my homework.",
+    ),
+  );
   const values = {
+    runId,
+    operation,
+    messages,
     status: "working" as const,
-    progress: "Starting",
+    progress:
+      operation === "verify"
+        ? "Starting verification"
+        : operation === "revise"
+          ? "Reading your follow-up"
+          : "Starting",
     instructions: input.instructions ?? null,
     error: null,
   };
@@ -132,10 +174,34 @@ export async function startDraft(
     .onConflictDoUpdate({
       target: [homeworkDrafts.userId, homeworkDrafts.assignmentId],
       set: values,
+      setWhere: previous ? eq(homeworkDrafts.updatedAt, previous.updatedAt) : sql`false`,
     })
     .returning();
-  if (!row) throw new Error("draft insert returned nothing");
-  await enqueue({ type: "homework", userId, assignmentId });
+  if (!row) throw new AppError("conflict", "The draft changed. Refresh and try again.");
+  try {
+    await enqueue({ type: "homework", userId, assignmentId, runId });
+  } catch (err) {
+    await db
+      .update(homeworkDrafts)
+      .set({
+        status:
+          previous?.status === "submitted"
+            ? "submitted"
+            : (previous?.files as StoredFile[] | undefined)?.length
+              ? "ready"
+              : "failed",
+        progress: null,
+        error: "Could not start this request. Try again.",
+      })
+      .where(
+        and(
+          eq(homeworkDrafts.userId, userId),
+          eq(homeworkDrafts.assignmentId, assignmentId),
+          eq(homeworkDrafts.runId, runId),
+        ),
+      );
+    throw err;
+  }
   return row;
 }
 
@@ -149,6 +215,7 @@ export type DraftJobDeps = {
   search: SearchDeps;
   model?: string;
   timeZone?: string;
+  fetchUrl?: AgentInput["fetchUrl"];
   /** Live updates to the page (the row's progress is the source of truth). */
   notify?: (draft: HomeworkDraft) => Promise<void>;
 };
@@ -208,14 +275,16 @@ async function gatherInputs(
 export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Promise<Row | null> {
   const { db, userId } = { db: deps.db, userId: msg.userId };
   const row = await loadDraft(db, userId, msg.assignmentId);
-  if (row?.status !== "working") return null; // finished, or replaced by a newer run
+  if (row?.status !== "working" || (row.runId && row.runId !== msg.runId)) return null; // finished, or replaced by a newer run
+  const operation = row.operation as Operation;
+  const currentRun = and(
+    eq(homeworkDrafts.id, row.id),
+    eq(homeworkDrafts.userId, userId),
+    row.runId ? eq(homeworkDrafts.runId, row.runId) : undefined,
+  );
   let last = 0;
   const update = async (patch: Partial<typeof homeworkDrafts.$inferInsert>) => {
-    const [r] = await db
-      .update(homeworkDrafts)
-      .set(patch)
-      .where(eq(homeworkDrafts.id, row.id))
-      .returning();
+    const [r] = await db.update(homeworkDrafts).set(patch).where(currentRun).returning();
     if (r) await deps.notify?.(toDraft(r)).catch(() => {});
     return r;
   };
@@ -229,6 +298,24 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
     if (!a) throw new AppError("not_found", "Assignment not found.");
     await update({ progress: "Gathering the assignment files" });
     const { inputs, skipped } = await gatherInputs(deps, userId, a.a.courseId, a.a.descriptionHtml);
+    const draftInputs: string[] = [];
+    if (operation !== "generate") {
+      let total = inputs.reduce((sum, f) => sum + f.data.byteLength, 0);
+      for (const [i, f] of (row.files as StoredFile[]).entries()) {
+        const obj = await deps.files.get(f.key);
+        if (!obj) throw new AppError("conflict", `${f.name} is missing. Generate the files again.`);
+        const data = new Uint8Array(await obj.arrayBuffer());
+        total += data.byteLength;
+        if (total > MAX_INPUT_BYTES)
+          throw new AppError(
+            "bad_request",
+            "The assignment and draft files exceed the 80 MB sandbox input limit.",
+          );
+        const name = `current_${i + 1}_${f.name}`;
+        inputs.push({ name, data, contentType: f.contentType });
+        draftInputs.push(`${name} is the current deliverable named ${f.name}`);
+      }
+    }
     const attachments = await loadAttachments(deps.attachments, {
       userId,
       courseId: a.a.courseId,
@@ -260,7 +347,21 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
       skipped.length
         ? `<note>These linked files couldn't be copied into the sandbox: ${esc(skipped.join(", "))}.</note>`
         : "",
-      row.instructions ? `<instructions>\n${esc(row.instructions)}\n</instructions>` : "",
+      operation === "generate" && row.instructions
+        ? `<instructions>\n${esc(row.instructions)}\n</instructions>`
+        : "",
+      operation !== "generate"
+        ? `<current_draft>\n${esc(draftInputs.join("\n"))}\n</current_draft>\n<conversation>\n${esc(JSON.stringify(row.messages))}\n</conversation>`
+        : "",
+      operation === "revise" && row.verification
+        ? `<verification_report>${esc(JSON.stringify(row.verification))}</verification_report>`
+        : "",
+      operation === "revise"
+        ? "Continue from the current draft and conversation. Apply the latest user request; preserve unrelated work. For changes, hand in the COMPLETE set of final deliverables using their intended filenames (not current_ prefixes). For a question needing no edits, return hand_in with files: [] and answer in notes."
+        : "",
+      operation === "verify"
+        ? "VERIFY ONLY: Inspect every current deliverable against the assignment, attachments, rubric and conversation. Run executable code and check notebook outputs where supported. Check filenames, formats, completeness, calculations and references. Do not edit or replace the deliverables. Finish with verification_result: report each check as passed, issue or not_checked with evidence. Do not claim execution or source checks you did not perform. An unavailable runtime is not_checked. Your report is a check of this version, not a grade guarantee."
+        : "",
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -270,6 +371,8 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
       prompt,
       inputs,
       model: deps.model,
+      mode: operation,
+      fetchUrl: deps.fetchUrl ?? downloadHomeworkFile,
       onProgress: async (text) => {
         // At most one write every 2 seconds.
         if (Date.now() - last < 2000) return;
@@ -285,7 +388,32 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
         model: out.model,
       }),
     );
-    return await storeDraftFiles(deps, row, msg.assignmentId, out);
+    const messages = [...(row.messages as DraftMessage[]), entry("assistant", out.notes)];
+    if (operation === "verify") {
+      if (!out.verification)
+        throw new GenerationError(false, "No verification report was returned. Try again.");
+      return (
+        (await update({
+          status: row.submittedAt ? "submitted" : "ready",
+          progress: null,
+          error: null,
+          messages,
+          verification: { ...out.verification, checkedAt: new Date().toISOString() },
+        })) ?? null
+      );
+    }
+    if (operation === "revise" && !out.files.length) {
+      return (
+        (await update({
+          status: row.submittedAt ? "submitted" : "ready",
+          progress: null,
+          error: null,
+          messages,
+          notes: out.notes,
+        })) ?? null
+      );
+    }
+    return await storeDraftFiles(deps, row, msg.assignmentId, { ...out, messages });
   } catch (err) {
     const message =
       err instanceof GenerationError || err instanceof AppError
@@ -293,7 +421,17 @@ export async function runDraftJob(deps: DraftJobDeps, msg: HomeworkMessage): Pro
         : "Something went wrong doing this one. Try again.";
     if (!(err instanceof GenerationError || err instanceof AppError))
       console.error(JSON.stringify({ msg: "homework agent failed", error: String(err) }));
-    return (await update({ status: "failed", progress: null, error: message })) ?? null;
+    return (
+      (await update({
+        status: (row.files as StoredFile[]).length
+          ? row.submittedAt
+            ? "submitted"
+            : "ready"
+          : "failed",
+        progress: null,
+        error: message,
+      })) ?? null
+    );
   }
 }
 
@@ -302,9 +440,14 @@ async function storeDraftFiles(
   deps: Pick<DraftJobDeps, "db" | "files" | "notify">,
   row: Row,
   assignmentId: string,
-  out: { files: { name: string; data: Uint8Array }[]; notes: string; model: string },
+  out: {
+    files: { name: string; data: Uint8Array }[];
+    notes: string;
+    model: string;
+    messages: DraftMessage[];
+  },
 ): Promise<Row> {
-  const version = Date.now().toString(36);
+  const version = crypto.randomUUID();
   const taken = new Set<string>();
   const stored: StoredFile[] = [];
   for (const f of out.files.slice(0, MAX_FILES)) {
@@ -327,10 +470,21 @@ async function storeDraftFiles(
       error: null,
       model: out.model,
       submittedAt: null,
+      messages: out.messages,
+      verification: null,
     })
-    .where(eq(homeworkDrafts.id, row.id))
+    .where(
+      and(
+        eq(homeworkDrafts.id, row.id),
+        eq(homeworkDrafts.userId, row.userId),
+        row.runId ? eq(homeworkDrafts.runId, row.runId) : undefined,
+      ),
+    )
     .returning();
-  if (!done) throw new Error("draft update returned nothing");
+  if (!done) {
+    await deps.files.delete(stored.map((f) => f.key)).catch(() => {});
+    throw new AppError("conflict", "A newer draft replaced this run.");
+  }
   const old = (row.files as StoredFile[]).map((f) => f.key);
   if (old.length) await deps.files.delete(old).catch(() => {});
   await deps.notify?.(toDraft(done)).catch(() => {});
@@ -352,6 +506,58 @@ export async function draftFile(
   return { file, data: new Uint8Array(await obj.arrayBuffer()) };
 }
 
+/** Rename metadata only: the bytes stay at their private R2 key. */
+export async function renameDraftFile(
+  db: Database,
+  userId: string,
+  assignmentId: string,
+  name: string,
+  newName: string,
+) {
+  const row = await loadDraft(db, userId, assignmentId);
+  if (!row) throw new AppError("not_found", "Draft not found.");
+  if (row.status === "working" || row.status === "submitting")
+    throw new AppError("conflict", "Wait for the current request to finish.");
+  const files = row.files as StoredFile[];
+  const file = files.find((f) => f.name === name);
+  if (!file) throw new AppError("not_found", "File not found.");
+  if (
+    cleanFileName(newName, new Set()) !== newName ||
+    newName.split(".").pop()?.toLowerCase() !== name.split(".").pop()?.toLowerCase()
+  )
+    throw new AppError(
+      "bad_request",
+      "Use a filename with letters, numbers, spaces, dashes or underscores, and keep the same extension.",
+    );
+  if (files.some((f) => f !== file && f.name.toLowerCase() === newName.toLowerCase()))
+    throw new AppError("conflict", "A file already has that name.");
+  if (name === newName) return row;
+  const [done] = await db
+    .update(homeworkDrafts)
+    .set({
+      files: files.map((f) => (f === file ? { ...f, name: newName } : f)),
+      status: "ready",
+      submittedAt: null,
+      verification: null,
+      error: null,
+      messages: [
+        ...(row.messages as DraftMessage[]),
+        entry("user", `Rename ${name} to ${newName}.`),
+        entry("assistant", `Renamed ${name} to ${newName}. The file contents are unchanged.`),
+      ],
+    })
+    .where(
+      and(
+        eq(homeworkDrafts.id, row.id),
+        eq(homeworkDrafts.userId, userId),
+        eq(homeworkDrafts.updatedAt, row.updatedAt),
+      ),
+    )
+    .returning();
+  if (!done) throw new AppError("conflict", "The draft changed. Refresh and try again.");
+  return done;
+}
+
 /**
  * Submits the draft's files to the assignment in Canvas as the student (their token):
  * upload each file, then one submission. Marks the draft and assignment submitted.
@@ -360,16 +566,24 @@ export async function submitDraft(
   deps: { db: Database; files: FileStore; client: CanvasClient },
   userId: string,
   assignmentId: string,
+  expectedUpdatedAt?: string,
 ): Promise<Row> {
   const { db } = deps;
   const row = await loadDraft(db, userId, assignmentId);
   if (!row || row.status === "failed") throw new AppError("conflict", "Make the files first.");
+  if (expectedUpdatedAt && row.updatedAt.toISOString() !== expectedUpdatedAt)
+    throw new AppError(
+      "conflict",
+      "The draft changed. Refresh and review the latest files before submitting.",
+    );
   // One press, one submission: resubmitting means making new files first.
   if (row.status === "submitted")
     throw new AppError(
       "conflict",
       "These files were already submitted. Make new ones to resubmit.",
     );
+  if (row.status !== "ready" || !(row.files as StoredFile[]).length)
+    throw new AppError("conflict", "Wait until the files are ready before submitting.");
   const [a] = await db
     .select({
       canvasId: assignments.canvasId,
@@ -382,6 +596,23 @@ export async function submitDraft(
     .limit(1);
   if (!a) throw new AppError("not_found", "Assignment not found.");
   const files = row.files as StoredFile[];
+  const [claimed] = await db
+    .update(homeworkDrafts)
+    .set({ status: "submitting" })
+    .where(
+      and(
+        eq(homeworkDrafts.id, row.id),
+        eq(homeworkDrafts.userId, userId),
+        eq(homeworkDrafts.status, "ready"),
+        eq(homeworkDrafts.updatedAt, row.updatedAt),
+      ),
+    )
+    .returning();
+  if (!claimed)
+    throw new AppError(
+      "conflict",
+      "The draft changed or is already being submitted. Refresh and try again.",
+    );
   try {
     if (a.types.includes("online_upload")) {
       const ids: number[] = [];
@@ -412,6 +643,16 @@ export async function submitDraft(
       );
     }
   } catch (err) {
+    await db
+      .update(homeworkDrafts)
+      .set({ status: "ready" })
+      .where(
+        and(
+          eq(homeworkDrafts.id, row.id),
+          eq(homeworkDrafts.userId, userId),
+          eq(homeworkDrafts.status, "submitting"),
+        ),
+      );
     if (err instanceof CanvasError) {
       throw new AppError(
         err.kind === "unauthorized" ? "conflict" : "bad_request",

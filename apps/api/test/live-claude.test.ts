@@ -76,6 +76,42 @@ describe.skipIf(!live)("live Claude", () => {
 });
 
 describe.skipIf(!live)("live homework agent", () => {
+  it("revises existing files and verifies their execution in a new sandbox", {
+    timeout: 300_000,
+  }, async () => {
+    const { anthropicAgentApi, runHomeworkAgent } = await import(
+      "../src/ai/claude-homework-agent.js"
+    );
+    const { DO_HOMEWORK_SYSTEM } = await import("../src/ai/homework-prompts.js");
+    const api = anthropicAgentApi(process.env.ANTHROPIC_API_KEY ?? "");
+    const revised = await runHomeworkAgent(api, {
+      system: DO_HOMEWORK_SYSTEM,
+      mode: "revise",
+      prompt:
+        "The current deliverable solution.py is uploaded as current_1_solution.py. Follow-up: change it to print the sum of integers 1 through 5, rename it total.py, run it and hand in total.py only. Keep this tiny task simple.",
+      inputs: [
+        {
+          name: "current_1_solution.py",
+          data: new TextEncoder().encode("print(2 + 2)\n"),
+          contentType: "text/x-python",
+        },
+      ],
+    });
+    expect(revised.files.map((f) => f.name)).toEqual(["total.py"]);
+    const checked = await runHomeworkAgent(api, {
+      system: DO_HOMEWORK_SYSTEM,
+      mode: "verify",
+      prompt:
+        "Verify the current deliverable total.py: it must print the sum of integers 1 through 5. Execute it with Python, check the output, and call verification_result with an execution check and the observed output in its detail. Do not create replacement files.",
+      inputs: revised.files.map((f) => ({ ...f, contentType: "text/x-python" })),
+    });
+    expect(checked.files).toEqual([]);
+    expect(
+      checked.verification?.checks.some((c) => c.status === "passed" && c.detail.includes("15")),
+    ).toBe(true);
+    expect(checked.verification?.checks.some((c) => c.status === "issue")).toBe(false);
+  });
+
   it("does a small data assignment in the sandbox and hands in an executed notebook", {
     timeout: 900_000,
   }, async () => {

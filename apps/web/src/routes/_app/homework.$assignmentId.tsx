@@ -18,7 +18,6 @@ import {
   Plus,
   RefreshCw,
   SearchX,
-  ShieldCheck,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import { DoHomeworkCard } from "@/components/homework/do-homework-card";
 import { dueText, HomeworkStatusBadge } from "@/components/homework/homework-row";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { anchorLabel, Highlighted } from "@/components/search/highlight";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -62,7 +60,6 @@ export const Route = createFileRoute("/_app/homework/$assignmentId")({ component
 
 function Workspace() {
   const { assignmentId } = Route.useParams();
-  const { me } = Route.useRouteContext();
   const a = useQuery({
     queryKey: ["homework", assignmentId],
     queryFn: () => api.assignment(assignmentId),
@@ -89,8 +86,6 @@ function Workspace() {
   }
   if (a.isError) return <ErrorState error={a.error} onRetry={() => a.refetch()} />;
   const d = a.data;
-  // Switched on per account by the server (DO_HOMEWORK_EMAILS); off for everyone else.
-  const doHomework = me.features.doHomework;
 
   return (
     <>
@@ -140,19 +135,9 @@ function Workspace() {
           ) : null
         }
       />
-      {doHomework ? null : (
-        <Alert className="mb-6">
-          <ShieldCheck />
-          <AlertTitle>Your work, your words</AlertTitle>
-          <AlertDescription>
-            Talvra helps you understand the task and plan it. It won't write or solve graded work,
-            and you submit in Canvas yourself.
-          </AlertDescription>
-        </Alert>
-      )}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
-          {doHomework ? <DoHomeworkCard assignment={d} /> : null}
+          <DoHomeworkCard assignment={d} />
           <BriefCard assignmentId={d.id} />
           <DescriptionCard detail={d} />
           <ResourcesCard assignmentId={d.id} />
