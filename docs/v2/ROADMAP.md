@@ -463,8 +463,12 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
 - **Phase 2 done (2026-10-24):** `apps/sandbox` control server + toolchain image, unit tests in
   CI and image tests in the `Sandbox image` workflow (real amd64). Not deployed. Details in
   SANDBOX.md.
-- **Next: phase 3**, `SandboxContainer` + the Worker-side `Sandbox` + browser tools, behind
-  `HOMEWORK_SANDBOX` (default `anthropic`).
+- **Phases 3-4 built (2026-10-24):** the sandbox container (production only, per run, internet
+  with a deny list), the Worker-side client, `view_image`, the Claude driver and
+  `OWN_SANDBOX_HOMEWORK_SYSTEM`, behind `HOMEWORK_SANDBOX` / `HOMEWORK_SANDBOX_EMAILS`
+  (default: Anthropic's sandbox for everyone). Owner next: deploy (pushes the ~1.1 GB image), set
+  `HOMEWORK_SANDBOX_EMAILS` to their own email with `pnpm prod:env`, redeploy, and try a real
+  assignment; or run the live test locally. Then phase 5 (OpenAI driver).
 
 ## MCP server (2026-10-24)
 

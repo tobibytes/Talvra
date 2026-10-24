@@ -36,6 +36,7 @@ import { dueForScheduledSync, startSync } from "./sync/run.js";
 export { ExtractContainer } from "./extract-container.js";
 export { MediaContainer } from "./media-container.js";
 export { UserHub } from "./realtime/user-hub.js";
+export { SandboxContainer } from "./sandbox-container.js";
 export { SyncWorkflow } from "./sync/workflow.js";
 
 const app = createApp();

@@ -29,7 +29,11 @@ import { NBBUILD_PY } from "./nbbuild-source.js";
  */
 
 export type ToolCall = { id: string; name: string; input: unknown };
-export type ToolResult = { callId: string; content: string; isError?: boolean };
+export type ToolContent =
+  | { type: "text"; text: string }
+  | { type: "image"; mediaType: ImageType; data: string };
+/** Text, or blocks when a tool returns an image (view_image). */
+export type ToolResult = { callId: string; content: string | ToolContent[]; isError?: boolean };
 
 export type ModelTurn = {
   text: string;
@@ -79,6 +83,34 @@ export const BASH_SPEC: ToolSpec = {
     required: ["command"],
   },
 };
+
+const IMAGE_TYPES = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+} as const;
+type ImageType = (typeof IMAGE_TYPES)[keyof typeof IMAGE_TYPES];
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+export const VIEW_IMAGE_SPEC: ToolSpec = {
+  name: "view_image",
+  description:
+    "Look at an image file in the sandbox (PNG, JPEG, GIF or WebP, up to 5 MB): a browser screenshot, a plot you made, a figure from the assignment. Path relative to /work or absolute under /work.",
+  parameters: {
+    type: "object",
+    properties: { path: { type: "string" } },
+    required: ["path"],
+  },
+};
+
+function base64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
 
 const DOWNLOAD_SPEC = downloadSpec(
   "Download a file (dataset, PDF, starter code, zip) from an https URL into $INPUT_DIR.",
@@ -135,7 +167,7 @@ export async function runToolLoop(
 
     const session = driver.start({
       system: systemFor(input.system, input.mode),
-      tools: [BASH_SPEC, DOWNLOAD_SPEC, verifying ? VERIFY_SPEC : HAND_IN_SPEC],
+      tools: [BASH_SPEC, VIEW_IMAGE_SPEC, DOWNLOAD_SPEC, verifying ? VERIFY_SPEC : HAND_IN_SPEC],
       model: input.model,
     });
     const names = [...input.inputs.map((f) => f.name), NBBUILD_NAME];
@@ -190,6 +222,34 @@ export async function runToolLoop(
             });
           } catch (err) {
             fail(call.id, err instanceof Error ? err.message : "The command failed to run.");
+          }
+          continue;
+        }
+        if (call.name === "view_image") {
+          const raw = (call.input as { path?: unknown })?.path;
+          const path = typeof raw === "string" ? raw.trim().replace(/^\/work\//, "") : "";
+          const ext = path.split(".").pop()?.toLowerCase() ?? "";
+          const mediaType = IMAGE_TYPES[ext as keyof typeof IMAGE_TYPES];
+          if (!path || path.startsWith("/") || !mediaType) {
+            fail(call.id, "view_image needs a .png, .jpg, .gif or .webp path under /work.");
+            continue;
+          }
+          try {
+            const bytes = await sandbox.readFile(path);
+            if (bytes.byteLength > MAX_IMAGE_BYTES) {
+              fail(call.id, "That image is over 5 MB. Save a smaller version and look at that.");
+              continue;
+            }
+            await progress("Looking at an image");
+            results.push({
+              callId: call.id,
+              content: [
+                { type: "image", mediaType, data: base64(bytes) },
+                { type: "text", text: `${path} (${bytes.byteLength} bytes)` },
+              ],
+            });
+          } catch (err) {
+            fail(call.id, err instanceof Error ? err.message : "Couldn't read that image.");
           }
           continue;
         }

@@ -6,6 +6,7 @@ import type { HomeworkMessage } from "./homework/draft.js";
 import type { IngestMessage } from "./ingest/process.js";
 import type { MediaContainer } from "./media-container.js";
 import type { UserHub } from "./realtime/user-hub.js";
+import type { SandboxContainer } from "./sandbox-container.js";
 import type { SyncParams } from "./sync/run.js";
 
 export type Bindings = {
@@ -35,6 +36,15 @@ export type Bindings = {
   VECTORS?: Vectorize;
   /** Python extract service on Cloudflare Containers. */
   EXTRACT?: DurableObjectNamespace<ExtractContainer>;
+  /** Our homework sandbox (production only; one instance per run). */
+  SANDBOX?: DurableObjectNamespace<SandboxContainer>;
+  /** Dev: the sandbox image run by hand (`docker run -p 8001:8000 ...`), shared by all runs. */
+  SANDBOX_URL?: string;
+  SANDBOX_SECRET?: string;
+  /** "anthropic" (default) or "self": which sandbox Do my homework uses. */
+  HOMEWORK_SANDBOX?: string;
+  /** Rollout: emails (comma-separated) that use our own sandbox even when the default is anthropic. */
+  HOMEWORK_SANDBOX_EMAILS?: string;
   /** Python media service (narrated videos) on Cloudflare Containers. */
   MEDIA?: DurableObjectNamespace<MediaContainer>;
   MEDIA_URL?: string;

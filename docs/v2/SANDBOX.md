@@ -1,6 +1,6 @@
 # Self-hosted homework sandbox (plan)
 
-Status: **phases 1-2 done (2026-10-24)**, phase 3 next. "Do my homework" runs in Anthropic's code-execution sandbox
+Status: **phases 1-4 built (2026-10-24)**: our sandbox runs Do my homework for rollout accounts only (`HOMEWORK_SANDBOX_EMAILS`); everyone else stays on Anthropic's. Phase 5 (OpenAI) next. "Do my homework" runs in Anthropic's code-execution sandbox
 today (see ARCHITECTURE.md → Pipelines). That stays the production path until the self-hosted
 sandbox matches it. We build the new one beside it, behind a switch, and move over in phases.
 
@@ -89,15 +89,25 @@ tools.
    - Local note: on Apple Silicon the image runs emulated and Jupyter (ZeroMQ) kernels hang, so
      that one image test is skipped there. `nbbuild.py` notebooks work.
    - No workspace-size cap besides the container's disk (the Worker controls what it uploads).
-3. **Container + `Sandbox` implementation + browser tools.** `SandboxContainer` in
-   `wrangler.jsonc` (dev + production) with internet on, the egress rules above, and a Worker-side
-   `Sandbox` that talks to the control server. Browser tools in the loop. API tests with a fake
-   container. The switch: `HOMEWORK_SANDBOX=anthropic|self` (var, default `anthropic`) plus an
-   owner-only override, so only the owner tries it in production first.
-4. **Claude driver.** `ModelDriver` for Claude with client `bash` (keeps Anthropic `web_search`
-   as a model-side tool). A driver-specific prompt section (bump `HOMEWORK_PROMPT_VERSION`), an
-   opt-in live test like `live-claude.test.ts`, then owner use in production and a comparison of
-   quality, time and cost against the Anthropic sandbox.
+3. **Container + `Sandbox` + browser. Done (2026-10-24).** `SandboxContainer`
+   (`src/sandbox-container.ts`): production only, `standard-2`, up to 4 at once, one per run
+   (`run-<uuid>`), destroyed when the run ends, internet on with a deny list (hwrk.help, cloud
+   metadata). `homework/sandbox-client.ts` is the Worker-side `Sandbox` over the control server
+   (refuses `.`/`..` paths before they reach a URL). Dev uses `SANDBOX_URL` (the image run with
+   `docker run -p 8001:8000 -e ALLOW_NO_AUTH=1 talvra-sandbox:dev`; one shared box, restart it
+   between tries). The browser is Playwright + Chromium driven from bash; the new `view_image`
+   tool lets the model see screenshots and plots (PNG/JPEG/GIF/WebP, 5 MB).
+   - Switch: `homework/agent-deps.ts` → `wantsOwnSandbox`: `HOMEWORK_SANDBOX=self` (everyone) or an
+     email in `HOMEWORK_SANDBOX_EMAILS` (rollout, set with `pnpm prod:env`). Needs `SANDBOX` or
+     `SANDBOX_URL`; otherwise Anthropic's sandbox runs.
+4. **Claude driver. Done (2026-10-24).** `ai/claude-driver.ts`: Opus 5.5, adaptive thinking at
+   `high` effort, our tools as client tools with eager input streaming, Anthropic
+   `web_search_20260209` / `web_fetch_20260209` as server tools, automatic prompt caching,
+   append-only history (thinking blocks untouched), `pause_turn` continued, cut-off calls answered
+   with errors, and server-side refusal fallback (`fallbacks: "default"`). Prompt:
+   `OWN_SANDBOX_HOMEWORK_SYSTEM`. Opt-in live test: `test/live-claude.test.ts -t "own sandbox"`
+   (Java + a plot it looks at). **Not yet run against real Claude** (needs the owner to start the
+   image locally or set the rollout email in production).
 5. **OpenAI driver.** Students' own OpenAI keys (already stored for study aids) run homework on
    our sandbox, with OpenAI web search. Add a Workers AI driver only if quality allows.
 6. **Default switch.** Self-hosted becomes the default. The Anthropic agent stays as a fallback

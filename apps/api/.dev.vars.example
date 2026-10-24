@@ -12,3 +12,7 @@ ANTHROPIC_API_KEY=
 # Optional: Azure voices for videos (Workers AI narration otherwise).
 # AZURE_SPEECH_KEY=
 # AZURE_SPEECH_REGION=
+# Optional: try our own homework sandbox locally (docs/v2/SANDBOX.md). Start the image with
+#   docker run --rm -p 8001:8000 -e ALLOW_NO_AUTH=1 talvra-sandbox:dev
+# SANDBOX_URL=http://localhost:8001
+# HOMEWORK_SANDBOX=self
