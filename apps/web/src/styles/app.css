@@ -2,81 +2,97 @@
 @import "tw-animate-css";
 /* Custom variants (data-open, data-horizontal, data-selected, …) the shadcn Base UI components rely on. */
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Talvra design tokens. Same semantic names shadcn and its registries
- * (Origin UI, Kibo UI, Dice UI, AI Elements) read, so anything we pull in
- * picks up the theme automatically. Colors are OKLCH; both themes are tuned
- * for WCAG AA contrast on text. Brand hue 255 (Morgan blue), accent 75 (orange).
+ * Talvra design tokens, from the owner's family theme (tobi-ui-theme): ink/panel/line neutrals,
+ * one accent, status colors only for status, depth from borders not shadows. Dark is the family's
+ * exact palette; light is its paper-toned sibling. Same semantic names shadcn and its registries
+ * read, so every component picks the theme up. Text pairs are checked for 4.5:1.
+ * Accent: highlighter lime (dark) / deep olive of the same hue (light, readable as text).
  */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.99 0.002 255);
-  --foreground: oklch(0.2 0.02 255);
-  --card: oklch(1 0 0);
+  --radius: 0.75rem;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --background: #f7f6f2;
+  --foreground: #14161d;
+  --soft: #3a3f4d;
+  --card: #ffffff;
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.45 0.16 258);
-  --primary-foreground: oklch(0.98 0.005 255);
-  --secondary: oklch(0.96 0.008 255);
-  --secondary-foreground: oklch(0.25 0.03 255);
-  --muted: oklch(0.96 0.006 255);
-  --muted-foreground: oklch(0.5 0.02 255);
-  --accent: oklch(0.95 0.03 75);
-  --accent-foreground: oklch(0.35 0.08 60);
-  --destructive: oklch(0.55 0.2 27);
-  /* Dark enough for 4.5:1 text on its own 10% tint (checked by axe in e2e). */
-  --success: oklch(0.47 0.12 150);
-  --warning: oklch(0.7 0.15 75);
-  --border: oklch(0.91 0.008 255);
-  --input: oklch(0.89 0.01 255);
-  --ring: oklch(0.55 0.16 258);
-  --sidebar: oklch(0.975 0.004 255);
+  --primary: #4a6310;
+  --primary-foreground: #ffffff;
+  --secondary: #efeee8;
+  --secondary-foreground: var(--foreground);
+  --muted: #efeee8;
+  --muted-foreground: #5c6273;
+  --accent: #ebeae3;
+  --accent-foreground: var(--foreground);
+  --destructive: #c2334a;
+  --success: #277350;
+  --warning: #8a6410;
+  --border: #e0ded6;
+  --input: #d6d4cb;
+  --ring: #4a6310;
+  --sidebar: #f1f0eb;
   --sidebar-foreground: var(--foreground);
   --sidebar-border: var(--border);
-  --sidebar-accent: oklch(0.94 0.012 255);
+  --sidebar-accent: color-mix(in srgb, var(--primary) 12%, transparent);
   --sidebar-accent-foreground: var(--foreground);
-  --chart-1: oklch(0.55 0.16 258);
-  --chart-2: oklch(0.7 0.15 75);
-  --chart-3: oklch(0.6 0.13 150);
-  --chart-4: oklch(0.6 0.18 330);
-  --chart-5: oklch(0.65 0.12 200);
+  --chart-1: #4a6310;
+  --chart-2: #8a6410;
+  --chart-3: #277350;
+  --chart-4: #5b6bbf;
+  --chart-5: #2f7f8f;
 }
 
 .dark {
-  --background: oklch(0.16 0.012 258);
-  --foreground: oklch(0.95 0.006 255);
-  --card: oklch(0.2 0.014 258);
+  --background: #0d0f15; /* ink */
+  --foreground: #ecebe6; /* text */
+  --soft: #c9cbd3;
+  --card: #141720; /* panel */
   --card-foreground: var(--foreground);
-  --popover: oklch(0.21 0.014 258);
+  --popover: #141720;
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.72 0.13 255);
-  --primary-foreground: oklch(0.18 0.03 258);
-  --secondary: oklch(0.26 0.016 258);
+  --primary: #c5e063; /* accent */
+  --primary-foreground: #0d0f15;
+  --secondary: #1c2030; /* panel-2 */
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.25 0.014 258);
-  --muted-foreground: oklch(0.72 0.015 255);
-  --accent: oklch(0.32 0.05 70);
-  --accent-foreground: oklch(0.92 0.05 80);
-  --destructive: oklch(0.68 0.18 25);
-  --success: oklch(0.72 0.14 150);
-  --warning: oklch(0.8 0.14 80);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.72 0.13 255);
-  --sidebar: oklch(0.18 0.013 258);
+  --muted: #1c2030;
+  --muted-foreground: #8d94a6;
+  --accent: #1c2030;
+  --accent-foreground: var(--foreground);
+  --destructive: #e0697a; /* stop */
+  --success: #4cc08a; /* ok */
+  --warning: #d6a53a; /* warn */
+  --border: #2a2f40; /* line */
+  --input: #2a2f40;
+  --ring: #c5e063;
+  --sidebar: #141720;
   --sidebar-foreground: var(--foreground);
   --sidebar-border: var(--border);
-  --sidebar-accent: oklch(0.25 0.016 258);
+  --sidebar-accent: color-mix(in srgb, var(--primary) 14%, transparent);
   --sidebar-accent-foreground: var(--foreground);
+  --chart-1: #c5e063;
+  --chart-2: #d6a53a;
+  --chart-3: #4cc08a;
+  --chart-4: #8f9dff;
+  --chart-5: #5fc8d8;
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-soft: var(--soft);
+  --ease-out-soft: var(--ease);
+  --animate-rise: rise 0.5s var(--ease) both;
+  --animate-fade: fade 0.5s var(--ease) both;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -111,6 +127,25 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 
 @layer base {
@@ -119,6 +154,20 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  /* Numbers line up in tables, stats and timers. */
+  table,
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
   @media (prefers-reduced-motion: reduce) {
     *,
