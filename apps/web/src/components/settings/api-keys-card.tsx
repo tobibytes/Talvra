@@ -1,9 +1,9 @@
 import type { ApiKey, CreatedApiKey } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { IconTile } from "@/components/blocks";
+import { Check, Copy, KeyRound, Plus, Trash2 } from "@/components/icons";
 import { ErrorState } from "@/components/page";
 import { TileRow } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";

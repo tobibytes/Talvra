@@ -5,8 +5,8 @@ import { useRender } from "@base-ui/react/use-render";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { Command as CommandPrimitive } from "cmdk";
-import { Check, ChevronDown, SearchIcon } from "lucide-react";
 import * as React from "react";
+import { Check, ChevronDown, SearchIcon } from "@/components/icons";
 
 import {
   Command,

@@ -1,5 +1,5 @@
-import { CircleAlert, RefreshCw } from "lucide-react";
 import type * as React from "react";
+import { CircleAlert, RefreshCw } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,8 +81,11 @@ export function EmptyState({
 
 /** The designed error state. Shows the request id so users can report it. */
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  // A response that doesn't match its schema throws a ZodError whose message is raw JSON.
+  const raw =
+    error instanceof Error && (error.name === "ZodError" || /^\s*[[{]/.test(error.message));
   const message =
-    error instanceof Error ? error.message : "Something went wrong. Please try again.";
+    error instanceof Error && !raw ? error.message : "Something went wrong. Please try again.";
   const requestId = error instanceof ApiRequestError ? error.requestId : undefined;
   return (
     <Alert variant="destructive">

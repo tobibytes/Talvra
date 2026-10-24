@@ -1,7 +1,7 @@
 import type { HomeworkItem, HomeworkStatus } from "@talvra/contracts";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
 import { StatusPill } from "@/components/blocks";
+import { ChevronRight } from "@/components/icons";
 import { courseLabel } from "@/lib/course-label";
 import { dateTime, relativeTime } from "@/lib/time";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,10 @@
 import type { AskSource, SearchHit, TitleMatch } from "@talvra/contracts";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { z } from "zod";
+import { Eyebrow, IconTile, SectionLabel } from "@/components/blocks";
+import { Markdown, slugify } from "@/components/document/markdown";
 import {
   ArrowUp,
   BookOpen,
@@ -12,11 +16,7 @@ import {
   Search as SearchIcon,
   Sparkles,
   Square,
-} from "lucide-react";
-import * as React from "react";
-import { z } from "zod";
-import { Eyebrow, IconTile, SectionLabel } from "@/components/blocks";
-import { Markdown, slugify } from "@/components/document/markdown";
+} from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { anchorLabel, Highlighted } from "@/components/search/highlight";
 import { Button } from "@/components/ui/button";

@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { toast } from "sonner";
+import { IconTile, StatusPill } from "@/components/blocks";
+import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
+import { CoursePicker } from "@/components/canvas/course-picker";
 import {
   BellRing,
   ChevronRight,
@@ -10,12 +15,7 @@ import {
   RefreshCw,
   Smartphone,
   Trash2,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { IconTile, StatusPill } from "@/components/blocks";
-import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
-import { CoursePicker } from "@/components/canvas/course-picker";
+} from "@/components/icons";
 import { PageHeader } from "@/components/page";
 import { AiCard } from "@/components/settings/ai-card";
 import { ApiKeysCard } from "@/components/settings/api-keys-card";

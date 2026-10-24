@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarCheck, GraduationCap, Layers, MessageCircleQuestion } from "lucide-react";
 import type * as React from "react";
 import { IconTile } from "@/components/blocks";
+import { CalendarCheck, GraduationCap, Layers, MessageCircleQuestion } from "@/components/icons";
 import { Card } from "@/components/ui/card";
 
 /** The one allowed decorative gradient: a soft accent glow from the top-left corner. */

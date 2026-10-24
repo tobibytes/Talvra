@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, LoaderCircle, LogOut } from "lucide-react";
 import * as React from "react";
 import { BrandMark, heroGlow } from "@/components/auth/auth-card";
 import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
 import { CoursePicker } from "@/components/canvas/course-picker";
+import { CircleCheck, LoaderCircle, LogOut } from "@/components/icons";
 import { SyncProgress } from "@/components/sync/sync-progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

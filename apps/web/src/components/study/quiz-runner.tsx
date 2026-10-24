@@ -1,7 +1,7 @@
 import type { Anchor, Quiz } from "@talvra/contracts";
-import { RotateCcw } from "lucide-react";
 import * as React from "react";
 import { StatusPill } from "@/components/blocks";
+import { RotateCcw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";

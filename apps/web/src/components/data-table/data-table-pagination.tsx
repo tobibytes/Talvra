@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactTable, RowData } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import * as React from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useDirection } from "@/components/ui/direction";
 import {

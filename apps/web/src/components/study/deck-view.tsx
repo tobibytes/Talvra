@@ -1,7 +1,7 @@
 import type { Anchor, FlashcardSet } from "@talvra/contracts";
 import { Link } from "@tanstack/react-router";
-import { Layers } from "lucide-react";
 import { IconTile } from "@/components/blocks";
+import { Layers } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { plural } from "@/lib/time";
 import { Cites } from "./cite";

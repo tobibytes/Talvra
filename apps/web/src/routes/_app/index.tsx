@@ -1,9 +1,9 @@
 import type { HomeworkItem, Today as TodayData } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarCheck, FileText, PartyPopper } from "lucide-react";
 import { IconTile, SectionLabel, StatTile } from "@/components/blocks";
 import { HomeworkRow } from "@/components/homework/homework-row";
+import { CalendarCheck, FileText, PartyPopper } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncStatusCard } from "@/components/sync/sync-status-card";
 import { Button } from "@/components/ui/button";

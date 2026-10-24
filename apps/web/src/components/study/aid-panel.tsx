@@ -1,5 +1,7 @@
 import type { AidSlot, StudyAid, StudyAidKind } from "@talvra/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as React from "react";
+import { toast } from "sonner";
 import {
   CircleAlert,
   Layers,
@@ -8,9 +10,7 @@ import {
   NotebookText,
   RefreshCw,
   Sparkles,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
+} from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

@@ -1,9 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, MessageCircleQuestion } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
 import { slugify } from "@/components/document/markdown";
+import { FileText, MessageCircleQuestion } from "@/components/icons";
 import { anchorLabel } from "@/components/search/highlight";
 import { themes } from "@/components/theme";
 import {

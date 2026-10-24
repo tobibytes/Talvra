@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CircleAlert, Clapperboard, LoaderCircle, NotebookPen, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import {
+  CircleAlert,
+  Clapperboard,
+  LoaderCircle,
+  NotebookPen,
+  RefreshCw,
+} from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

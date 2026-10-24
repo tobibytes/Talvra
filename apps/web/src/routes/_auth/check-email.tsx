@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { MailCheck } from "lucide-react";
 import * as React from "react";
 import { z } from "zod";
 import { AuthCard } from "@/components/auth/auth-card";
+import { MailCheck } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { authClient, authErrorMessage } from "@/lib/auth";
 

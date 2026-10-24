@@ -1,5 +1,5 @@
-import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
+import { Eye, EyeOff } from "@/components/icons";
 import {
   InputGroup,
   InputGroupAddon,

@@ -1,11 +1,11 @@
 import type { Flashcard } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CircleCheck, LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { StatTile } from "@/components/blocks";
+import { CircleCheck, LoaderCircle } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { ReviewCard } from "@/components/study/flashcard";
 import { Button } from "@/components/ui/button";

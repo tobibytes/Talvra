@@ -1,10 +1,10 @@
 import { REMINDER_OFFSETS, type ReminderPrefs } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, BellOff, Check, LoaderCircle, Mail, Send } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { IconTile, SectionLabel, StatusPill } from "@/components/blocks";
+import { Bell, BellOff, Check, LoaderCircle, Mail, Send } from "@/components/icons";
 import { ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { Facts } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";

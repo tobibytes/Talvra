@@ -1,8 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { GraduationCap, Search } from "lucide-react";
 import type * as React from "react";
 import { ApiStatus } from "@/components/api-status";
 import { CommandPaletteProvider, useCommandPalette } from "@/components/command-palette";
+import { GraduationCap, Search } from "@/components/icons";
 import { ThemeMenu } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";

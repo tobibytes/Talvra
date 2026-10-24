@@ -1,6 +1,12 @@
 import type { Anchor, DocSection, DocumentDetail } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import * as React from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { kindOf } from "@/components/course/files-table";
+import { Markdown, slugify } from "@/components/document/markdown";
+import { DocumentStatusBadge, isProcessing } from "@/components/document/status";
 import {
   BookOpen,
   CircleAlert,
@@ -17,13 +23,7 @@ import {
   ScanText,
   SearchX,
   Trash2,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { z } from "zod";
-import { kindOf } from "@/components/course/files-table";
-import { Markdown, slugify } from "@/components/document/markdown";
-import { DocumentStatusBadge, isProcessing } from "@/components/document/status";
+} from "@/components/icons";
 import { EmptyState, ErrorState, PageHeader } from "@/components/page";
 import { AidPanel } from "@/components/study/aid-panel";
 import { DeckView } from "@/components/study/deck-view";

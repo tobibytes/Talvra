@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router";
-import { MapPinOff } from "lucide-react";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
+import { MapPinOff } from "@/components/icons";
 import { EmptyState } from "@/components/page";
 import { Button } from "@/components/ui/button";
 

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, ChevronRight, FileText } from "lucide-react";
 import { IconTile, SectionLabel, StatusPill } from "@/components/blocks";
 import { DocumentStatusBadge } from "@/components/document/status";
 import { UploadButton } from "@/components/document/upload-dialog";
+import { BookOpen, ChevronRight, FileText } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
 import { Button } from "@/components/ui/button";

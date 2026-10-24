@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthCard } from "@/components/auth/auth-card";
 import { PasswordInput } from "@/components/auth/password-input";
+import { LoaderCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { authClient, authErrorMessage } from "@/lib/auth";

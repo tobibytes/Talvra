@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/components/icons";
 import {
   BellRing,
   BookOpen,
@@ -7,7 +7,7 @@ import {
   Layers,
   Search,
   Settings,
-} from "lucide-react";
+} from "@/components/icons";
 
 export type NavItem = {
   to: "/" | "/courses" | "/review" | "/homework" | "/search" | "/reminders" | "/settings";

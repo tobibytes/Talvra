@@ -1,10 +1,10 @@
 import type { HomeworkItem } from "@talvra/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ClipboardCheck, ClipboardList } from "lucide-react";
 import { z } from "zod";
 import { SectionLabel } from "@/components/blocks";
 import { HomeworkRow } from "@/components/homework/homework-row";
+import { ClipboardCheck, ClipboardList } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

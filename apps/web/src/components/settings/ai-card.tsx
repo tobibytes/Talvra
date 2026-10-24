@@ -1,9 +1,9 @@
 import type { AiModelList, AiProvider, AiSettings } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, KeyRound, LoaderCircle, Sparkles } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { IconTile, StatusPill } from "@/components/blocks";
+import { ExternalLink, KeyRound, LoaderCircle, Sparkles } from "@/components/icons";
 import { ErrorState } from "@/components/page";
 import { Facts, TileRow } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";

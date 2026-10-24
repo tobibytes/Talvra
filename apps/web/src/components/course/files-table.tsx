@@ -1,12 +1,12 @@
 import type { CourseDocument } from "@talvra/contracts";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileText, FolderOpen, NotebookText } from "lucide-react";
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { DocumentStatusBadge } from "@/components/document/status";
+import { FileText, FolderOpen, NotebookText } from "@/components/icons";
 import { EmptyState } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { useDataTable } from "@/hooks/use-data-table";

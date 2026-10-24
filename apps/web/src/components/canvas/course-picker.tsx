@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, LoaderCircle } from "lucide-react";
 import * as React from "react";
+import { BookOpen, LoaderCircle } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

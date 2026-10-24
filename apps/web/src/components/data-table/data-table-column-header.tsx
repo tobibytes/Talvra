@@ -7,8 +7,8 @@ import {
   type SortingState,
   Subscribe,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronsUpDown, ChevronUp, EyeOff } from "lucide-react";
 import type * as React from "react";
+import { ChevronDown, ChevronsUpDown, ChevronUp, EyeOff } from "@/components/icons";
 import { useDirection } from "@/components/ui/direction";
 import {
   DropdownMenu,

@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ExternalLink, GraduationCap, SearchX } from "lucide-react";
 import { z } from "zod";
 import { StatusPill } from "@/components/blocks";
 import { AssignmentsTable } from "@/components/course/assignments-table";
 import { FilesTable } from "@/components/course/files-table";
 import { ModulesTab } from "@/components/course/modules-tab";
 import { UploadButton } from "@/components/document/upload-dialog";
+import { ExternalLink, GraduationCap, SearchX } from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { SyncNowButton } from "@/components/sync/sync-status-card";
 import {

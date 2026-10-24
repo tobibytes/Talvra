@@ -11,7 +11,7 @@ import {
   NotebookText,
   PencilRuler,
   Wrench,
-} from "lucide-react";
+} from "@/components/icons";
 import { EmptyState } from "@/components/page";
 import { Badge } from "@/components/ui/badge";
 import { plural } from "@/lib/time";

@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { StatusPill } from "@/components/blocks";
+import { CircleAlert, LoaderCircle, RefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,

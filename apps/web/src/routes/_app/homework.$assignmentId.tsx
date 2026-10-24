@@ -7,6 +7,12 @@ import type {
 } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { toast } from "sonner";
+import { StatusPill } from "@/components/blocks";
+import { Markdown, slugify } from "@/components/document/markdown";
+import { DoHomeworkCard } from "@/components/homework/do-homework-card";
+import { dueText, HomeworkStatusBadge } from "@/components/homework/homework-row";
 import {
   ArrowDown,
   ArrowUp,
@@ -20,13 +26,7 @@ import {
   SearchX,
   Sparkles,
   Trash2,
-} from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
-import { StatusPill } from "@/components/blocks";
-import { Markdown, slugify } from "@/components/document/markdown";
-import { DoHomeworkCard } from "@/components/homework/do-homework-card";
-import { dueText, HomeworkStatusBadge } from "@/components/homework/homework-row";
+} from "@/components/icons";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
 import { anchorLabel, Highlighted } from "@/components/search/highlight";
 import { Badge } from "@/components/ui/badge";
