@@ -1,0 +1,20 @@
+/* The review card turns over when the answer shows. Off under reduced motion. */
+@keyframes talvra-card-turn {
+  from {
+    opacity: 0.4;
+    transform: perspective(1200px) rotateY(-80deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0);
+  }
+}
+.talvra-card-turn {
+  animation: talvra-card-turn 0.45s var(--ease) both;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .talvra-card-turn {
+    animation: none;
+  }
+}

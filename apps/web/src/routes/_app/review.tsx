@@ -5,9 +5,10 @@ import { CircleCheck, LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { StatTile } from "@/components/blocks";
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from "@/components/page";
+import { ReviewCard } from "@/components/study/flashcard";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
@@ -22,22 +23,35 @@ export const Route = createFileRoute("/_app/review")({
   component: Review,
 });
 
+/** Ratings, worst to best. Color follows how well you knew it (dot + word, never color alone). */
 const grades = [
   {
     rating: 1,
     label: "Again",
     hint: "Didn't know it",
-    className: "border-destructive/40 hover:bg-destructive/10",
+    className: "border-destructive/35 text-destructive hover:bg-destructive/10",
   },
-  { rating: 2, label: "Hard", hint: "Barely", className: "border-warning/50 hover:bg-warning/10" },
-  { rating: 3, label: "Good", hint: "Got it", className: "border-success/40 hover:bg-success/10" },
+  {
+    rating: 2,
+    label: "Hard",
+    hint: "Barely",
+    className: "border-warning/40 text-warning hover:bg-warning/10",
+  },
+  {
+    rating: 3,
+    label: "Good",
+    hint: "Got it",
+    className: "border-success/35 text-success hover:bg-success/10",
+  },
   {
     rating: 4,
     label: "Easy",
     hint: "Instantly",
-    className: "border-primary/40 hover:bg-primary/10",
+    className: "border-primary/35 text-primary hover:bg-primary/10",
   },
 ] as const;
+
+const pad = (n: number) => String(n).padStart(2, "0");
 
 function Review() {
   const search = Route.useSearch();
@@ -85,14 +99,15 @@ function Review() {
   }, [card, flipped, grade]);
 
   const scope = search.documentId
-    ? "this document"
+    ? "This document"
     : search.courseId
-      ? "this course"
-      : "all your courses";
+      ? "This course"
+      : "All courses";
+  const again = done.filter((d) => d.rating === 1).length;
 
   return (
     <>
-      <PageHeader title="Review" description={`Cards due from ${scope}.`} />
+      <PageHeader eyebrow={scope} title="Review" />
       {due.isPending ? (
         <ListSkeleton rows={2} />
       ) : due.isError ? (
@@ -105,31 +120,52 @@ function Review() {
           action={<Button render={<Link to="/courses" />}>Find something to study</Button>}
         />
       ) : !card ? (
-        <Card className="mx-auto max-w-lg items-center gap-4 p-8 text-center">
-          <CircleCheck className="size-10 text-success" aria-hidden />
-          <h2 className="text-xl font-semibold">Session done</h2>
-          <p className="text-sm text-muted-foreground">
-            You reviewed {done.length} {done.length === 1 ? "card" : "cards"}.{" "}
-            {done.filter((d) => d.rating === 1).length
-              ? `${done.filter((d) => d.rating === 1).length} will come back soon.`
-              : "Nice work."}
+        <section
+          aria-labelledby="done-heading"
+          className="relative mx-auto max-w-2xl animate-rise space-y-6 overflow-hidden rounded-2xl border bg-card p-6 sm:p-10"
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_0_0,color-mix(in_srgb,var(--success)_14%,transparent),transparent_60%)]"
+          />
+          <div className="relative flex items-center gap-3">
+            <CircleCheck className="size-8 text-success" aria-hidden />
+            <h2 id="done-heading" className="font-display text-3xl font-extrabold tracking-tight">
+              Session done
+            </h2>
+          </div>
+          <p className="relative text-soft">
+            {again ? `${again} will come back soon.` : "Nice work. Everything's scheduled."}
           </p>
-          <Button variant="outline" render={<Link to="/" />}>
+          <div className="relative grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatTile label="Reviewed" value={done.length} />
+            <StatTile index={1} label="Again" value={again} tone={again ? "warn" : "neutral"} />
+            <StatTile
+              index={2}
+              label="Next back"
+              value={
+                <span className="text-xl">
+                  {relativeTime(done.map((d) => d.next).sort()[0] ?? new Date())}
+                </span>
+              }
+            />
+          </div>
+          <Button className="relative" variant="secondary" render={<Link to="/" />}>
             Back to Today
           </Button>
-        </Card>
+        </section>
       ) : (
         <div className="mx-auto max-w-2xl space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>
-                Card {index + 1} of {cards.length}
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-4 text-sm">
+              <span className="font-mono text-xs text-muted-foreground" data-numeric>
+                <span className="text-foreground">{pad(index + 1)}</span> / {pad(cards.length)}
               </span>
               <Link
                 to="/documents/$documentId"
                 params={{ documentId: card.documentId }}
                 search={{ tab: "read" }}
-                className="truncate underline-offset-4 hover:underline"
+                className="truncate text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 {card.documentTitle}
               </Link>
@@ -137,46 +173,45 @@ function Review() {
             <Progress value={(index / cards.length) * 100} aria-label="Review progress" />
           </div>
 
-          <Card className="min-h-64 gap-6 p-6 sm:p-8">
-            <div className="space-y-1">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {card.state === "new" ? "New card" : `Reviewed ${card.reps}×`}
-              </p>
-              <h2 className="text-xl font-medium leading-snug">{card.front}</h2>
-            </div>
-            <div aria-live="polite">
-              {flipped ? (
-                <p className="border-t pt-6 text-lg leading-relaxed">{card.back}</p>
-              ) : null}
-            </div>
-          </Card>
+          <ReviewCard
+            key={`${card.id}-${flipped}`}
+            eyebrow={card.state === "new" ? "New card" : `Reviewed ${card.reps}×`}
+            front={card.front}
+            back={flipped ? card.back : undefined}
+          />
 
           {!flipped ? (
             <Button className="w-full" size="lg" onClick={() => setFlipped(true)}>
               Show answer <Kbd className="ms-2 hidden sm:inline-flex">Space</Kbd>
             </Button>
           ) : (
-            <fieldset className="space-y-2">
-              <legend className="mb-2 w-full text-center text-sm text-muted-foreground">
+            <fieldset className="animate-rise space-y-2">
+              <legend className="mb-2 w-full text-center font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
                 How well did you know it?
               </legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {grades.map((g) => (
-                  <Button
+                  <button
+                    type="button"
                     key={g.rating}
-                    variant="outline"
-                    className={cn("h-auto flex-col gap-0.5 py-3", g.className)}
+                    className={cn(
+                      "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl border bg-card px-3 py-2.5 transition-colors duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-45",
+                      g.className,
+                    )}
                     disabled={grade.isPending}
                     onClick={() => grade.mutate({ id: card.id, rating: g.rating })}
                   >
-                    <span className="font-medium">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold">
                       {grade.isPending && grade.variables?.rating === g.rating ? (
-                        <LoaderCircle className="animate-spin" aria-hidden />
-                      ) : null}
-                      {g.label} <Kbd className="ms-1 hidden sm:inline-flex">{g.rating}</Kbd>
+                        <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                      )}
+                      {g.label}
+                      <Kbd className="ms-0.5 hidden sm:inline-flex">{g.rating}</Kbd>
                     </span>
-                    <span className="text-xs font-normal text-muted-foreground">{g.hint}</span>
-                  </Button>
+                    <span className="text-xs text-muted-foreground">{g.hint}</span>
+                  </button>
                 ))}
               </div>
             </fieldset>

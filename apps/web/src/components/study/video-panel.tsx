@@ -52,16 +52,23 @@ export function VideoPanel({ documentId }: { documentId: string }) {
   }
   if (video?.status === "queued" || video?.status === "rendering" || make.isPending) {
     return (
-      <Card className="mx-auto max-w-lg items-center gap-3 p-8 text-center">
-        <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden />
-        <p className="text-sm" role="status" aria-live="polite">
-          {video?.status === "rendering"
-            ? "Recording narration and building slides…"
-            : "Getting started…"}
-          <span className="mt-1 block text-xs text-muted-foreground">
-            A few minutes at most. You can leave; it'll be here when you're back.
+      <Card className="mx-auto max-w-lg gap-5 p-8">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-primary/14 text-primary">
+            <LoaderCircle className="size-5 animate-spin" aria-hidden />
           </span>
-        </p>
+          <p className="text-sm" role="status" aria-live="polite">
+            <span className="font-semibold">
+              {video?.status === "rendering"
+                ? "Recording narration and building slides…"
+                : "Getting started…"}
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              A few minutes at most. It'll be here when you're back.
+            </span>
+          </p>
+        </div>
+        <div aria-hidden className="aspect-video w-full animate-pulse rounded-xl bg-secondary" />
       </Card>
     );
   }
@@ -71,7 +78,7 @@ export function VideoPanel({ documentId }: { documentId: string }) {
         <video
           controls
           preload="metadata"
-          className="aspect-video w-full rounded-xl border bg-black"
+          className="aspect-video w-full rounded-2xl border bg-black"
           src={api.videoStreamUrl(video.id)}
         >
           <track
@@ -83,7 +90,7 @@ export function VideoPanel({ documentId }: { documentId: string }) {
           />
         </video>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span className="flex flex-wrap gap-x-3">
+          <span className="flex flex-wrap gap-x-3 font-mono" data-numeric>
             {video.durationSeconds ? <span>{clock(video.durationSeconds)}</span> : null}
             <span>Made {relativeTime(video.updatedAt)}</span>
           </span>
@@ -95,23 +102,27 @@ export function VideoPanel({ documentId }: { documentId: string }) {
     );
   }
   return (
-    <Card className="mx-auto max-w-lg items-center gap-4 p-8 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Clapperboard className="size-6" aria-hidden />
+    <Card className="relative mx-auto max-w-lg items-center gap-4 overflow-hidden p-8 text-center sm:p-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_0_0,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_60%)]"
+      />
+      <span className="relative grid size-14 place-items-center rounded-2xl bg-primary/14 text-primary">
+        <Clapperboard className="size-7" aria-hidden />
       </span>
-      <div className="space-y-1">
-        <h2 className="font-semibold">Watch it as a short video</h2>
+      <div className="relative space-y-1">
+        <h2 className="text-xl font-bold">Watch it as a short video</h2>
         <p className="text-sm text-muted-foreground">
-          A narrated slideshow of your notes, with captions. Good for a quick review on the go.
+          A narrated slideshow of your notes, with captions.
         </p>
       </div>
       {video?.status === "failed" ? (
-        <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+        <p role="alert" className="relative flex items-center gap-2 text-sm text-destructive">
           <CircleAlert className="size-4" aria-hidden />{" "}
           {video.error ?? "The last try didn't work."}
         </p>
       ) : null}
-      <Button onClick={() => make.mutate()}>
+      <Button size="lg" className="relative" onClick={() => make.mutate()}>
         <Clapperboard /> {video?.status === "failed" ? "Try again" : "Make a video"}
       </Button>
     </Card>

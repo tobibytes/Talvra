@@ -1,6 +1,7 @@
 import type { Anchor, Quiz } from "@talvra/contracts";
-import { CircleCheck, CircleX, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import * as React from "react";
+import { StatusPill } from "@/components/blocks";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -9,6 +10,34 @@ import { cn } from "@/lib/utils";
 import { Cites } from "./cite";
 
 type Result = "right" | "wrong";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** The score as a ring: lime when perfect, otherwise neutral. Decorative (the heading says it). */
+function ScoreRing({ right, total }: { right: number; total: number }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const pct = total ? right / total : 0;
+  return (
+    <svg viewBox="0 0 80 80" className="size-24 -rotate-90" aria-hidden>
+      <circle cx="40" cy="40" r={r} fill="none" strokeWidth="6" className="stroke-secondary" />
+      <circle
+        cx="40"
+        cy="40"
+        r={r}
+        fill="none"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - pct)}
+        className={cn(
+          "transition-[stroke-dashoffset] duration-700 ease-(--ease)",
+          pct === 1 ? "stroke-primary" : "stroke-foreground/70",
+        )}
+      />
+    </svg>
+  );
+}
 
 /** One question at a time, instant feedback with an explanation. Practice only. */
 export function QuizRunner({
@@ -41,8 +70,14 @@ export function QuizRunner({
   if (!q) {
     const right = results.filter((r) => r === "right").length;
     return (
-      <Card className="mx-auto max-w-lg items-center gap-4 p-8 text-center">
-        <h2 className="text-xl font-semibold">
+      <Card className="mx-auto max-w-lg animate-rise items-center gap-4 p-8 text-center">
+        <div className="relative grid place-items-center">
+          <ScoreRing right={right} total={total} />
+          <span aria-hidden className="absolute font-display text-2xl font-extrabold" data-numeric>
+            {Math.round((right / total) * 100)}%
+          </span>
+        </div>
+        <h2 className="text-2xl font-extrabold tracking-tight">
           {right} of {total} right
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -68,17 +103,26 @@ export function QuizRunner({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>
-            Question {index + 1} of {total}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono text-xs text-muted-foreground" data-numeric>
+            <span className="sr-only">
+              Question {index + 1} of {total}
+            </span>
+            <span aria-hidden>
+              Q <span className="text-foreground">{pad(index + 1)}</span> / {pad(total)}
+            </span>
           </span>
-          <span>Practice only, not graded</span>
+          <StatusPill>Practice only, not graded</StatusPill>
         </div>
         <Progress value={(index / total) * 100} aria-label="Quiz progress" />
       </div>
-      <Card className="gap-5 p-6">
-        <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium outline-none">
+      <Card key={index} className="animate-rise gap-5 p-6 sm:p-8">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-display text-xl leading-snug font-bold tracking-tight outline-none"
+        >
           {q.prompt}
         </h2>
         {mcq ? (
@@ -88,24 +132,40 @@ export function QuizRunner({
               <label
                 key={choice}
                 className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
-                  !revealed && "hover:bg-muted",
-                  picked === i && !revealed && "border-primary bg-primary/5",
-                  revealed && i === q.answerIndex && "border-success bg-success/10",
+                  "flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition-colors duration-150 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
+                  !revealed && "hover:bg-secondary",
+                  picked === i && !revealed && "border-primary/60 bg-primary/8",
+                  revealed && i === q.answerIndex && "border-success/40 bg-success/8",
                   revealed &&
                     picked === i &&
                     i !== q.answerIndex &&
-                    "border-destructive bg-destructive/10",
+                    "border-destructive/40 bg-destructive/8",
                 )}
               >
                 <input
                   type="radio"
                   name={`q-${index}`}
-                  className="mt-0.5 accent-[var(--primary)]"
+                  className="sr-only"
                   checked={picked === i}
                   onChange={() => setPicked(i)}
                 />
-                <span>{choice}</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "grid size-7 shrink-0 place-items-center rounded-lg border bg-background font-mono text-xs",
+                    picked === i &&
+                      !revealed &&
+                      "border-primary bg-primary text-primary-foreground",
+                  )}
+                >
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span className="flex-1">{choice}</span>
+                {revealed && i === q.answerIndex ? (
+                  <StatusPill tone="ok">Answer</StatusPill>
+                ) : revealed && picked === i ? (
+                  <StatusPill tone="stop">Your pick</StatusPill>
+                ) : null}
               </label>
             ))}
           </fieldset>
@@ -126,14 +186,15 @@ export function QuizRunner({
         )}
 
         {revealed ? (
-          <div className="space-y-2 rounded-lg bg-muted/50 p-4 text-sm" role="status">
+          <div
+            className={cn(
+              "animate-rise space-y-2 rounded-xl border-l-2 bg-secondary p-4 text-sm",
+              !mcq ? "border-l-primary" : correct ? "border-l-success" : "border-l-destructive",
+            )}
+            role="status"
+          >
             {mcq ? (
-              <p className="flex items-center gap-2 font-medium">
-                {correct ? (
-                  <CircleCheck className="size-4 text-success" aria-hidden />
-                ) : (
-                  <CircleX className="size-4 text-destructive" aria-hidden />
-                )}
+              <p className="font-semibold">
                 {correct ? "Correct." : `Not quite. The answer is: ${q.answer}`}
               </p>
             ) : (
