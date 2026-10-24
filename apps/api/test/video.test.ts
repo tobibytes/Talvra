@@ -4,6 +4,7 @@ import { createTestDb } from "@talvra/db/testing";
 import { describe, expect, it, vi } from "vitest";
 import {
   captions,
+  httpRenderer,
   type Renderer,
   renderVideo,
   type Speaker,
@@ -221,5 +222,30 @@ describe("video API", () => {
     expect((await h.request(`/api/v1/documents/${docId}/video`, { method: "POST" })).status).toBe(
       404,
     );
+  });
+});
+
+describe("media service errors", () => {
+  const slides = [{ heading: "A", bullets: [], audio: new Uint8Array([1]) }];
+  const reply = (status: number, body: unknown) => async () =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+  it("retries infrastructure failures (restarts, rollouts) with a readable message", async () => {
+    const r = httpRenderer(reply(503, { error: { message: "" } }), "http://media/render");
+    const err = await r({ title: "T", slides }).catch((e) => e);
+    expect(err).toBeInstanceOf(VideoError);
+    expect(err).toMatchObject({ retryable: true });
+    expect(err.message).toMatch(/video maker had a problem/);
+  });
+
+  it("treats the media service's own rejections as final", async () => {
+    const r = httpRenderer(
+      reply(422, { error: { message: "The video would be too long." } }),
+      "http://media/render",
+    );
+    await expect(r({ title: "T", slides })).rejects.toMatchObject({
+      retryable: false,
+      message: "The video would be too long.",
+    });
   });
 });

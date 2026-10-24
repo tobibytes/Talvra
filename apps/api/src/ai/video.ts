@@ -165,9 +165,12 @@ export function httpRenderer(
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      // Only the media service's own answers about the request are final (bad input, too
+      // long, unrenderable). Anything else is infrastructure (a restart, a rollout): retry.
+      const final = res.status === 400 || res.status === 413 || res.status === 422;
       throw new VideoError(
-        res.status >= 500,
-        body?.error?.message ?? `Media service returned ${res.status}.`,
+        !final,
+        body?.error?.message || `The video maker had a problem (${res.status}). Trying again.`,
       );
     }
     const durations = (res.headers.get("x-slide-durations") ?? "")
