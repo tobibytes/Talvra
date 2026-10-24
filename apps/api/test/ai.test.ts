@@ -19,7 +19,7 @@ import {
   openAiTransport,
 } from "../src/ai/compat.js";
 import { type ImplFactory, LIMITS, type ModelRef, pickAi } from "../src/ai/resolve.js";
-import { tidyScript } from "../src/ai/video.js";
+import { NARRATION_WORDS, tidyScript } from "../src/ai/video.js";
 import { encryptSecret } from "../src/lib/crypto.js";
 import { env, harness, signedInUser } from "./helpers.js";
 
@@ -364,6 +364,16 @@ describe("video scripts", () => {
     expect(slides[0]?.bullets).toEqual(["a", "b", "c", "d"]);
     expect(slides[0]?.narration.length).toBeLessThanOrEqual(1000);
     expect(() => tidyScript([{ heading: "x", bullets: [], narration: "y" }])).toThrow();
+    // The whole video stays within the narration budget, cut at sentence ends.
+    const words = (s: { narration: string }[]) =>
+      s.reduce((n, x) => n + x.narration.split(" ").length, 0);
+    expect(words(slides)).toBeLessThanOrEqual(NARRATION_WORDS);
+    const sentence = "This is a sentence about stacks. ".repeat(40).trim();
+    const trimmed = tidyScript(
+      Array.from({ length: 8 }, (_, i) => ({ heading: `S${i}`, bullets: [], narration: sentence })),
+    );
+    expect(words(trimmed)).toBeLessThanOrEqual(NARRATION_WORDS);
+    expect(trimmed.every((s) => s.narration.endsWith("stacks."))).toBe(true);
   });
 
   it("is a GenerationError when nothing usable came back", () => {
