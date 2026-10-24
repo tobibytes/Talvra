@@ -17,6 +17,7 @@ import { ConnectCanvasForm } from "@/components/canvas/connect-canvas-form";
 import { CoursePicker } from "@/components/canvas/course-picker";
 import { PageHeader } from "@/components/page";
 import { AiCard } from "@/components/settings/ai-card";
+import { ApiKeysCard } from "@/components/settings/api-keys-card";
 import { SyncStatusCard } from "@/components/sync/sync-status-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ function Settings() {
         <CanvasCard />
         {me.data?.canvas ? <SyncStatusCard /> : null}
         <AiCard />
+        <ApiKeysCard />
         <SessionsCard />
         <DataCard />
         {/* Reminders isn't in the mobile tab bar, so link it here. */}

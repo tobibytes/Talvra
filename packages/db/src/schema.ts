@@ -167,6 +167,24 @@ export const aiSettings = pgTable(
   (t) => [uniqueIndex("ai_settings_user_idx").on(t.userId)],
 );
 
+/**
+ * Personal API keys for the MCP server (/api/mcp). Only the SHA-256 hash is kept; the key is
+ * shown once when made. Revoking deletes the row.
+ */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: id(),
+    userId: owner(),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(),
+    keyLast4: text("key_last4").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("api_keys_hash_idx").on(t.keyHash), index("api_keys_user_idx").on(t.userId)],
+);
+
 export const courses = pgTable(
   "courses",
   {

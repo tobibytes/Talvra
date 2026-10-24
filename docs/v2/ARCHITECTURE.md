@@ -150,6 +150,15 @@ Schema change: edit `packages/db/src/schema.ts`, then `pnpm db:generate --name <
 Production secrets live in `apps/api/.prod.vars` (gitignored, written by `pnpm prod:env`, which
 also checks them against the database, Anthropic and Resend).
 
+## MCP server
+
+`/api/mcp` serves MCP (Streamable HTTP, stateless) for Claude and other clients. Personal API
+keys (Settings) are the only auth, sent as `Authorization: Bearer tlv_…`; only their SHA-256
+hash is stored. Each tool calls an `/api/v1` route in-process as the key's owner, so per-user
+scoping and rate limits are the app's own. Course material in tool results is data from Canvas,
+which the server's instructions say. Code: `apps/api/src/mcp/server.ts`, keys in
+`lib/api-keys.ts` and `routes/api-keys.ts`.
+
 ## Deploying
 
 One-time resources (already created for hwrk.help): Workers Paid plan, Neon + Hyperdrive

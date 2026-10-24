@@ -53,8 +53,14 @@ export async function harness(
     db,
     emails,
     request,
+    /** Signs the jar out; returns the old cookies for restoreCookies. */
     clearCookies: () => {
+      const saved = cookies;
       cookies = new Map();
+      return saved;
+    },
+    restoreCookies: (saved: Map<string, string>) => {
+      cookies = saved;
     },
     /** Path + query of the first link in the newest email. */
     lastEmailLink() {

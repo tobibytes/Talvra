@@ -76,6 +76,9 @@ Without `RESEND_API_KEY`, verification/reset emails are printed in the Wrangler 
   calls. Tests fake models with `fakeImpls`; `test/live-claude.test.ts` is the opt-in real smoke
   test. Bump `PROMPT_VERSION` / `HOMEWORK_PROMPT_VERSION` when prompts change.
 - **Students' AI keys** are encrypted like Canvas tokens and never returned (last 4 only).
+- **MCP** (`/api/mcp`, `src/mcp/server.ts`): personal API keys only (hashed, never the session
+  cookie). New tools call existing `/api/v1` routes through the in-process `call`, never the
+  database directly, so scoping and limits stay in one place.
 - **Homework**: "Do my homework" is available to every signed-in account. It completes
   assignments in Anthropic's sandbox and lets the account holder download or submit the files.
   No email allowlist or academic-integrity gate applies to this feature. Keep every assignment,

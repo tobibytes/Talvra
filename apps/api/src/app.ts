@@ -5,14 +5,17 @@ import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "./auth.js";
 import { type AppEnv, allowedDomains, isAllowedEmail } from "./env.js";
+import { userForApiKey } from "./lib/api-keys.js";
 import type { Fetch } from "./lib/canvas.js";
 import { emailSender, type SendEmail } from "./lib/email.js";
 import { AppError, fromZod, sendError } from "./lib/errors.js";
+import { type ApiCall, handleMcp } from "./mcp/server.js";
 import { sameOrigin } from "./middleware/csrf.js";
 import { type Limiters, rateLimit } from "./middleware/rate-limit.js";
 import { requestId } from "./middleware/request-id.js";
 import { accountRoutes } from "./routes/account.js";
 import { type AiRoutesOptions, aiRoutes } from "./routes/ai.js";
+import { apiKeyRoutes } from "./routes/api-keys.js";
 import { canvasRoutes } from "./routes/canvas.js";
 import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
@@ -52,6 +55,12 @@ export type AppOptions = {
   /** Tests stub provider model listings (key checks). */
   ai?: AiRoutesOptions;
 };
+
+/**
+ * MCP tools call the /api/v1 routes in-process as the key's owner. The user rides on `env` under
+ * a Symbol: nothing outside this module (a request, a header, wrangler config) can set it.
+ */
+const AS_USER = Symbol("talvra.mcp.user");
 
 /**
  * The API lives under /api on the same origin as the web app (the Worker also
@@ -116,7 +125,10 @@ export function createApp(opts: AppOptions = {}) {
 
   // Everyone else: resolve the session (if any) once per request.
   app.use("*", async (c, next) => {
-    if (opts.userId) {
+    const internalUser = (c.env as unknown as Record<symbol, string | undefined>)[AS_USER];
+    if (internalUser) {
+      c.set("userId", internalUser);
+    } else if (opts.userId) {
       c.set("userId", opts.userId);
     } else if (c.var.db && !c.req.path.startsWith("/api/auth/")) {
       const session = await authFor(c).api.getSession({ headers: c.req.raw.headers });
@@ -163,6 +175,57 @@ export function createApp(opts: AppOptions = {}) {
   app.route("/v1", videoRoutes(opts.video));
   app.route("/", unsubscribeRoutes);
   app.route("/v1", coursesRoutes);
+  app.route("/v1", apiKeyRoutes);
+
+  // MCP server: a personal API key (Bearer) only, never the session cookie, so another site
+  // can't use a signed-in browser to call it.
+  app.use("/mcp", async (c, next) => {
+    const auth = c.req.header("authorization") ?? "";
+    const key = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+    const userId = key && c.var.db ? await userForApiKey(c.var.db, key) : null;
+    if (!userId) {
+      c.header("WWW-Authenticate", 'Bearer realm="talvra"');
+      throw new AppError(
+        "unauthorized",
+        "Use a Talvra API key (Settings → API keys) as a Bearer token.",
+      );
+    }
+    c.set("userId", userId);
+    c.set("user", undefined);
+    await next();
+  });
+  app.use("/mcp", rateLimit("RL_API", "user", opts.limits));
+  app.all("/mcp", (c) => {
+    const userId = c.get("userId") as string;
+    const env = { ...c.env, [AS_USER]: userId } as AppEnv["Bindings"];
+    let ctx: Parameters<typeof app.request>[3];
+    try {
+      ctx = c.executionCtx;
+    } catch {
+      ctx = undefined; // tests have none
+    }
+    const call: ApiCall = async (method, path, body) => {
+      const res = await app.request(
+        `/api${path}`,
+        {
+          method,
+          headers: body === undefined ? {} : { "content-type": "application/json" },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        },
+        env,
+        ctx,
+      );
+      const text = await res.text();
+      let data: unknown = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null; // e.g. the Ask stream
+      }
+      return { status: res.status, data, text };
+    };
+    return handleMcp(c.req.raw, call);
+  });
   app.route("/v1", canvasRoutes(opts.canvasFetch));
 
   app.doc31("/openapi.json", (c) => ({

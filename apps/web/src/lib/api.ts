@@ -2,6 +2,7 @@ import {
   AiModelList,
   AiSettings,
   ApiError,
+  ApiKeyList,
   type AskEvent,
   AskEvent as AskEventSchema,
   type AskInput,
@@ -16,6 +17,8 @@ import {
   CourseDocumentList,
   CourseList,
   CourseModuleList,
+  type CreateApiKey,
+  CreatedApiKey,
   DocumentAids,
   DocumentContent,
   DocumentDetail,
@@ -117,6 +120,11 @@ export const api = {
     request("/v1/me/ai/models", AiModelList, { method: "POST", json: body }),
   saveAiKey: (body: SaveAiKey) => request("/v1/me/ai", AiSettings, { method: "PUT", json: body }),
   removeAiKey: () => request("/v1/me/ai", AiSettings, { method: "DELETE" }),
+  apiKeys: () => request("/v1/me/api-keys", ApiKeyList),
+  createApiKey: (body: CreateApiKey) =>
+    request("/v1/me/api-keys", CreatedApiKey, { method: "POST", json: body }),
+  revokeApiKey: (id: string) =>
+    request(`/v1/me/api-keys/${id}`, z.undefined(), { method: "DELETE" }),
   canvasCourses: () => request("/v1/canvas/courses", CanvasCourseList),
   selectCourses: (canvasIds: string[]) =>
     request("/v1/courses/selection", CourseList, { method: "PUT", json: { canvasIds } }),
