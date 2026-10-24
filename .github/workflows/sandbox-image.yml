@@ -1,0 +1,33 @@
+name: Sandbox image
+
+# Builds the homework sandbox image and runs its toolchain tests on a real amd64 host
+# (what Cloudflare runs). Only when the sandbox changes: the build takes a few minutes.
+on:
+  push:
+    branches: [main]
+    paths: ["apps/sandbox/**", "apps/api/src/ai/nbbuild.py", ".github/workflows/sandbox-image.yml"]
+  pull_request:
+    paths: ["apps/sandbox/**", "apps/api/src/ai/nbbuild.py", ".github/workflows/sandbox-image.yml"]
+
+concurrency:
+  group: sandbox-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Build and test the sandbox image
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.13"
+      - run: docker build --platform linux/amd64 -t talvra-sandbox:ci .
+      - run: docker images talvra-sandbox:ci
+      - run: uv sync --frozen
+      - run: uv run pytest tests/test_image.py -v
+        env:
+          SANDBOX_IMAGE: talvra-sandbox:ci

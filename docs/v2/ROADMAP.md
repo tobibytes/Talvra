@@ -462,4 +462,8 @@ The sandbox gets internet and a browser (Playwright + Chromium); it never holds 
   `ai/tool-loop-agent.ts` (`ModelDriver` + `Sandbox` interfaces) with fake-backed tests. Not
   wired into production; no deploy needed (the refactor ships with the next deploy, unchanged
   behaviour).
-- **Next session: phase 2**, the `apps/sandbox` image + control server with pytest and a CI job.
+- **Phase 2 done (2026-10-24):** `apps/sandbox` control server + toolchain image, unit tests in
+  CI and image tests in the `Sandbox image` workflow (real amd64). Not deployed. Details in
+  SANDBOX.md.
+- **Next: phase 3**, `SandboxContainer` + the Worker-side `Sandbox` + browser tools, behind
+  `HOMEWORK_SANDBOX` (default `anthropic`).
