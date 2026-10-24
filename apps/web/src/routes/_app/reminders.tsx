@@ -1,11 +1,12 @@
 import { REMINDER_OFFSETS, type ReminderPrefs } from "@talvra/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BellOff, Check, LoaderCircle, Mail, Send } from "lucide-react";
+import { Bell, BellOff, Check, LoaderCircle, Mail, Send } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { IconTile, SectionLabel, StatusPill } from "@/components/blocks";
 import { ErrorState, ListSkeleton, PageHeader } from "@/components/page";
-import { Badge } from "@/components/ui/badge";
+import { Facts } from "@/components/settings/section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -114,6 +115,40 @@ function Reminders() {
           </Button>
         }
       />
+      <Facts
+        className="mb-6 animate-rise bg-card lg:grid-cols-4"
+        items={[
+          {
+            label: "Email",
+            value: off ? <StatusPill>Off</StatusPill> : <StatusPill tone="ok">On</StatusPill>,
+          },
+          {
+            label: "Before due",
+            value: off
+              ? "None"
+              : prefs.offsets.length
+                ? `${prefs.offsets.length} ${prefs.offsets.length === 1 ? "reminder" : "reminders"}`
+                : "None",
+          },
+          {
+            label: "Quiet hours",
+            value: (
+              <span data-numeric>
+                {hourLabel(prefs.quietStart)} to {hourLabel(prefs.quietEnd)}
+              </span>
+            ),
+          },
+          {
+            label: "Digest",
+            value:
+              !off && prefs.digestEnabled ? (
+                <span data-numeric>Daily at {hourLabel(prefs.digestHour)}</span>
+              ) : (
+                "Off"
+              ),
+          },
+        ]}
+      />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
           <Card>
@@ -141,7 +176,11 @@ function Reminders() {
                         key={o.minutes}
                         type="button"
                         size="sm"
-                        variant={on ? "default" : "outline"}
+                        variant="outline"
+                        className={cn(
+                          on &&
+                            "border-primary/40 bg-primary/12 text-primary hover:bg-primary/20 hover:text-primary dark:border-primary/40 dark:bg-primary/12 dark:hover:bg-primary/20",
+                        )}
                         aria-pressed={on}
                         onClick={() =>
                           set({
@@ -231,32 +270,30 @@ function Reminders() {
         </div>
 
         <div className="space-y-6">
-          <section aria-labelledby="upcoming-heading" className="space-y-2">
-            <h2 id="upcoming-heading" className="font-semibold">
-              Coming up
-            </h2>
+          <section aria-labelledby="upcoming-heading" className="space-y-3">
+            <SectionLabel id="upcoming-heading">Coming up</SectionLabel>
             {off ? (
               <p className="flex items-center gap-2 rounded-xl border bg-card p-4 text-sm text-muted-foreground">
                 <BellOff className="size-4" aria-hidden /> Email reminders are off.
               </p>
             ) : upcoming.length ? (
-              <ul className="divide-y rounded-xl border bg-card">
+              <ul className="grid gap-0.5 rounded-xl border bg-card p-1.5">
                 {upcoming.map((u) => (
-                  <li
-                    key={`${u.assignmentId}-${u.offsetMinutes}`}
-                    className="space-y-0.5 p-3 text-sm"
-                  >
+                  <li key={`${u.assignmentId}-${u.offsetMinutes}`}>
                     <Link
                       to="/homework/$assignmentId"
                       params={{ assignmentId: u.assignmentId }}
-                      className="font-medium underline-offset-4 hover:underline"
+                      className="flex items-center gap-3 rounded-lg p-2 outline-none transition-colors duration-150 hover:bg-secondary focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
-                      {u.assignmentName}
+                      <IconTile icon={Bell} />
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="truncate text-sm font-semibold">{u.assignmentName}</span>
+                        <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          <span title={dateTime(u.remindAt)}>{relativeTime(u.remindAt)}</span>
+                          <span>{offsetLabel(u.offsetMinutes)}</span>
+                        </span>
+                      </span>
                     </Link>
-                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      <span title={dateTime(u.remindAt)}>{relativeTime(u.remindAt)}</span>
-                      <span>{offsetLabel(u.offsetMinutes)}</span>
-                    </p>
                   </li>
                 ))}
               </ul>
@@ -266,32 +303,24 @@ function Reminders() {
               </p>
             )}
           </section>
-          <section aria-labelledby="history-heading" className="space-y-2">
-            <h2 id="history-heading" className="font-semibold">
-              Recently sent
-            </h2>
+          <section aria-labelledby="history-heading" className="space-y-3">
+            <SectionLabel id="history-heading">Recently sent</SectionLabel>
             {history.length ? (
-              <ul className="divide-y rounded-xl border bg-card">
+              <ul className="grid gap-0.5 rounded-xl border bg-card p-1.5">
                 {history.map((n) => (
-                  <li key={n.id} className="flex items-start gap-2 p-3 text-sm">
-                    <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <li key={n.id} className="flex items-center gap-3 p-2">
+                    <IconTile icon={Mail} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate">
+                      <p className="truncate text-sm font-semibold">
                         {n.subject ?? (n.kind === "digest" ? "Daily digest" : "Reminder")}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {relativeTime(n.sentAt ?? n.scheduledFor)}
-                        {n.error ? <span className="block">{n.error}</span> : null}
+                        {n.error ? <span className="block text-destructive">{n.error}</span> : null}
                       </p>
                     </div>
-                    <Badge
-                      variant={
-                        n.status === "sent"
-                          ? "success"
-                          : n.status === "failed"
-                            ? "destructive"
-                            : "secondary"
-                      }
+                    <StatusPill
+                      tone={n.status === "sent" ? "ok" : n.status === "failed" ? "stop" : "neutral"}
                     >
                       {n.status === "sent"
                         ? "Sent"
@@ -300,7 +329,7 @@ function Reminders() {
                           : n.status === "skipped"
                             ? "Skipped"
                             : "Queued"}
-                    </Badge>
+                    </StatusPill>
                   </li>
                 ))}
               </ul>

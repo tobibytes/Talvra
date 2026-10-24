@@ -43,12 +43,14 @@ export function UserMenu() {
       <DropdownMenuTrigger
         render={<SidebarMenuButton size="lg" aria-label={`Account: ${user.name}`} />}
       >
-        <Avatar className="size-8 rounded-lg">
+        <Avatar className="size-8 rounded-[9px]">
           {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-          <AvatarFallback className="rounded-lg">{initials(user.name)}</AvatarFallback>
+          <AvatarFallback className="rounded-[9px] bg-primary/14 font-display font-extrabold text-primary">
+            {initials(user.name)}
+          </AvatarFallback>
         </Avatar>
         <span className="grid flex-1 text-left text-sm leading-tight">
-          <span className="truncate font-medium">{user.name}</span>
+          <span className="truncate font-semibold">{user.name}</span>
           <span className="truncate text-xs text-muted-foreground">{user.email}</span>
         </span>
         <ChevronsUpDown className="ml-auto size-4" />
