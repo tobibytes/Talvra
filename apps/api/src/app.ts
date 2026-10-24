@@ -12,6 +12,7 @@ import { sameOrigin } from "./middleware/csrf.js";
 import { type Limiters, rateLimit } from "./middleware/rate-limit.js";
 import { requestId } from "./middleware/request-id.js";
 import { accountRoutes } from "./routes/account.js";
+import { type AiRoutesOptions, aiRoutes } from "./routes/ai.js";
 import { canvasRoutes } from "./routes/canvas.js";
 import { configRoutes } from "./routes/config.js";
 import { coursesRoutes } from "./routes/courses.js";
@@ -48,6 +49,8 @@ export type AppOptions = {
   video?: VideoOptions;
   /** Tests inject fake rate limiters. */
   limits?: Limiters;
+  /** Tests stub provider model listings (key checks). */
+  ai?: AiRoutesOptions;
 };
 
 /**
@@ -140,11 +143,14 @@ export function createApp(opts: AppOptions = {}) {
   app.post("/v1/homework/:id/brief", heavy);
   app.post("/v1/homework/:id/plan/suggest", heavy);
   app.post("/v1/reminders/test", heavy);
+  app.post("/v1/me/ai/models", heavy);
+  app.put("/v1/me/ai", heavy);
 
   app.route("/", health);
   app.route("/", configRoutes);
   const launch = opts.launchSync ?? launchWorkflow;
   app.route("/v1", meRoutes(launch));
+  app.route("/v1", aiRoutes(opts.ai));
   app.route("/v1", accountRoutes({ files: opts.documents?.files as never }));
   app.route("/v1", syncRoutes(launch));
   app.route("/v1", documentsRoutes(opts.documents));

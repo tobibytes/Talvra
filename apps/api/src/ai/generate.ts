@@ -1,10 +1,9 @@
 import type { AidEvent, DocSection, StudyAid, StudyAidKind } from "@talvra/contracts";
 import type { Database } from "@talvra/db";
-import { and, desc, eq, gt, inArray, schema, sql } from "@talvra/db";
+import { and, desc, eq, inArray, schema } from "@talvra/db";
 import type { FileStore } from "../ingest/process.js";
 import { AppError } from "../lib/errors.js";
 import { fileKeys, sha256Hex } from "../lib/files.js";
-import { DAY, meter } from "../lib/usage.js";
 import { type AidContent, GenerationError, type Generator, SCHEMAS } from "./claude.js";
 import { anchorLabel, documentXml, PROMPT_VERSION } from "./prompts.js";
 
@@ -15,16 +14,16 @@ export type AidMessage = { userId: string; aidId: string };
 export type AidDeps = {
   db: Database;
   files: FileStore;
-  generate: Generator;
+  /** Fixed model (tests). Production picks per student and kind with `pick`. */
+  generate?: Generator;
+  pick?: (userId: string, kind: StudyAidKind) => Promise<{ generator: Generator }>;
   notify?: (userId: string, event: AidEvent) => Promise<void>;
 };
 
-/** Generations per user per rolling 24 hours (cost guard). */
+/** Generations per user per rolling 24 hours on Talvra's key (then basic mode). */
 export const DAILY_AID_LIMIT = 40;
 /** ~200k tokens of input; beyond that we'd rather say so than truncate. */
 export const MAX_INPUT_CHARS = 800_000;
-/** Input tokens per user per rolling day across all study aids (cost guard). */
-export const DAILY_INPUT_TOKENS = 3_000_000;
 export const MAX_ATTEMPTS = 3;
 /** In-flight aids older than this are treated as lost. */
 export const STUCK_AFTER_MS = 30 * 60_000;
@@ -55,6 +54,8 @@ export async function requestAid(
   db: Database,
   input: { userId: string; documentId: string; kind: StudyAidKind; regenerate?: boolean },
   enqueue: (m: AidMessage) => Promise<void>,
+  /** Refuses when no AI is available to this student today (see ai/resolve.ts). */
+  canUse: () => Promise<void> = async () => {},
 ): Promise<{ aid: StudyAid; created: boolean }> {
   const { userId, documentId, kind } = input;
   const [doc] = await db
@@ -91,20 +92,7 @@ export async function requestAid(
   if (latest?.status === "ready" && !input.regenerate)
     return { aid: toStudyAid(latest), created: false };
 
-  const [{ tokens } = { tokens: 0 }] = await db
-    .select({ tokens: sql<number>`coalesce(sum(${studyAids.inputTokens}), 0)::int` })
-    .from(studyAids)
-    .where(and(eq(studyAids.userId, userId), gt(studyAids.createdAt, new Date(Date.now() - DAY))));
-  if (tokens >= DAILY_INPUT_TOKENS) {
-    throw new AppError(
-      "rate_limited",
-      "You've made a lot of study material today. Try again tomorrow.",
-    );
-  }
-  await meter(db, userId, "aid", {
-    limit: DAILY_AID_LIMIT,
-    message: "You've made a lot of study material today. Try again tomorrow.",
-  });
+  await canUse();
 
   const [row] = await db
     .insert(studyAids)
@@ -231,7 +219,9 @@ export async function generateAid(deps: AidDeps, { userId, aidId }: AidMessage, 
     const inputSha = await sha256Hex(
       new TextEncoder().encode(`${PROMPT_VERSION}\n${xml}`).buffer as ArrayBuffer,
     );
-    const out = await deps.generate({ kind: aid.kind, documentXml: xml });
+    const generate = deps.pick ? (await deps.pick(userId, aid.kind)).generator : deps.generate;
+    if (!generate) throw new GenerationError(false, "Study tools are temporarily unavailable.");
+    const out = await generate({ kind: aid.kind, documentXml: xml });
     const content = cleanContent(aid.kind, out.content, sections);
 
     if (aid.kind === "flashcards") {
@@ -248,7 +238,8 @@ export async function generateAid(deps: AidDeps, { userId, aidId }: AidMessage, 
     });
     return "ready" as const;
   } catch (err) {
-    const retryable = err instanceof GenerationError ? err.retryable : true;
+    // Out of allowance when the job ran: say so, don't retry.
+    const retryable = err instanceof GenerationError ? err.retryable : !(err instanceof AppError);
     if (retryable && attempt < MAX_ATTEMPTS) {
       await save(deps, aid, { status: "queued" });
       throw err;
@@ -256,7 +247,7 @@ export async function generateAid(deps: AidDeps, { userId, aidId }: AidMessage, 
     await save(deps, aid, {
       status: "failed",
       error:
-        err instanceof GenerationError
+        err instanceof GenerationError || err instanceof AppError
           ? err.message
           : "Something went wrong making this. Try again in a few minutes.",
     });

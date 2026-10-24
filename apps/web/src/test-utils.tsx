@@ -237,6 +237,7 @@ export function fakeApi(state: {
   aids?: StudyAid[];
   video?: Video;
   cards?: Flashcard[];
+  ai?: Record<string, unknown>;
 }) {
   state.documents ??= [];
   state.aids ??= [];
@@ -328,6 +329,41 @@ export function fakeApi(state: {
     const me = state.me;
 
     if (p === "/api/v1/me" && method === "GET") return json(me);
+    if (p.startsWith("/api/v1/me/ai")) {
+      const talvra = {
+        source: "talvra",
+        provider: null,
+        model: null,
+        keyLast4: null,
+        status: null,
+        lastError: null,
+        defaults: { standard: "Claude Haiku 4.5", advanced: "Claude Opus 5.5", basic: "@cf/basic" },
+      };
+      if (p === "/api/v1/me/ai/models") {
+        if (!String(body?.apiKey).includes("good"))
+          return apiError(422, "validation_failed", "Anthropic rejected your API key.");
+        return json({
+          models: [
+            { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+            { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+          ],
+          suggested: "claude-opus-5-5",
+        });
+      }
+      if (method === "PUT") {
+        state.ai = {
+          ...talvra,
+          source: "own",
+          provider: body.provider,
+          model: body.model,
+          keyLast4: String(body.apiKey).slice(-4),
+          status: "active",
+        };
+        return json(state.ai);
+      }
+      if (method === "DELETE") state.ai = undefined;
+      return json(state.ai ?? talvra);
+    }
     if (p === "/api/v1/me" && method === "DELETE") {
       if (String(body?.confirm).toLowerCase() !== me.user.email) {
         return apiError(422, "validation_failed", "Type your email exactly to confirm.");

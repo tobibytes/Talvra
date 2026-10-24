@@ -1,12 +1,17 @@
+import type { StudyAidKind, StudyNotes } from "@talvra/contracts";
 import { createDb } from "@talvra/db";
-import { claudeGenerator, GenerationError } from "./ai/claude.js";
+import { GenerationError } from "./ai/claude.js";
 import { type AidMessage, generateAid } from "./ai/generate.js";
+import { aiEnvOf, pickAi } from "./ai/resolve.js";
 import {
   azureSpeaker,
   httpRenderer,
+  notesForScript,
   renderVideo,
+  VIDEO_SCRIPT_SYSTEM,
   VideoError,
   type VideoMessage,
+  VideoScript,
   workersAiSpeaker,
 } from "./ai/video.js";
 import { createApp } from "./app.js";
@@ -152,11 +157,23 @@ function videoDeps(env: Bindings) {
       : async () => {
           throw new VideoError(false, "Video isn't available right now.");
         };
+  const db = createDb(env.HYPERDRIVE.connectionString);
   return {
-    db: createDb(env.HYPERDRIVE.connectionString),
+    db,
     files: env.FILES,
     speak,
     render,
+    // A short narrated script written by the student's model (falls back to the notes).
+    script: async (userId: string, notes: StudyNotes) => {
+      const ai = await pickAi({ db, env: aiEnvOf(env) }, userId, "video_script");
+      const out = await ai.structured({
+        schema: VideoScript,
+        system: VIDEO_SCRIPT_SYSTEM,
+        user: notesForScript(notes),
+        maxTokens: 4000,
+      });
+      return out.data.slides;
+    },
     notify: (userId: string, video: Parameters<typeof publishVideoToHub>[2]) =>
       publishVideoToHub(env, userId, video),
   };
@@ -164,17 +181,12 @@ function videoDeps(env: Bindings) {
 
 async function consumeAid(batch: MessageBatch<AidMessage>, env: Bindings) {
   if (!env.HYPERDRIVE || !env.FILES) throw new Error("Study aids need HYPERDRIVE and FILES");
-  // Without a key, fail each aid cleanly instead of leaving it queued forever.
-  const generate = env.ANTHROPIC_API_KEY
-    ? claudeGenerator(env.ANTHROPIC_API_KEY)
-    : async () => {
-        console.error(JSON.stringify({ msg: "ANTHROPIC_API_KEY is not set" }));
-        throw new GenerationError(false, "Study tools are temporarily unavailable.");
-      };
+  const db = createDb(env.HYPERDRIVE.connectionString);
   const deps = {
-    db: createDb(env.HYPERDRIVE.connectionString),
+    db,
     files: env.FILES,
-    generate,
+    // The student's own key, Talvra's Claude within today's limits, or the basic model.
+    pick: (userId: string, kind: StudyAidKind) => pickAi({ db, env: aiEnvOf(env) }, userId, kind),
     notify: (userId: string, aid: Parameters<typeof publishAidToHub>[2]) =>
       publishAidToHub(env, userId, aid),
   };

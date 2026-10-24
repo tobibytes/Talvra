@@ -1,9 +1,11 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { ApiError, type AskEvent, AskInput, SearchQuery, SearchResult } from "@talvra/contracts";
 import { streamSSE } from "hono/streaming";
-import { type Answerer, claudeAnswerer, meterAsk, retrieve } from "../ai/ask.js";
+import { type Answerer, retrieve } from "../ai/ask.js";
+import { GenerationError } from "../ai/claude.js";
+import { aiEnvOf, fakeImpls, pickAi } from "../ai/resolve.js";
 import type { AppEnv, Bindings } from "../env.js";
-import { AppError, fromZod } from "../lib/errors.js";
+import { fromZod } from "../lib/errors.js";
 import { requireUser } from "../middleware/auth.js";
 import {
   type SearchDeps,
@@ -58,11 +60,16 @@ export function searchRoutes(opts: SearchOptions = {}) {
         const parsed = AskInput.safeParse(await c.req.json().catch(() => null));
         if (!parsed.success) throw fromZod(parsed.error);
         const input = parsed.data;
-        const answerer =
-          opts.answerer ??
-          (c.env.ANTHROPIC_API_KEY ? claudeAnswerer(c.env.ANTHROPIC_API_KEY) : null);
-        if (!answerer) throw new AppError("internal", "Ask isn't available right now.");
-        await meterAsk(c.var.db, userId);
+        // The student's own key, Talvra's Claude within today's limit, or the basic model.
+        const { answerer } = await pickAi(
+          {
+            db: c.var.db,
+            env: aiEnvOf(c.env),
+            impls: opts.answerer ? fakeImpls({ answerer: opts.answerer }) : undefined,
+          },
+          userId,
+          "ask",
+        );
         const deps = { db: c.var.db, ...(opts.search ?? searchDepsFor(c.env)) };
         const { sources, passages } = await retrieve(deps, userId, input);
 
@@ -80,7 +87,13 @@ export function searchRoutes(opts: SearchOptions = {}) {
             await send({ type: "done" });
           } catch (err) {
             console.error(JSON.stringify({ msg: "ask failed", error: String(err) }));
-            await send({ type: "error", message: "Couldn't finish the answer. Try again." });
+            await send({
+              type: "error",
+              message:
+                err instanceof GenerationError
+                  ? err.message
+                  : "Couldn't finish the answer. Try again.",
+            });
           }
         });
       })

@@ -357,6 +357,25 @@ deleted, and there is no backup tag (the owner didn't want one). Only git histor
   extracted on the spot (60s cap); data/media files and anything unreadable are listed with a
   reason. The brief shows which files it read. Same integrity rule: describe, never solve.
 
+- **AI models** (`ai/resolve.ts` picks per student and task):
+  1. The student's own key (Settings → AI model: Anthropic or OpenAI, checked against the
+     provider, model chosen from what the key can use, stored AES-GCM like Canvas tokens, last 4
+     shown). No daily limits. If it fails (rejected, no credit, model gone) the request falls back
+     to Talvra's AI and the key is flagged with the reason.
+  2. Talvra's key: Claude Haiku 4.5 for breakdowns, plans, flashcards, quizzes and video scripts;
+     Opus 5.5 for notes and Ask. Daily limits in `LIMITS` (counted in `usage_events`), plus the
+     study-aid input-token cap.
+  3. Then "basic" mode: Workers AI `@cf/openai/gpt-oss-120b` (override with `BASIC_MODEL`), same
+     limits again, then a 429 that suggests adding a key. Chosen after a live comparison with
+     Gemma 4 26B (slow, leaked citation JSON) and GLM 5.3 Flash (broke the flashcard schema).
+     It cites as 【n】; `normalizeCitations` rewrites to [n].
+  Haiku 4.5 rejects `effort` (checked with the Models API), so `claudeParams` only sends it, and
+  the refusal fallback beta, to models that take them. OpenAI and Workers AI share one
+  chat-completions adapter (`ai/compat.ts`, json_schema output validated with the same zod schemas).
+- **Shorter videos:** the model writes a 6-8 slide, ~450-700 word script (3-5 minutes) from the
+  notes (`VideoScript`, `tidyScript`); if that fails, a trimmed notes-based script is used.
+- Component gallery removed.
+
 ## Original session 11 plan (for reference)
 
 1. **Rate limits**: per-user + per-IP limits in the `UserHub` DO (or Workers Rate Limiting binding) on

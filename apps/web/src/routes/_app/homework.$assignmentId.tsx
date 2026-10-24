@@ -236,7 +236,7 @@ function BriefCard({ assignmentId }: { assignmentId: string }) {
           <h2>What's being asked</h2>
         </CardTitle>
         <CardDescription>
-          A plain-language read of the assignment and its attached files by Claude. Check it against
+          A plain-language read of the assignment and its attached files by AI. Check it against
           Canvas.
         </CardDescription>
       </CardHeader>

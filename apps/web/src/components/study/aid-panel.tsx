@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+import { modelLabel } from "@/lib/model-label";
 import { relativeTime } from "@/lib/time";
 
 const copy: Record<StudyAidKind, { noun: string; make: string; pitch: string; working: string }> = {
@@ -93,7 +94,7 @@ export function AidPanel({
         <Button onClick={() => generate.mutate(false)}>
           <Sparkles /> {failedNewer ? "Try again" : c.make}
         </Button>
-        <p className="text-xs text-muted-foreground">Made by Claude from this document only.</p>
+        <p className="text-xs text-muted-foreground">Made by AI from this document only.</p>
       </Card>
     );
   }
@@ -113,8 +114,8 @@ export function AidPanel({
       {children(current)}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground">
         <span>
-          Made by Claude {relativeTime(current.updatedAt)} · version {current.version}. Check
-          important points against the source.
+          Made by {modelLabel(current.model)} {relativeTime(current.updatedAt)} · version{" "}
+          {current.version}. Check important points against the source.
         </span>
         <Button variant="ghost" size="sm" onClick={() => setConfirm(true)} disabled={working}>
           <RefreshCw /> Make a new version
@@ -127,7 +128,7 @@ export function AidPanel({
             <DialogDescription>
               {kind === "flashcards"
                 ? "You'll get a fresh deck. Your current cards are retired, but your review history is kept."
-                : "Claude will write a fresh version. The current one stays until the new one is ready."}
+                : "A fresh version will be written. The current one stays until the new one is ready."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

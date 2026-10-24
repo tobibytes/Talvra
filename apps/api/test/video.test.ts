@@ -128,6 +128,36 @@ describe("video API", () => {
     expect(await vtt.text()).toContain("WEBVTT");
   });
 
+  it("narrates a short AI-written script, or the notes when that fails", async () => {
+    const ctx = await setup();
+    await ctx.addNotes();
+    const script = vi.fn(async () => [
+      { heading: "Arrays", bullets: [], narration: "Today: arrays." },
+      { heading: "Memory", bullets: ["Contiguous"], narration: "They sit side by side." },
+      { heading: "Recap", bullets: [], narration: "That's arrays." },
+    ]);
+    const deps = { ...ctx.deps, script };
+    const [v1] = await ctx.db
+      .insert(schema.videos)
+      .values({ userId: ctx.userId, documentId: ctx.docId })
+      .returning();
+    expect(await renderVideo(deps, { userId: ctx.userId, videoId: v1?.id ?? "" })).toBe("ready");
+    expect(ctx.speak.mock.calls.map((c) => c[0])).toEqual([
+      "Today: arrays.",
+      "They sit side by side.",
+      "That's arrays.",
+    ]);
+
+    ctx.speak.mockClear();
+    script.mockRejectedValueOnce(new Error("model down"));
+    const [v2] = await ctx.db
+      .insert(schema.videos)
+      .values({ userId: ctx.userId, documentId: ctx.docId })
+      .returning();
+    expect(await renderVideo(deps, { userId: ctx.userId, videoId: v2?.id ?? "" })).toBe("ready");
+    expect(ctx.speak.mock.calls[0]?.[0]).toBe("Arrays. How arrays store data.");
+  });
+
   it("retries a busy renderer, then fails with a clear message", async () => {
     const { db, deps, render, userId, docId, addNotes } = await setup();
     await addNotes();
